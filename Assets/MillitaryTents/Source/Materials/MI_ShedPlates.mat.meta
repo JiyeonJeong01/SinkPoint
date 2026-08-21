@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: abc00000000010505442069632292047
+NativeFormatImporter:
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296108
+  packageName: Military Tents
+  packageVersion: 1.0
+  assetPath: Assets/MillitaryTents/Source/Materials/MI_ShedPlates.mat
+  uploadId: 691914

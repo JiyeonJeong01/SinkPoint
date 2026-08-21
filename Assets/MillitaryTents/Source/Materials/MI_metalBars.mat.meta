@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: abc00000000000076050559087368973
+NativeFormatImporter:
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296108
+  packageName: Military Tents
+  packageVersion: 1.0
+  assetPath: Assets/MillitaryTents/Source/Materials/MI_metalBars.mat
+  uploadId: 691914

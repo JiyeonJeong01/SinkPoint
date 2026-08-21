@@ -1,0 +1,30 @@
+fileFormatVersion: 2
+guid: d3509989bc982d249857def6d823671e
+AudioImporter:
+  externalObjects: {}
+  serializedVersion: 6
+  defaultSettings:
+    loadType: 0
+    sampleRateSetting: 0
+    sampleRateOverride: 44100
+    compressionFormat: 1
+    quality: 1
+    conversionMode: 0
+  platformSettingOverrides: {}
+  forceToMono: 0
+  normalize: 1
+  preloadAudioData: 1
+  loadInBackground: 0
+  ambisonic: 0
+  3D: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 292342
+  packageName: Caves and Dungeons
+  packageVersion: 1.0
+  assetPath: Assets/Caves and Dungeons/Halls of the Damned/Halls_of_the_Damned_Loop
+    A.wav
+  uploadId: 682929

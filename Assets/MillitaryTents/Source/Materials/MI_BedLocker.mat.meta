@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: abc00000000009275100221552066603
+NativeFormatImporter:
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296108
+  packageName: Military Tents
+  packageVersion: 1.0
+  assetPath: Assets/MillitaryTents/Source/Materials/MI_BedLocker.mat
+  uploadId: 691914
