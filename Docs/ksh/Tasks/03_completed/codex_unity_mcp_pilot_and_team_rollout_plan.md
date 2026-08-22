@@ -2,7 +2,8 @@
 
 문서 작성일: 2026-08-23  
 작업 시작일: 2026-08-23  
-현재 상태: 진행 중
+작업 종료일: 2026-08-23  
+현재 상태: 완료
 
 ## 목표
 
@@ -72,9 +73,14 @@
 - `/GamePlay/Player`, `/GamePlay/GravitySystem`, `/GamePlay/ZoneController`는 현재 Transform만 가진 자리표시자 상태여서 플레이어 Rigidbody·중력·구역 제어 통합은 아직 시작 전으로 확인됐다.
 - Pipeline 도입 시 `System.Runtime.CompilerServices.Unsafe.dll` 중복 버전 경고가 있었지만 컴파일 오류는 없고 서버가 정상 시작됐다.
 - 설치·연결·안전 경계와 대표 실패 대응을 `Docs/ksh/Codex_Unity_Setup_Guide.md`에 정리했다.
+- 새 Codex 작업에서 MCP 도구 노출과 SinkPoint Editor 연결이 재현됐다.
+- 승인된 쓰기 시험으로 `Original_GamePlayScene`을 새 GUID의 `GamePlayScene_Player`로 복제하고 활성 씬으로 열었다.
+- 복사본은 원본과 동일한 SHA-256, 루트 7개, Hierarchy 470개였고 dirty false와 Console 오류 0건을 확인했다.
+- 쓰기 검증 과정에서 생긴 `ProjectSettings.asset`의 요청 밖 변경을 발견해 작업 전 값으로 복구했다.
 
-## 남은 검증
+## 최종 효과 판정
 
-- 현재 Codex 작업은 시작 시점의 MCP 목록을 유지하므로 새 Codex 작업에서 Unity 도구가 노출되는지 확인한다.
-- 새 작업에서 프로젝트 경로·열린 씬·Console을 읽은 뒤 Original 씬 diff가 없는지 한 번 더 확인한다.
-- 위 두 항목이 성공하면 작업 종료일과 최종 효과 판정을 기록하고 계획서를 `03_completed`로 이동한다.
+- 새 작업에서 연결 재현, 실제 씬 조회와 승인된 복제가 모두 성공해 팀 공유 기준을 충족했다.
+- Unity MCP는 씬·Hierarchy·Console 상태 조회뿐 아니라 AssetDatabase 기반 복제와 씬 활성화까지 담당 작업에 활용할 수 있다.
+- 쓰기 명령은 예상 밖 ProjectSettings 변경 가능성을 포함하므로 작업 전후 Git diff 검사가 필수다.
+- 설치·연결 절차와 읽기·쓰기 smoke test를 팀 가이드에 반영했으며, 추가 검증 항목은 없다.
