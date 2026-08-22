@@ -40,3 +40,12 @@
 - 사람이 직접 결정한 부분: 기획서는 `Docs/GameDesign_MVP.md`, 담당 문서는 `Docs/ksh`에서 관리하기로 결정했다.
 - 검증 결과: 새 파일 위치와 내부 링크가 유효하고, 문서에 이전 경로 참조가 남지 않았으며, Git 상태에는 기획서 이동과 `Docs/ksh`의 두 문서만 반영된 것을 확인했다.
 - GitHub 참조: 아직 커밋 또는 PR 없음.
+
+## 2026-08-23 — Unity Pipeline·Codex MCP 선행 도입
+
+- Codex 사용처: Unity CLI와 Pipeline의 실제 설치 상태를 진단하고, Pipeline 패키지 설치·개인 Codex MCP 등록·Editor 읽기 도구 검증·Original 씬 Collider 구조 집계를 수행했다.
+- 구현하거나 정리한 기능: 프로젝트에 `com.unity.pipeline` `0.5.0-exp.1`을 추가하고 개인 Codex 설정에 SinkPoint용 Unity MCP를 등록했다. 검증된 설치·연결·안전 경계·문제 해결 절차를 `Docs/ksh/Codex_Unity_Setup_Guide.md`에 정리했다.
+- 해결한 문제: 샌드박스가 Git LFS 임시 객체와 localhost Pipeline 서버 접근을 막아 상태가 실패하는 문제를 실제 패키지나 서버 오류와 분리했다. manifest 변경 후 Editor가 종료돼 패키지가 미해석된 상태도 Editor 재실행으로 해결했다.
+- 사람이 직접 결정한 부분: 첫 공유 문서는 `Docs/ksh` 내부에 유지하고, 연결과 안전한 실작업 1건을 공유 기준으로 삼았다. Original 씬은 읽기 전용으로 유지하고 Unity CLI skill, Build Settings, CI와 MCP 쓰기 시험은 이번 범위에서 제외했다.
+- 검증 결과: Unity `6000.3.20f1`, CLI `1.0.0-beta.5`, Pipeline `0.5.0-exp.1`에서 Editor `ready`, Pipeline 서버 reachable, 142개 도구 노출을 확인했다. Original 씬은 dirty가 아니었고 Hierarchy 470개 오브젝트를 조회한 뒤 씬·Prefab·ProjectSettings diff가 없었다. 새 Codex 작업의 MCP 도구 노출은 재시작 후 확인이 남아 있다.
+- GitHub 참조: 아직 커밋 또는 PR 없음.
