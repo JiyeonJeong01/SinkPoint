@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 372b760736dc968418f256cf458dcc45
+timeCreated: 1552183328
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 141648
+  packageName: Toon Soldiers - Armies
+  packageVersion: 1.0
+  assetPath: Assets/Toon_Soldiers/ToonSoldiers_Armies/sample_scene/sample_animator_aim.controller
+  uploadId: 299107
