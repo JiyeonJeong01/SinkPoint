@@ -45,11 +45,22 @@ public sealed class MonsterTargetSensor : MonoBehaviour
             return;
         }
 
-        Transform navTarget = transform.Find("Nav Target");
+        Transform navTarget = FindNavTarget();
         if (navTarget != null)
         {
             sensingOrigin = navTarget;
         }
+    }
+
+    private Transform FindNavTarget()
+    {
+        Transform navTarget = transform.Find("Nav Target");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        return transform.Find("NavTarget");
     }
 
     private void Update()
