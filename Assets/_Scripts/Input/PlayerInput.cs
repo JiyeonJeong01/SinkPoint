@@ -1,10 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// MVP용 입력 입구입니다.
+/// 플레이어 입력의 단일 입구입니다.
 /// 다른 플레이어 스크립트는 Input.GetKey/GetAxis를 직접 호출하지 말고 이 클래스의 값을 읽습니다.
 /// </summary>
-public class MvpPlayerInput : MonoBehaviour
+public class PlayerInput : MonoBehaviour
 {
     [Header("Input Locks")]
     [Tooltip("WASD, Jump, Shift처럼 플레이어 몸을 움직이는 입력을 허용합니다.")]
@@ -65,7 +65,8 @@ public class MvpPlayerInput : MonoBehaviour
     public Vector2 Move { get; private set; }
     public Vector2 Look { get; private set; }
     public float CameraZoomDelta { get; private set; }
-    public bool SprintOrCrouchHeld { get; private set; }
+    public bool SprintHeld { get; private set; }
+    public bool CrouchHeld { get; private set; }
     public bool ReloadPressed { get; private set; }
     public bool InteractPressed { get; private set; }
     public bool FirePressed { get; private set; }
@@ -166,14 +167,15 @@ public class MvpPlayerInput : MonoBehaviour
             jumpPressedAtRealtime = Time.realtimeSinceStartupAsDouble;
         }
 
-        // Shift 자체는 입력만 전달합니다. 대쉬/웅크리기 해석은 PlayerController가 상태에 따라 결정합니다.
-        SprintOrCrouchHeld = Input.GetKey(KeyCode.LeftShift);
+        SprintHeld = Input.GetKey(KeyCode.LeftShift);
+        CrouchHeld = Input.GetKey(KeyCode.LeftControl);
     }
 
     private void ClearMovementInput()
     {
         Move = Vector2.zero;
-        SprintOrCrouchHeld = false;
+        SprintHeld = false;
+        CrouchHeld = false;
         jumpPressedPending = false;
         jumpPressedAtRealtime = 0d;
     }

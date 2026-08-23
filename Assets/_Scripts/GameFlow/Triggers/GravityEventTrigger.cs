@@ -43,7 +43,7 @@ public class GravityEventTrigger : MonoBehaviour
     [SerializeField] private string objectiveText;
 
     [Header("Player Detection")]
-    [Tooltip("플레이어로 인정할 태그입니다. Player 태그가 없거나 자식 Collider 구조라면 MvpPlayerInput 부모도 함께 검사합니다.")]
+    [Tooltip("플레이어로 인정할 태그입니다. Player 태그가 없거나 자식 Collider 구조라면 PlayerInput 부모도 함께 검사합니다.")]
     [SerializeField] private string playerTag = "Player";
 
     [Header("Debug")]
@@ -169,6 +169,6 @@ public class GravityEventTrigger : MonoBehaviour
         }
 
         // 플레이어 Rigidbody의 자식 콜라이더가 들어오는 경우를 대비해 부모 쪽 입력 컴포넌트도 확인합니다.
-        return other.GetComponentInParent<MvpPlayerInput>() != null;
+        return other.GetComponentInParent<PlayerInput>() != null;
     }
 }

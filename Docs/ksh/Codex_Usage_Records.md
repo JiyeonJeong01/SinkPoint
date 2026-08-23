@@ -136,3 +136,19 @@
 - 해결한 문제: 고주사율 렌더링에서 `GetKeyDown` 결과가 50 Hz 물리 프레임 전에 사라지는 문제와, Airborne에서 착지한 같은 물리 프레임의 Space가 이전 State 조건 때문에 무시되는 문제를 분리해 해결했다. 점프 요청은 성공, 만료, 이동 입력 차단 또는 무중력 진입 때 제거해 오래된 입력이 뒤늦게 실행되지 않도록 했다.
 - 사람이 직접 결정한 부분: 공중 입력은 더블 점프나 코요테 타임으로 해석하지 않고, 착지 전 `0.10초` 안에 입력된 경우에만 착지 버퍼로 인정하기로 했다. 점프 속도와 Ground Probe, Animator, Prefab과 Scene은 이번 변경에서 유지했다.
 - 검증 결과: `Assembly-CSharp.csproj` 빌드와 Unity `6000.3.20f1` 재컴파일은 오류 0건으로 성공했으며 기존 애셋 경고 17건만 남았다. Play Mode 초기화 후 기준 커서 이후 신규 런타임 오류가 없었고 정상 종료했다. 실제 Space 반복 입력, 착지 전후 `0.10초` 경계와 공중 연타 체감은 키보드 입력을 자동 주입하지 못해 사용자 Play Mode 확인이 남아 있다.
+
+## 2026-08-23 — 플레이어 조준·사격·달리기·웅크리기 구현
+
+- Codex 사용처: 플레이어 기본 액션 확장 계획에 따라 입력·Rigidbody 이동 stance·CapsuleCollider·Animator·카메라 조준과 Raycast 사격을 구현하고 Prefab·Player 씬 참조 및 Play Mode를 검증했다.
+- 구현하거나 정리한 기능: Left Shift 전진 Sprint와 Left Ctrl 홀드 Crouch를 분리하고 속도 `3/5/1.5`, Crouch Capsule 높이 `65%`, 기립 공간 SphereCast를 연결했다. Machinegun Sprint·Crouch 방향 이동·Standing/Crouch 연사 애니메이션, Upper Body Mask, 카메라 pitch 기반 Spine 조준, M4 Muzzle, 중앙 4x4 임시 점과 카메라 중심→총구 2단계 Raycast를 추가했다.
+- 해결한 문제: standing Capsule 전체 Overlap이 바닥을 천장으로 오인하던 문제를 현재 Crouch 상단에서 standing 상단까지만 검사하도록 수정했다. 카메라가 찾은 표면점과 총구 Ray 종점이 같아 적중이 누락되는 경우는 사거리 안에서 5cm 검사 여유를 추가했다. Spine·Chest·UpperChest 분배 보정이 자식 world rotation으로 부모 보정을 상쇄한 문제는 Spine 단일 pitch 보정으로 단순화했다.
+- 사람이 직접 결정한 부분: Shift는 전진할 때만 Sprint, Ctrl은 누르는 동안 Crouch, 좌클릭은 `0.1초` 간격 연사로 확정했다. 사격 책임은 애니메이션과 판정까지만 두고 적 체력·피해 API, 탄약·재장전·반동·VFX·사운드와 정식 UI는 제외했다. 마스터 플랜과 게임 기획서의 오래된 Shift 단일 해석과 입력 경로도 현재 결정에 맞췄다.
+- 검증 결과: 자동 Play Mode 입력으로 Sprint 속도 `5`와 Animator 상태, Crouch 속도 `1.5`·Capsule 높이 `0.585`·천장 차단 후 복귀를 확인했다. 약 6초 연사에서 56회 판정, 테스트 Collider 적중, 총구 앞 장애물 우선, Upper Body 발사 상태와 위·아래 조준 시 Muzzle/카메라 Ray 내적 `0.9998` 이상을 확인했다. Unity 재컴파일과 `Assembly-CSharp.csproj` 빌드는 오류 0건이며 기존 애셋 경고 17건만 남았고, 최종 Play Mode에는 신규 런타임 오류가 없었다. `Original_GamePlayScene`, Toon Soldiers 원본과 ProjectSettings는 변경하지 않았으며 실제 키보드·마우스 체감 튜닝과 WebGL 빌드는 이번 범위에서 실행하지 않았다.
+
+## 2026-08-23 — 플레이어·지네 히트 및 피해 상호작용 구현
+
+- Codex 사용처: 현재 이름으로 정리된 플레이어 코드와 지네의 실제 이동 기준인 `Nav Target`을 다시 대조하고, Hitscan·Trigger·체력 사이의 첫 전투 상호작용을 구현하고 검증하는 데 사용했다.
+- 구현하거나 정리한 기능: `PlayerHealth`에 최대/현재 체력, 사망 상태, 피해·초기화 API와 이벤트를 추가했다. `PlayerCombatController`는 일반 Collider를 장애물로 유지하면서 살아 있는 `MonsterHealth`를 가진 Trigger만 사격 후보로 받아 총구 Ray 최종 적중에 피해 `1`을 전달한다. 지네의 `Nav Target`에는 월드 반경 약 `0.3`의 Sphere Trigger와 `MonsterDamageOnContact`를 배치해 플레이어에게 피해 `1`을 1초 쿨타임으로 전달한다. 새 몬스터가 같은 계약을 적용하고 양쪽 담당자가 공동 테스트할 수 있도록 `Docs/Player_Monster_Damage_Integration_Guide.md`에 피격·접촉·사망 구성과 검증 체크리스트를 정리했다.
+- 해결한 문제: 환경 Trigger가 사격을 막지 않으면서 몬스터 Trigger는 맞출 수 있도록 카메라·총구 Ray의 후보 규칙을 통일했다. 태그·씬 전역 검색 기반 접촉 판정을 접촉 Collider의 부모 `PlayerHealth` 탐색으로 바꾸고, 죽은 플레이어나 몬스터의 추가 피해를 차단했다. 분리된 Player와 CameraRig Prefab 사이의 `aimCamera` 참조는 `MonsterTest` 씬 override로 연결했다.
+- 사람이 직접 결정한 부분: 기본 체력 `3`, 사격·접촉 피해 `1`, 접촉 쿨타임 `1초`, `Nav Target` SphereCollider 로컬 반경 `3`을 MVP 초기값으로 사용했다. HP UI, 피격·사망 연출, 넉백, 무적 시간, 리스폰과 몸통 부위별 Hitbox는 후속 작업으로 남겼다.
+- 검증 결과: Unity `6000.3.20f1` 재컴파일과 `Assembly-CSharp.csproj` 빌드는 오류 0건으로 성공했으며 빌드에는 기존 애셋·몬스터 디버그 필드 경고 19건만 남았다. `MonsterTest` Play Mode에서 지네가 RouteMove→Chase→Attack으로 전환하고 Trigger Enter 직후 1회, Stay 중 약 1초 간격으로 두 번 더 접촉 피해를 준 뒤 플레이어 사망 상태에서 추가 피해가 멈추는 것을 확인했다. Player Prefab의 `PlayerHealth`, `Nav Target`의 Trigger·접촉 컴포넌트, 루트 접촉 컴포넌트 제거와 `aimCamera` 참조를 확인했다. 사용자가 Inspector의 실시간 체력으로 플레이어 사격 시 몬스터 체력 감소와 몬스터 접촉 시 플레이어 체력 감소를 모두 확인했고, 몬스터가 정해진 횟수만큼 피격된 뒤 이동을 멈추는 사망 동작도 확인해 기본 데미지 상호작용을 완료로 결정했다. 기본 Inspector에는 비직렬화 런타임 필드가 보이지 않았으므로 두 Health 컴포넌트의 `currentHealth`와 `dead`를 Play Mode 확인용 직렬화 필드로 보완했다. `Original_GamePlayScene`, Build Settings, `ProjectSettings`와 외부 에셋 원본은 변경하지 않았다.

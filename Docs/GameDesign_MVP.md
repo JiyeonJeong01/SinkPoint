@@ -161,7 +161,8 @@ Zone 06 - Source
 ```text
 WASD: 이동
 Space: 점프
-Left Shift: 평상시 대쉬, 좁은 구간에서는 웅크리기
+Left Shift: 전진 달리기
+Left Ctrl: 웅크리기
 R: 재장전
 I: 상호작용
 마우스 이동: 카메라 시야 회전
@@ -172,13 +173,13 @@ I: 상호작용
 현재 입력 래퍼:
 
 ```text
-Assets/_Project/Scripts/Input/MvpPlayerInput.cs
+Assets/_Scripts/Input/PlayerInput.cs
 ```
 
 구현 규칙:
-- 플레이어 관련 스크립트는 `MvpPlayerInput`에서 입력값을 읽습니다.
+- 플레이어 관련 스크립트는 `PlayerInput`에서 입력값을 읽습니다.
 - 여러 스크립트에서 직접 `Input.GetKey`, `Input.GetAxis`, 마우스 입력을 호출하지 않습니다.
-- 입력 차단은 `MvpPlayerInput`의 플래그를 통해 1차 처리합니다.
+- 입력 차단은 `PlayerInput`의 플래그를 통해 1차 처리합니다.
 
 입력 차단 예시:
 - 일반 플레이: 이동, 시야, 전투, 그래플, 상호작용 모두 허용
@@ -192,7 +193,8 @@ Assets/_Project/Scripts/Input/MvpPlayerInput.cs
 - 플레이어 이동
 - 플레이어 카메라
 - 점프
-- Shift 입력의 대쉬 / 웅크리기 해석
+- Left Shift 전진 달리기
+- Left Ctrl 웅크리기
 - 중력 방향 변경
 - 무중력 이동
 - 그래플링 훅 이동
@@ -200,14 +202,14 @@ Assets/_Project/Scripts/Input/MvpPlayerInput.cs
 권장 클래스 분리:
 
 ```text
-MvpPlayerInput
+PlayerInput
 - 입력 읽기
 - 입력 차단 처리
 
 PlayerController
 - 이동
 - 점프
-- 대쉬
+- 전진 달리기
 - 웅크리기
 - 현재 중력 기준으로 플레이어 정렬
 
@@ -233,8 +235,8 @@ GrapplingHook
 ```
 
 중요:
-- 입력 클래스는 Shift가 눌렸다는 사실만 알려줍니다.
-- Shift를 대쉬로 쓸지 웅크리기로 쓸지는 `PlayerController`가 현재 상태에 따라 판단합니다.
+- 입력 클래스는 Shift와 Ctrl의 눌림 상태를 각각 전달합니다.
+- `PlayerController`는 Grounded·Crouch 상태에 따라 전진 달리기와 웅크리기 가능 여부를 판단합니다.
 
 ## 8. 전투 MVP
 
