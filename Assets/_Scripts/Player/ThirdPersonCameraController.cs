@@ -9,6 +9,7 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
     [SerializeField] private Transform target;
     [SerializeField] private Transform cameraPivot;
     [SerializeField] private Transform cameraTransform;
+    [SerializeField] private GravityState gravityState;
 
     [Header("Look")]
     [SerializeField, Min(0f)] private float mouseSensitivity = 2f;
@@ -34,7 +35,6 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
 
     private readonly RaycastHit[] collisionHits = new RaycastHit[16];
 
-    private float yaw;
     private float pitch;
     private float userDistance;
     private float displayedDistance;
@@ -42,6 +42,8 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
     private bool didWarnAboutHitBuffer;
     private Tween distanceTween;
     private Camera gameplayCamera;
+    private Vector3 gravityUp;
+    private Vector3 orbitForward;
 
     internal float PitchDegrees => pitch;
 
@@ -49,9 +51,11 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
     {
         cameraPivot ??= transform.Find("CameraPivot");
         cameraTransform ??= cameraPivot != null ? cameraPivot.Find("Main Camera") : null;
+        gravityState ??= FindFirstObjectByType<GravityState>();
         gameplayCamera = cameraTransform != null ? cameraTransform.GetComponent<Camera>() : null;
-        yaw = transform.eulerAngles.y;
         pitch = cameraPivot != null ? NormalizeAngle(cameraPivot.localEulerAngles.x) : 0f;
+        gravityUp = gravityState != null ? -gravityState.Direction : Vector3.up;
+        orbitForward = GetPlanarForward(transform.forward, gravityUp);
 
         float lowerDistance = Mathf.Min(minDistance, maxDistance);
         float upperDistance = Mathf.Max(minDistance, maxDistance);
@@ -62,19 +66,29 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
 
     private void Start()
     {
-        if (input != null && target != null && cameraPivot != null && cameraTransform != null && gameplayCamera != null)
+        if (input != null
+            && target != null
+            && cameraPivot != null
+            && cameraTransform != null
+            && gravityState != null
+            && gameplayCamera != null)
         {
             return;
         }
 
         Debug.LogError(
-            $"{nameof(ThirdPersonCameraController)} on '{name}' requires Input, Target, Camera Pivot, Camera Transform, and Camera references.",
+            $"{nameof(ThirdPersonCameraController)} on '{name}' requires Input, Target, Camera Pivot, Camera Transform, Gravity State, and Camera references.",
             this);
         enabled = false;
     }
 
     private void OnEnable()
     {
+        if (gravityState != null)
+        {
+            gravityState.Changed += OnGravityChanged;
+        }
+
         if (!Application.isPlaying)
         {
             return;
@@ -86,6 +100,11 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
 
     private void OnDisable()
     {
+        if (gravityState != null)
+        {
+            gravityState.Changed -= OnGravityChanged;
+        }
+
         KillDistanceTween();
 
         if (!Application.isPlaying)
@@ -99,12 +118,19 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
 
     private void LateUpdate()
     {
-        yaw += input.Look.x * mouseSensitivity;
+        Vector3 currentUp = -gravityState.Direction;
+        if (Vector3.Dot(gravityUp, currentUp) < 0.9999f)
+        {
+            RebuildOrbitBasis(currentUp);
+        }
+
+        orbitForward = Quaternion.AngleAxis(input.Look.x * mouseSensitivity, gravityUp) * orbitForward;
+        orbitForward = GetPlanarForward(orbitForward, gravityUp);
         pitch = Mathf.Clamp(pitch - input.Look.y * mouseSensitivity, minPitch, maxPitch);
 
         transform.SetPositionAndRotation(
             target.position,
-            Quaternion.AngleAxis(yaw, Vector3.up));
+            Quaternion.LookRotation(orbitForward, gravityUp));
         cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
 
         bool zoomChanged = UpdateUserDistance();
@@ -247,6 +273,37 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
     private static float NormalizeAngle(float angle)
     {
         return angle > 180f ? angle - 360f : angle;
+    }
+
+    private void OnGravityChanged()
+    {
+        RebuildOrbitBasis(-gravityState.Direction);
+    }
+
+    private void RebuildOrbitBasis(Vector3 newUp)
+    {
+        gravityUp = newUp.normalized;
+        Vector3 preservedForward = cameraTransform != null ? cameraTransform.forward : transform.forward;
+        orbitForward = GetPlanarForward(preservedForward, gravityUp);
+    }
+
+    private Vector3 GetPlanarForward(Vector3 preferredForward, Vector3 up)
+    {
+        Vector3 planarForward = Vector3.ProjectOnPlane(preferredForward, up);
+        if (planarForward.sqrMagnitude < Mathf.Epsilon && target != null)
+        {
+            planarForward = Vector3.ProjectOnPlane(target.forward, up);
+        }
+
+        if (planarForward.sqrMagnitude < Mathf.Epsilon)
+        {
+            Vector3 fallbackAxis = Mathf.Abs(Vector3.Dot(up, Vector3.forward)) < 0.99f
+                ? Vector3.forward
+                : Vector3.right;
+            planarForward = Vector3.ProjectOnPlane(fallbackAxis, up);
+        }
+
+        return planarForward.normalized;
     }
 
     internal Ray CreateCenterRay()
