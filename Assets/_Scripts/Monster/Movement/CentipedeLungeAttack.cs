@@ -63,6 +63,11 @@ public sealed class CentipedeLungeAttack : MonoBehaviour
         ResolveSceneReferences();
     }
 
+    private void Reset()
+    {
+        ResolveSceneReferences();
+    }
+
     private void Update()
     {
         if (!CanStartAttack())
@@ -94,8 +99,19 @@ public sealed class CentipedeLungeAttack : MonoBehaviour
 
         if (gravityState == null)
         {
-            gravityState = FindFirstObjectByType<MvpGravityState>();
+            gravityState = FindGravityState();
         }
+    }
+
+    private MvpGravityState FindGravityState()
+    {
+        GameObject gravitySystem = GameObject.Find("GravitySystem");
+        if (gravitySystem != null && gravitySystem.TryGetComponent(out MvpGravityState namedGravityState))
+        {
+            return namedGravityState;
+        }
+
+        return FindFirstObjectByType<MvpGravityState>();
     }
 
     /// <summary>

@@ -7,6 +7,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class MonsterTargetSensor : MonoBehaviour
 {
+    [SerializeField, Tooltip("감지 거리 계산 기준점입니다. 비워두면 자식 Nav Target을 찾고, 없으면 이 오브젝트 기준으로 봅니다.")]
+    private Transform sensingOrigin;
     [SerializeField] private Transform explicitTarget;
     [SerializeField, Min(0f)] private float detectionRadius = 12f;
     [SerializeField, Min(0f)] private float loseRadius = 16f;
@@ -16,10 +18,38 @@ public sealed class MonsterTargetSensor : MonoBehaviour
 
     public Transform CurrentTarget => currentTarget;
     public bool HasTarget => currentTarget != null;
+    private Transform SensingOrigin => sensingOrigin != null ? sensingOrigin : transform;
+
+    private void Awake()
+    {
+        ResolveSceneReferences();
+    }
+
+    private void Reset()
+    {
+        ResolveSceneReferences();
+    }
 
     private void Start()
     {
         ResolveInitialTarget();
+    }
+
+    /// <summary>
+    /// Inspector 참조가 비어 있으면 지네처럼 실제 이동 기준이 되는 Nav Target을 감지 기준으로 사용합니다.
+    /// </summary>
+    private void ResolveSceneReferences()
+    {
+        if (sensingOrigin != null)
+        {
+            return;
+        }
+
+        Transform navTarget = transform.Find("Nav Target");
+        if (navTarget != null)
+        {
+            sensingOrigin = navTarget;
+        }
     }
 
     private void Update()
@@ -59,7 +89,7 @@ public sealed class MonsterTargetSensor : MonoBehaviour
         if (currentTarget != null)
         {
             float sqrLoseRadius = loseRadius * loseRadius;
-            if ((currentTarget.position - transform.position).sqrMagnitude <= sqrLoseRadius)
+            if ((currentTarget.position - SensingOrigin.position).sqrMagnitude <= sqrLoseRadius)
             {
                 return;
             }
@@ -75,7 +105,7 @@ public sealed class MonsterTargetSensor : MonoBehaviour
         }
 
         float sqrDetectionRadius = detectionRadius * detectionRadius;
-        if ((player.position - transform.position).sqrMagnitude <= sqrDetectionRadius)
+        if ((player.position - SensingOrigin.position).sqrMagnitude <= sqrDetectionRadius)
         {
             currentTarget = player;
         }

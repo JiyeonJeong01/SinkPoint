@@ -23,6 +23,11 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
         ResolveSceneReferences();
     }
 
+    protected virtual void Reset()
+    {
+        ResolveSceneReferences();
+    }
+
     /// <summary>
     /// Inspector 참조가 비어 있으면 같은 몬스터 계층과 씬의 중력 상태에서 필요한 값을 찾습니다.
     /// 자식 이름이 특수한 NavTarget인 경우는 각 구체 Mover가 추가로 처리합니다.
@@ -37,8 +42,19 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
 
         if (gravityState == null)
         {
-            gravityState = FindFirstObjectByType<MvpGravityState>();
+            gravityState = FindGravityState();
         }
+    }
+
+    protected static MvpGravityState FindGravityState()
+    {
+        GameObject gravitySystem = GameObject.Find("GravitySystem");
+        if (gravitySystem != null && gravitySystem.TryGetComponent(out MvpGravityState namedGravityState))
+        {
+            return namedGravityState;
+        }
+
+        return FindFirstObjectByType<MvpGravityState>();
     }
 
     /// <summary>

@@ -42,6 +42,11 @@ public sealed class MonsterStateMachine : MonoBehaviour
         }
     }
 
+    private void Reset()
+    {
+        ResolveSceneReferences();
+    }
+
     /// <summary>
     /// Inspector 배치가 조금 달라도 같은 몬스터 계층 안에서 필요한 컴포넌트를 자동으로 찾습니다.
     /// </summary>
