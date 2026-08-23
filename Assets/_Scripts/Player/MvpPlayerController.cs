@@ -1,5 +1,7 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
+[DefaultExecutionOrder(100)]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider), typeof(MvpPlayerInput))]
 public sealed class MvpPlayerController : MonoBehaviour
@@ -8,10 +10,16 @@ public sealed class MvpPlayerController : MonoBehaviour
     [SerializeField] private MvpPlayerInput input;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private MvpGravityState gravityState;
+    [SerializeField] private Transform visualRoot;
 
     [Header("Movement")]
     [SerializeField, Min(0f)] private float moveSpeed = 3f;
-    [SerializeField, Min(0f)] private float rotationSpeed = 720f;
+    [SerializeField, Min(0f)] private float jumpSpeed = 5f;
+    [SerializeField, Min(0f)] private float jumpInputBufferDuration = 0.1f;
+
+    [Header("Rotation")]
+    [FormerlySerializedAs("rotationSpeed")]
+    [SerializeField, Min(0f)] private float gravityAlignmentSpeed = 720f;
 
     [Header("Grounding")]
     [SerializeField, Range(0f, 89f)] private float maxGroundAngle = 50f;
@@ -21,6 +29,13 @@ public sealed class MvpPlayerController : MonoBehaviour
 
     private Rigidbody body;
     private CapsuleCollider capsule;
+    private MvpPlayerStateMachine stateMachine;
+    private bool hasBufferedJump;
+    private double jumpRequestExpiresAtRealtime;
+
+    internal MvpPlayerMotionStateId MotionState => stateMachine.CurrentId;
+    internal Vector3 GravityUp => -gravityState.Direction;
+    internal float MoveSpeed => moveSpeed;
 
     private void Awake()
     {
@@ -29,22 +44,45 @@ public sealed class MvpPlayerController : MonoBehaviour
         input ??= GetComponent<MvpPlayerInput>();
         ResolveSceneReferences();
         body.useGravity = false;
+        stateMachine = new MvpPlayerStateMachine();
     }
 
     private void Start()
     {
-        if (input != null && cameraTransform != null && gravityState != null)
+        if (input != null && cameraTransform != null && gravityState != null && visualRoot != null)
         {
             return;
         }
 
         Debug.LogError(
-            $"{nameof(MvpPlayerController)} on '{name}' requires Input, Camera Transform, and Gravity State references.",
+            $"{nameof(MvpPlayerController)} on '{name}' requires Input, Camera Transform, Gravity State, and Visual Root references.",
             this);
         enabled = false;
     }
+    private void OnDisable()
+    {
+        ClearBufferedJump();
+    }
 
-    /// <summary>
+    private void LateUpdate()
+    {
+        Vector3 up = -gravityState.Direction;
+        Vector3 facingForward = Vector3.ProjectOnPlane(cameraTransform.forward, up);
+        if (facingForward.sqrMagnitude < Mathf.Epsilon)
+        {
+            facingForward = Vector3.ProjectOnPlane(visualRoot.forward, up);
+        }
+
+        if (facingForward.sqrMagnitude < Mathf.Epsilon)
+        {
+            return;
+        }
+
+        Quaternion targetRotation = Quaternion.LookRotation(facingForward.normalized, up);
+        visualRoot.rotation = targetRotation;
+    }
+
+        /// <summary>
     /// 테스트 씬에서 플레이어 프리팹만 배치해도 실행될 수 있도록 비어 있는 씬 참조를 자동으로 찾습니다.
     /// Inspector에 이미 연결된 값은 덮어쓰지 않습니다.
     /// </summary>
@@ -89,30 +127,108 @@ public sealed class MvpPlayerController : MonoBehaviour
         Vector3 cameraRight = Vector3.Cross(up, cameraForward).normalized;
         Vector2 moveInput = Vector2.ClampMagnitude(input.Move, 1f);
         Vector3 moveDirection = cameraForward * moveInput.y + cameraRight * moveInput.x;
+        bool hasGravity = gravityState.Strength > 0f;
+        bool jumpRequested = UpdateBufferedJump(hasGravity);
 
-        if (isGrounded && moveDirection.sqrMagnitude > Mathf.Epsilon)
+        MvpPlayerFixedContext context = new MvpPlayerFixedContext(
+            gravityDirection,
+            up,
+            groundNormal,
+            moveDirection,
+            hasGravity,
+            isGrounded,
+            jumpRequested,
+            Vector3.Dot(body.linearVelocity, up));
+
+        bool jumpExecuted = stateMachine.FixedTick(this, context);
+        if (jumpExecuted)
         {
-            moveDirection = Vector3.ProjectOnPlane(moveDirection, groundNormal).normalized;
+            ClearBufferedJump();
         }
 
-        Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, gravityDirection);
-        if (isGrounded && Vector3.Dot(gravityVelocity, gravityDirection) > 0f)
+        AlignWithGravity(up);
+    }
+
+    private bool UpdateBufferedJump(bool hasGravity)
+    {
+        bool receivedJump = input.TryConsumeJumpPressed(out double pressedAtRealtime);
+        if (!input.AllowMovement || !hasGravity)
+        {
+            ClearBufferedJump();
+            return false;
+        }
+
+        if (receivedJump)
+        {
+            hasBufferedJump = true;
+            jumpRequestExpiresAtRealtime = pressedAtRealtime + jumpInputBufferDuration;
+        }
+
+        if (!hasBufferedJump)
+        {
+            return false;
+        }
+
+        if (Time.realtimeSinceStartupAsDouble <= jumpRequestExpiresAtRealtime)
+        {
+            return true;
+        }
+
+        ClearBufferedJump();
+        return false;
+    }
+
+    private void ClearBufferedJump()
+    {
+        hasBufferedJump = false;
+        jumpRequestExpiresAtRealtime = 0d;
+    }
+
+    internal void ApplyGroundedMotion(MvpPlayerFixedContext context)
+    {
+        Vector3 moveDirection = context.MoveDirection;
+        if (moveDirection.sqrMagnitude > Mathf.Epsilon)
+        {
+            moveDirection = Vector3.ProjectOnPlane(moveDirection, context.GroundNormal).normalized;
+        }
+
+        Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, context.GravityDirection);
+        if (Vector3.Dot(gravityVelocity, context.GravityDirection) > 0f)
         {
             gravityVelocity = Vector3.zero;
         }
 
         body.linearVelocity = moveDirection * moveSpeed + gravityVelocity;
+        body.AddForce(-context.GroundNormal * gravityState.Strength, ForceMode.Acceleration);
+    }
 
-        Vector3 appliedGravity = isGrounded
-            ? -groundNormal * gravityState.Strength
-            : gravityState.Gravity;
-        body.AddForce(appliedGravity, ForceMode.Acceleration);
+    internal void ApplyAirborneMotion(MvpPlayerFixedContext context)
+    {
+        Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, context.GravityDirection);
+        body.linearVelocity = context.MoveDirection * moveSpeed + gravityVelocity;
+        body.AddForce(gravityState.Gravity, ForceMode.Acceleration);
+    }
 
-        Quaternion targetRotation = Quaternion.LookRotation(cameraForward, up);
+    internal void ApplyJump(MvpPlayerFixedContext context)
+    {
+        Vector3 moveDirection = context.MoveDirection;
+        if (moveDirection.sqrMagnitude > Mathf.Epsilon)
+        {
+            moveDirection = Vector3.ProjectOnPlane(moveDirection, context.GroundNormal).normalized;
+        }
+
+        body.linearVelocity = moveDirection * moveSpeed + context.Up * jumpSpeed;
+        body.AddForce(gravityState.Gravity, ForceMode.Acceleration);
+    }
+
+    private void AlignWithGravity(Vector3 up)
+    {
+        Vector3 currentUp = body.rotation * Vector3.up;
+        Quaternion targetRotation = Quaternion.FromToRotation(currentUp, up) * body.rotation;
         Quaternion nextRotation = Quaternion.RotateTowards(
             body.rotation,
             targetRotation,
-            rotationSpeed * Time.fixedDeltaTime);
+            gravityAlignmentSpeed * Time.fixedDeltaTime);
         body.MoveRotation(nextRotation);
     }
 
