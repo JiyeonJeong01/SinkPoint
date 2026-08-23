@@ -31,13 +31,14 @@ namespace DistantLands
 
 
             float i = 0;
+            float scale = GetReferenceScale();
 
 
             foreach (Transform j in effectors)
                 i += j.position.y;
 
             i /= effectors.Length;
-            i += offset + (Mathf.Sin(Time.time * 90 / sinWidth) * sinDepth);
+            i += offset * scale + (Mathf.Sin(Time.time * 90 / sinWidth) * sinDepth * scale);
 
 
             transform.position = new Vector3(transform.position.x, Mathf.Lerp(transform.position.y, i, Time.deltaTime), transform.position.z);
@@ -46,6 +47,15 @@ namespace DistantLands
 
 
 
+        }
+
+        private float GetReferenceScale()
+        {
+            Vector3 scale = transform.lossyScale;
+            float largestAxis = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z));
+
+            // Body offsets are authored for scale 1 procedural prefabs.
+            return Mathf.Max(largestAxis, 0.0001f);
         }
     }
 }
