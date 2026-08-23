@@ -27,6 +27,7 @@ public sealed class MvpPlayerController : MonoBehaviour
         body = GetComponent<Rigidbody>();
         capsule = GetComponent<CapsuleCollider>();
         input ??= GetComponent<MvpPlayerInput>();
+        ResolveSceneReferences();
         body.useGravity = false;
     }
 
@@ -41,6 +42,36 @@ public sealed class MvpPlayerController : MonoBehaviour
             $"{nameof(MvpPlayerController)} on '{name}' requires Input, Camera Transform, and Gravity State references.",
             this);
         enabled = false;
+    }
+
+    /// <summary>
+    /// 테스트 씬에서 플레이어 프리팹만 배치해도 실행될 수 있도록 비어 있는 씬 참조를 자동으로 찾습니다.
+    /// Inspector에 이미 연결된 값은 덮어쓰지 않습니다.
+    /// </summary>
+    private void ResolveSceneReferences()
+    {
+        if (gravityState == null)
+        {
+            gravityState = FindFirstObjectByType<MvpGravityState>();
+        }
+
+        if (cameraTransform != null)
+        {
+            return;
+        }
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
+        {
+            cameraTransform = mainCamera.transform;
+            return;
+        }
+
+        MvpThirdPersonCamera thirdPersonCamera = FindFirstObjectByType<MvpThirdPersonCamera>();
+        if (thirdPersonCamera != null)
+        {
+            cameraTransform = thirdPersonCamera.transform;
+        }
     }
 
     private void FixedUpdate()

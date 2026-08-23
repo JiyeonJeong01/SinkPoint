@@ -17,9 +17,32 @@ public sealed class MonsterTargetSensor : MonoBehaviour
     public Transform CurrentTarget => currentTarget;
     public bool HasTarget => currentTarget != null;
 
+    private void Start()
+    {
+        ResolveInitialTarget();
+    }
+
     private void Update()
     {
         RefreshTarget();
+    }
+
+    /// <summary>
+    /// Inspector에 대상이 비어 있으면 Player 태그 오브젝트를 한 번 찾아 초기 추적 대상으로 보관합니다.
+    /// 감지 반경 밖이면 RefreshTarget에서 다시 null 처리됩니다.
+    /// </summary>
+    private void ResolveInitialTarget()
+    {
+        if (explicitTarget != null || string.IsNullOrWhiteSpace(playerTag))
+        {
+            return;
+        }
+
+        GameObject player = GameObject.FindGameObjectWithTag(playerTag);
+        if (player != null)
+        {
+            currentTarget = player.transform;
+        }
     }
 
     /// <summary>

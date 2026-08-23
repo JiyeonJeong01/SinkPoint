@@ -43,13 +43,14 @@ namespace DistantLands
             IKSolver.elbow.parent = root.transform;
             IKSolver.target.parent = null;
             currentTarget = new GameObject(gameObject.name + " Target").transform;
+            float scale = GetReferenceScale();
 
             RaycastHit hit;
-            if (Physics.Raycast(nextFootTarget.position, -root.up, out hit, maxRayDistance, layerMask))
+            if (Physics.Raycast(nextFootTarget.position, -root.up, out hit, maxRayDistance * scale, layerMask))
             {
 
 
-                point = hit.point + (root.up * groundOffset);
+                point = hit.point + (root.up * groundOffset * scale);
 
                 IKSolver.target.position = point;
                 IKSolver.target.LookAt(hit.point, root.up);
@@ -59,16 +60,16 @@ namespace DistantLands
 
             }
 
-            if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance, layerMask))
+            if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance * scale, layerMask))
             {
 
 
-                point = hit.point + (root.up * groundOffset);
+                point = hit.point + (root.up * groundOffset * scale);
 
 
 
 
-                if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset) > maxDistance)
+                if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset * scale) > maxDistance * scale)
                 {
 
 
@@ -85,6 +86,7 @@ namespace DistantLands
         // Update is called once per frame
         public void UpdateLeg()
         {
+            float scale = GetReferenceScale();
 
 
             if (!paused)
@@ -93,16 +95,16 @@ namespace DistantLands
                 {
 
                     RaycastHit hit;
-                    if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance, layerMask))
+                    if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance * scale, layerMask))
                     {
 
 
-                        point = hit.point + (root.up * groundOffset);
+                        point = hit.point + (root.up * groundOffset * scale);
 
 
 
 
-                        if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset) > maxDistance)
+                        if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset * scale) > maxDistance * scale)
                         {
 
 
@@ -114,19 +116,19 @@ namespace DistantLands
                     }
                 }
 
-                if (Vector3.Distance(currentTarget.position, IKSolver.target.position) > failDistance) {
+                if (Vector3.Distance(currentTarget.position, IKSolver.target.position) > failDistance * scale) {
 
                     RaycastHit hit;
-                    if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance, layerMask))
+                    if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance * scale, layerMask))
                     {
 
 
-                        point = hit.point + (root.up * groundOffset);
+                        point = hit.point + (root.up * groundOffset * scale);
 
 
 
 
-                        if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset) > maxDistance)
+                        if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset * scale) > maxDistance * scale)
                         {
 
 
@@ -138,15 +140,15 @@ namespace DistantLands
                     }
                 }
 
-                grounded = Vector3.Distance(IKSolver.target.position, currentTarget.position) < groundSnap;
+                grounded = Vector3.Distance(IKSolver.target.position, currentTarget.position) < groundSnap * scale;
 
             }
             else
                 grounded = false;
 
 
-            if (Vector3.Distance(IKSolver.target.position, currentTarget.position) > distanceToLiftLeg)
-                IKSolver.target.position = Vector3.MoveTowards(IKSolver.target.position, currentTarget.position + root.up * legLift, speed * Time.deltaTime);
+            if (Vector3.Distance(IKSolver.target.position, currentTarget.position) > distanceToLiftLeg * scale)
+                IKSolver.target.position = Vector3.MoveTowards(IKSolver.target.position, currentTarget.position + root.up * legLift * scale, speed * Time.deltaTime);
             else
                 IKSolver.target.position = Vector3.MoveTowards(IKSolver.target.position, currentTarget.position, speed * Time.deltaTime);
 
@@ -157,6 +159,16 @@ namespace DistantLands
 
 
 
+        }
+
+        private float GetReferenceScale()
+        {
+            Transform reference = root != null ? root : transform;
+            Vector3 scale = reference.lossyScale;
+            float largestAxis = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z));
+
+            // These leg distances are authored for scale 1. Keep them proportional when the kaiju root is scaled.
+            return Mathf.Max(largestAxis, 0.0001f);
         }
 
 

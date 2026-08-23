@@ -13,8 +13,14 @@ public sealed class MonsterDamageOnContact : MonoBehaviour
     [SerializeField] private bool showDebugLog;
 
     private float nextDamageTime;
+    private Transform playerRoot;
 
     public int Damage => damage;
+
+    private void Start()
+    {
+        ResolvePlayerRoot();
+    }
 
     private void OnCollisionEnter(Collision collision)
     {
@@ -46,8 +52,7 @@ public sealed class MonsterDamageOnContact : MonoBehaviour
             return;
         }
 
-        bool isPlayer = !string.IsNullOrWhiteSpace(playerTag) && other.CompareTag(playerTag);
-        if (!isPlayer)
+        if (!IsPlayerCollider(other))
         {
             return;
         }
@@ -59,6 +64,40 @@ public sealed class MonsterDamageOnContact : MonoBehaviour
         {
             Debug.Log($"[MonsterDamageOnContact] Hit player for {damage} damage.", this);
         }
+    }
+
+    /// <summary>
+    /// 씬에 Player 태그 오브젝트가 있으면 접촉 판정용 루트로 캐시합니다.
+    /// 플레이어 자식 Collider가 닿는 구조도 처리하기 위한 보조 참조입니다.
+    /// </summary>
+    private void ResolvePlayerRoot()
+    {
+        if (playerRoot != null || string.IsNullOrWhiteSpace(playerTag))
+        {
+            return;
+        }
+
+        GameObject player = GameObject.FindGameObjectWithTag(playerTag);
+        if (player != null)
+        {
+            playerRoot = player.transform;
+        }
+    }
+
+    private bool IsPlayerCollider(Collider other)
+    {
+        if (string.IsNullOrWhiteSpace(playerTag))
+        {
+            return false;
+        }
+
+        if (other.CompareTag(playerTag))
+        {
+            return true;
+        }
+
+        ResolvePlayerRoot();
+        return playerRoot != null && other.transform.IsChildOf(playerRoot);
     }
 
     private void OnValidate()

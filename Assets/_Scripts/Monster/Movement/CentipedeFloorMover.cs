@@ -6,6 +6,17 @@ using UnityEngine;
 /// </summary>
 public sealed class CentipedeFloorMover : MonsterNavTargetMover
 {
+    protected override void ResolveSceneReferences()
+    {
+        base.ResolveSceneReferences();
+
+        Transform centipedeNavTarget = transform.Find("Nav Target");
+        if (centipedeNavTarget != null)
+        {
+            navTarget = centipedeNavTarget;
+        }
+    }
+
     private void FixedUpdate()
     {
         if (stateMachine == null || stateMachine.State == MonsterState.Dead)
@@ -20,6 +31,31 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
         }
 
         Vector3 floorNormal = gravityState != null ? -gravityState.Direction : Vector3.up;
-        MoveNavTargetToward(target.position, floorNormal, Time.fixedDeltaTime);
+        MoveNavTargetPositionOnly(target.position, floorNormal, Time.fixedDeltaTime);
+    }
+
+    /// <summary>
+    /// 지네 prefab의 Nav Target은 기존 Follow/Worm 체인이 따라가는 선행 목표점입니다.
+    /// Spider처럼 root 회전까지 제어하면 다리 기준축이 흔들릴 수 있으므로 위치만 이동합니다.
+    /// </summary>
+    private void MoveNavTargetPositionOnly(Vector3 destination, Vector3 floorNormal, float deltaTime)
+    {
+        if (navTarget == null)
+        {
+            return;
+        }
+
+        Vector3 normal = floorNormal.sqrMagnitude < Mathf.Epsilon
+            ? Vector3.up
+            : floorNormal.normalized;
+        Vector3 toDestination = destination - navTarget.position;
+        Vector3 moveDirection = Vector3.ProjectOnPlane(toDestination, normal);
+
+        if (moveDirection.magnitude <= stoppingDistance)
+        {
+            return;
+        }
+
+        navTarget.position += moveDirection.normalized * moveSpeed * deltaTime;
     }
 }

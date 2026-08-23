@@ -21,14 +21,27 @@ public sealed class MonsterStateMachine : MonoBehaviour
 
     private void Awake()
     {
-        targetSensor = GetComponent<MonsterTargetSensor>();
-        health = GetComponent<MonsterHealth>();
+        ResolveSceneReferences();
         state = initialState;
 
         if (health != null)
         {
             health.Died += OnDied;
         }
+    }
+
+    /// <summary>
+    /// Inspector 배치가 조금 달라도 같은 몬스터 계층 안에서 필요한 컴포넌트를 자동으로 찾습니다.
+    /// </summary>
+    private void ResolveSceneReferences()
+    {
+        targetSensor = GetComponent<MonsterTargetSensor>();
+        targetSensor ??= GetComponentInParent<MonsterTargetSensor>();
+        targetSensor ??= GetComponentInChildren<MonsterTargetSensor>();
+
+        health = GetComponent<MonsterHealth>();
+        health ??= GetComponentInParent<MonsterHealth>();
+        health ??= GetComponentInChildren<MonsterHealth>();
     }
 
     private void OnDestroy()

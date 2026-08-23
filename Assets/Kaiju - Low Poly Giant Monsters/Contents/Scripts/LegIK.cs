@@ -9,7 +9,6 @@ using UnityEngine;
 namespace DistantLands
 {
 
-	[ExecuteInEditMode]
 	public class LegIK : MonoBehaviour
 	{
 
