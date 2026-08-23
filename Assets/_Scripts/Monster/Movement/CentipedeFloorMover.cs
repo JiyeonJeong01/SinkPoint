@@ -6,6 +6,27 @@ using UnityEngine;
 /// </summary>
 public sealed class CentipedeFloorMover : MonsterNavTargetMover
 {
+    [Header("Obstacle Probe")]
+    [Tooltip("NavTarget 앞을 검사할 장애물 레이어입니다. 보통 Obstacle 레이어만 넣습니다.")]
+    [SerializeField] private LayerMask obstacleMask;
+    [Tooltip("전방 검사에 사용할 가상 구의 반지름입니다. 지네 몸 두께에 가깝게 맞추면 장애물을 덜 파고듭니다.")]
+    [SerializeField, Min(0.01f)] private float obstacleProbeRadius = 0.35f;
+    [Tooltip("NavTarget 앞을 얼마나 멀리 미리 검사할지 정합니다. 너무 짧으면 늦게 피하고, 너무 길면 일찍 멈춥니다.")]
+    [SerializeField, Min(0.01f)] private float obstacleProbeDistance = 0.8f;
+    [Tooltip("검사 시작점을 바닥에서 살짝 띄우는 값입니다. 바닥 콜라이더를 장애물로 잘못 잡는 상황을 줄입니다.")]
+    [SerializeField, Min(0f)] private float obstacleProbeSurfaceOffset = 0.25f;
+    [Tooltip("직진이 막혔을 때 좌우 방향을 짧게 검사해서 가능한 쪽으로 우회합니다.")]
+    [SerializeField] private bool trySimpleAvoidance = true;
+    [Tooltip("우회 검사 시 직진 방향에서 좌우로 틀어볼 각도입니다.")]
+    [SerializeField, Range(5f, 85f)] private float avoidanceAngle = 45f;
+    [Tooltip("씬에서 지네를 선택했을 때 전방 장애물 검사 범위를 표시합니다. 초록은 통과, 빨강은 막힘입니다.")]
+    [SerializeField] private bool drawObstacleProbe = true;
+
+    private Vector3 lastProbeOrigin;
+    private Vector3 lastProbeDirection;
+    private Vector3 lastMoveDirection;
+    private bool lastProbeBlocked;
+
     protected override void ResolveSceneReferences()
     {
         base.ResolveSceneReferences();
@@ -14,6 +35,11 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
         if (centipedeNavTarget != null)
         {
             navTarget = centipedeNavTarget;
+        }
+
+        if (obstacleMask.value == 0)
+        {
+            obstacleMask = LayerMask.GetMask("Obstacle");
         }
     }
 
@@ -56,6 +82,103 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
             return;
         }
 
-        navTarget.position += moveDirection.normalized * moveSpeed * deltaTime;
+        Vector3 direction = moveDirection.normalized;
+        if (!TryGetWalkDirection(direction, normal, out Vector3 walkDirection))
+        {
+            return;
+        }
+
+        navTarget.position += walkDirection * moveSpeed * deltaTime;
+    }
+
+    /// <summary>
+    /// 진행 방향 앞에 Obstacle이 있으면 직진을 막고, 설정에 따라 좌우 우회 방향을 짧게 검사합니다.
+    /// </summary>
+    private bool TryGetWalkDirection(Vector3 desiredDirection, Vector3 floorNormal, out Vector3 walkDirection)
+    {
+        walkDirection = desiredDirection;
+        lastMoveDirection = desiredDirection;
+
+        if (obstacleMask.value == 0 || !IsDirectionBlocked(desiredDirection, floorNormal))
+        {
+            lastProbeBlocked = false;
+            return true;
+        }
+
+        lastProbeBlocked = true;
+        if (!trySimpleAvoidance)
+        {
+            return false;
+        }
+
+        Vector3 rightDirection = Quaternion.AngleAxis(avoidanceAngle, floorNormal) * desiredDirection;
+        if (!IsDirectionBlocked(rightDirection.normalized, floorNormal))
+        {
+            walkDirection = rightDirection.normalized;
+            lastMoveDirection = walkDirection;
+            return true;
+        }
+
+        Vector3 leftDirection = Quaternion.AngleAxis(-avoidanceAngle, floorNormal) * desiredDirection;
+        if (!IsDirectionBlocked(leftDirection.normalized, floorNormal))
+        {
+            walkDirection = leftDirection.normalized;
+            lastMoveDirection = walkDirection;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// NavTarget 앞쪽으로 가상의 구를 굴려서 장애물 레이어와 닿는지 확인합니다.
+    /// </summary>
+    private bool IsDirectionBlocked(Vector3 direction, Vector3 floorNormal)
+    {
+        Vector3 origin = navTarget.position + floorNormal * obstacleProbeSurfaceOffset;
+        lastProbeOrigin = origin;
+        lastProbeDirection = direction;
+
+        return Physics.SphereCast(
+            origin,
+            obstacleProbeRadius,
+            direction,
+            out _,
+            obstacleProbeDistance,
+            obstacleMask,
+            QueryTriggerInteraction.Ignore);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (!drawObstacleProbe || navTarget == null)
+        {
+            return;
+        }
+
+        Gizmos.color = lastProbeBlocked ? Color.red : Color.green;
+        Vector3 origin = Application.isPlaying ? lastProbeOrigin : navTarget.position + Vector3.up * obstacleProbeSurfaceOffset;
+        Vector3 direction = Application.isPlaying && lastProbeDirection.sqrMagnitude > 0.0001f
+            ? lastProbeDirection
+            : navTarget.forward;
+
+        Gizmos.DrawWireSphere(origin, obstacleProbeRadius);
+        Gizmos.DrawLine(origin, origin + direction.normalized * obstacleProbeDistance);
+        Gizmos.DrawWireSphere(origin + direction.normalized * obstacleProbeDistance, obstacleProbeRadius);
+
+        Gizmos.color = Color.yellow;
+        if (Application.isPlaying && lastMoveDirection.sqrMagnitude > 0.0001f)
+        {
+            Gizmos.DrawLine(navTarget.position, navTarget.position + lastMoveDirection.normalized);
+        }
+    }
+
+    protected override void OnValidate()
+    {
+        base.OnValidate();
+
+        obstacleProbeRadius = Mathf.Max(0.01f, obstacleProbeRadius);
+        obstacleProbeDistance = Mathf.Max(0.01f, obstacleProbeDistance);
+        obstacleProbeSurfaceOffset = Mathf.Max(0f, obstacleProbeSurfaceOffset);
     }
 }

@@ -77,10 +77,10 @@ public sealed class MonsterDamageOnContact : MonoBehaviour
             return;
         }
 
-        GameObject player = GameObject.FindGameObjectWithTag(playerTag);
+        Transform player = FindPlayerRoot();
         if (player != null)
         {
-            playerRoot = player.transform;
+            playerRoot = player;
         }
     }
 
@@ -98,6 +98,21 @@ public sealed class MonsterDamageOnContact : MonoBehaviour
 
         ResolvePlayerRoot();
         return playerRoot != null && other.transform.IsChildOf(playerRoot);
+    }
+
+    private Transform FindPlayerRoot()
+    {
+        if (!string.IsNullOrWhiteSpace(playerTag))
+        {
+            GameObject taggedPlayer = GameObject.FindGameObjectWithTag(playerTag);
+            if (taggedPlayer != null)
+            {
+                return taggedPlayer.transform;
+            }
+        }
+
+        MvpPlayerInput playerInput = FindFirstObjectByType<MvpPlayerInput>();
+        return playerInput != null ? playerInput.transform : null;
     }
 
     private void OnValidate()

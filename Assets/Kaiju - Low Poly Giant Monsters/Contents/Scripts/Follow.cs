@@ -34,7 +34,11 @@ namespace DistantLands
                 if (Vector3.Distance(transform.position, target.position) > stoppingDistance * GetReferenceScale())
                 {
                     transform.position = Vector3.MoveTowards(transform.position, target.position, speed * Time.deltaTime);
-                    transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(new Vector3(target.position.x, transform.position.y, target.position.z) - transform.position, Vector3.up), angularSpeed * Time.deltaTime);
+                    Vector3 lookDirection = new Vector3(target.position.x, transform.position.y, target.position.z) - transform.position;
+                    if (lookDirection.sqrMagnitude > 0.0001f)
+                    {
+                        transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(lookDirection, Vector3.up), angularSpeed * Time.deltaTime);
+                    }
                 }
 
         }

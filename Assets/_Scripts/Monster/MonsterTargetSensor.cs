@@ -38,10 +38,10 @@ public sealed class MonsterTargetSensor : MonoBehaviour
             return;
         }
 
-        GameObject player = GameObject.FindGameObjectWithTag(playerTag);
+        Transform player = FindPlayerTarget();
         if (player != null)
         {
-            currentTarget = player.transform;
+            currentTarget = player;
         }
     }
 
@@ -67,9 +67,7 @@ public sealed class MonsterTargetSensor : MonoBehaviour
             currentTarget = null;
         }
 
-        GameObject player = string.IsNullOrWhiteSpace(playerTag)
-            ? null
-            : GameObject.FindGameObjectWithTag(playerTag);
+        Transform player = FindPlayerTarget();
 
         if (player == null)
         {
@@ -77,10 +75,28 @@ public sealed class MonsterTargetSensor : MonoBehaviour
         }
 
         float sqrDetectionRadius = detectionRadius * detectionRadius;
-        if ((player.transform.position - transform.position).sqrMagnitude <= sqrDetectionRadius)
+        if ((player.position - transform.position).sqrMagnitude <= sqrDetectionRadius)
         {
-            currentTarget = player.transform;
+            currentTarget = player;
         }
+    }
+
+    /// <summary>
+    /// 우선 Player 태그를 찾고, 테스트 씬처럼 태그가 빠진 경우에는 MvpPlayerInput 컴포넌트를 가진 오브젝트를 사용합니다.
+    /// </summary>
+    private Transform FindPlayerTarget()
+    {
+        if (!string.IsNullOrWhiteSpace(playerTag))
+        {
+            GameObject taggedPlayer = GameObject.FindGameObjectWithTag(playerTag);
+            if (taggedPlayer != null)
+            {
+                return taggedPlayer.transform;
+            }
+        }
+
+        MvpPlayerInput playerInput = FindFirstObjectByType<MvpPlayerInput>();
+        return playerInput != null ? playerInput.transform : null;
     }
 
     private void OnValidate()
