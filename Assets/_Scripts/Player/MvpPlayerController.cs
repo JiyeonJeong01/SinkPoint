@@ -14,6 +14,8 @@ public sealed class MvpPlayerController : MonoBehaviour
 
     [Header("Movement")]
     [SerializeField, Min(0f)] private float moveSpeed = 3f;
+    [SerializeField, Min(0f)] private float jumpSpeed = 5f;
+    [SerializeField, Min(0f)] private float jumpInputBufferDuration = 0.1f;
 
     [Header("Rotation")]
     [FormerlySerializedAs("rotationSpeed")]
@@ -27,6 +29,13 @@ public sealed class MvpPlayerController : MonoBehaviour
 
     private Rigidbody body;
     private CapsuleCollider capsule;
+    private MvpPlayerStateMachine stateMachine;
+    private bool hasBufferedJump;
+    private double jumpRequestExpiresAtRealtime;
+
+    internal MvpPlayerMotionStateId MotionState => stateMachine.CurrentId;
+    internal Vector3 GravityUp => -gravityState.Direction;
+    internal float MoveSpeed => moveSpeed;
 
     private void Awake()
     {
@@ -34,6 +43,7 @@ public sealed class MvpPlayerController : MonoBehaviour
         capsule = GetComponent<CapsuleCollider>();
         input ??= GetComponent<MvpPlayerInput>();
         body.useGravity = false;
+        stateMachine = new MvpPlayerStateMachine();
     }
 
     private void Start()
@@ -47,6 +57,11 @@ public sealed class MvpPlayerController : MonoBehaviour
             $"{nameof(MvpPlayerController)} on '{name}' requires Input, Camera Transform, Gravity State, and Visual Root references.",
             this);
         enabled = false;
+    }
+
+    private void OnDisable()
+    {
+        ClearBufferedJump();
     }
 
     private void LateUpdate()
@@ -82,25 +97,102 @@ public sealed class MvpPlayerController : MonoBehaviour
         Vector3 cameraRight = Vector3.Cross(up, cameraForward).normalized;
         Vector2 moveInput = Vector2.ClampMagnitude(input.Move, 1f);
         Vector3 moveDirection = cameraForward * moveInput.y + cameraRight * moveInput.x;
+        bool hasGravity = gravityState.Strength > 0f;
+        bool jumpRequested = UpdateBufferedJump(hasGravity);
 
-        if (isGrounded && moveDirection.sqrMagnitude > Mathf.Epsilon)
+        MvpPlayerFixedContext context = new MvpPlayerFixedContext(
+            gravityDirection,
+            up,
+            groundNormal,
+            moveDirection,
+            hasGravity,
+            isGrounded,
+            jumpRequested,
+            Vector3.Dot(body.linearVelocity, up));
+
+        bool jumpExecuted = stateMachine.FixedTick(this, context);
+        if (jumpExecuted)
         {
-            moveDirection = Vector3.ProjectOnPlane(moveDirection, groundNormal).normalized;
+            ClearBufferedJump();
         }
 
-        Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, gravityDirection);
-        if (isGrounded && Vector3.Dot(gravityVelocity, gravityDirection) > 0f)
+        AlignWithGravity(up);
+    }
+
+    private bool UpdateBufferedJump(bool hasGravity)
+    {
+        bool receivedJump = input.TryConsumeJumpPressed(out double pressedAtRealtime);
+        if (!input.AllowMovement || !hasGravity)
+        {
+            ClearBufferedJump();
+            return false;
+        }
+
+        if (receivedJump)
+        {
+            hasBufferedJump = true;
+            jumpRequestExpiresAtRealtime = pressedAtRealtime + jumpInputBufferDuration;
+        }
+
+        if (!hasBufferedJump)
+        {
+            return false;
+        }
+
+        if (Time.realtimeSinceStartupAsDouble <= jumpRequestExpiresAtRealtime)
+        {
+            return true;
+        }
+
+        ClearBufferedJump();
+        return false;
+    }
+
+    private void ClearBufferedJump()
+    {
+        hasBufferedJump = false;
+        jumpRequestExpiresAtRealtime = 0d;
+    }
+
+    internal void ApplyGroundedMotion(MvpPlayerFixedContext context)
+    {
+        Vector3 moveDirection = context.MoveDirection;
+        if (moveDirection.sqrMagnitude > Mathf.Epsilon)
+        {
+            moveDirection = Vector3.ProjectOnPlane(moveDirection, context.GroundNormal).normalized;
+        }
+
+        Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, context.GravityDirection);
+        if (Vector3.Dot(gravityVelocity, context.GravityDirection) > 0f)
         {
             gravityVelocity = Vector3.zero;
         }
 
         body.linearVelocity = moveDirection * moveSpeed + gravityVelocity;
+        body.AddForce(-context.GroundNormal * gravityState.Strength, ForceMode.Acceleration);
+    }
 
-        Vector3 appliedGravity = isGrounded
-            ? -groundNormal * gravityState.Strength
-            : gravityState.Gravity;
-        body.AddForce(appliedGravity, ForceMode.Acceleration);
+    internal void ApplyAirborneMotion(MvpPlayerFixedContext context)
+    {
+        Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, context.GravityDirection);
+        body.linearVelocity = context.MoveDirection * moveSpeed + gravityVelocity;
+        body.AddForce(gravityState.Gravity, ForceMode.Acceleration);
+    }
 
+    internal void ApplyJump(MvpPlayerFixedContext context)
+    {
+        Vector3 moveDirection = context.MoveDirection;
+        if (moveDirection.sqrMagnitude > Mathf.Epsilon)
+        {
+            moveDirection = Vector3.ProjectOnPlane(moveDirection, context.GroundNormal).normalized;
+        }
+
+        body.linearVelocity = moveDirection * moveSpeed + context.Up * jumpSpeed;
+        body.AddForce(gravityState.Gravity, ForceMode.Acceleration);
+    }
+
+    private void AlignWithGravity(Vector3 up)
+    {
         Vector3 currentUp = body.rotation * Vector3.up;
         Quaternion targetRotation = Quaternion.FromToRotation(currentUp, up) * body.rotation;
         Quaternion nextRotation = Quaternion.RotateTowards(

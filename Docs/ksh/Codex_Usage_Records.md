@@ -111,4 +111,28 @@
 - 구현하거나 정리한 기능: `MvpPlayerController`의 Rigidbody 회전을 중력 up축 정렬 경로로 축소하고, `VisualRoot`가 카메라의 중력 평면상 정면을 실행 순서 `100`의 `LateUpdate`에서 즉시 적용하도록 구성했다. 기존 모델은 identity `VisualRoot` 아래의 connected nested Prefab으로 유지하고 Point Light는 물리 루트 자식으로 보존했다.
 - 해결한 문제: 물리 주기의 카메라 yaw 추격과 모델 표현 회전을 분리했다. 초기 지수 보간은 카메라보다 모델이 늦게 반응하는 조작 지연을 만들었으므로 제거하고, 카메라가 갱신된 현재 렌더 프레임에 모델을 직접 동기화했다. `rotationSpeed`는 `FormerlySerializedAs`를 사용해 `gravityAlignmentSpeed`로 이름을 바꾸면서 기존 값 `720`을 보존했으며 무효 투영 벡터 fallback은 유지했다.
 - 사람이 직접 결정한 부분: Play Mode에서 sharpness `18`은 조작 지연이 느껴지고 `60`은 보간 효과가 의미 없다고 판단해 시각 회전 튜닝 값을 제거했다. 현재 Rigidbody의 X/Z 회전 제약은 변경하지 않고, 이번 완료 범위를 일반 중력의 시각 회전 안정화로 한정했다. 방향성 중력 정렬과 Rigidbody 제약 재설계, 카메라 충돌·줌, Animator·조준은 후속 작업으로 남겼다.
-- 검증 결과: `Assembly-CSharp.csproj` 빌드는 기존 애셋 경고 17건과 함께 오류 0건으로 성공했다. Player Prefab은 YAML 문서 ID 중복 0건, `VisualRoot` 정의·컨트롤러 참조·모델 부모 연결이 각각 유효했고 모델 위치·스케일과 Rigidbody 제약 `80`이 유지됐다. 즉시 동기화 변경 후의 느린·빠른 yaw, 180도 회전, 이동·리스폰과 GC Alloc은 Unity Play Mode 사용자 체감 검증 대기 상태다.
+- 검증 결과: `Assembly-CSharp.csproj` 빌드는 기존 애셋 경고 17건과 함께 오류 0건으로 성공했다. Player Prefab은 YAML 문서 ID 중복 0건, `VisualRoot` 정의·컨트롤러 참조·모델 부모 연결이 각각 유효했고 모델 위치·스케일과 Rigidbody 제약 `80`이 유지됐다. 사용자가 Unity Play Mode에서 느린·빠른 yaw, 180도 회전과 이동·리스폰을 충분히 확인하여 회전 떨림 제거와 카메라 방향 추격 감각이 완료 기준을 충족한다고 결정했다.
+
+## 2026-08-23 — TPS 카메라 충돌·거리 조정·DOTween 보간 구현
+
+- Codex 사용처: 기존 TPS 카메라의 충돌 거리 계산과 입력 경로를 확장하고, CameraRig Prefab 설정·컴파일·Play Mode 초기화를 검증하는 데 사용했다.
+- 구현하거나 정리한 기능: `SphereCastNonAlloc`으로 Player와 카메라 사이의 안전 거리를 계산해 장애물 접근 시 즉시 축소하고, 휠 거리 변경과 장애물 이탈만 DOTween으로 보간했다. CameraRig에는 거리 `0.6`~`3`, 단계 `0.25`, 충돌 반경 `0.2`, 여유 `0.05`, 복귀 속도 `8`, 줌 `0.15초`, 충돌 이탈 `0.2초`, `OutCubic` easing을 적용했다.
+- 해결한 문제: 충돌 회피를 사용자 최소 거리보다 우선하고, 안전 거리 축소에 Tween을 적용하지 않아 벽 안에 잠시 남는 상황을 막았다. Player 자신의 Collider와 Trigger는 충돌 거리 계산에서 제외하고 안정 상태에 Tween을 반복 생성하지 않도록 했다.
+- 사람이 직접 결정한 부분: 사용자가 Play Mode에서 벽 접근, 모서리 회전과 휠 거리 조작을 충분히 확인해 일반 중력 TPS 카메라 작업을 완료로 결정했다. 실제 WebGL 빌드 재시도는 Sirenix API Updater 선행 문제를 해결하는 별도 작업으로 남겼다.
+- 검증 결과: Unity 스크립트 재컴파일과 Camera Rig 초기화는 성공했고 컴파일 오류·Console 오류·경고는 0건이었다. Main Camera 참조와 기본 거리 `1.605`를 확인했다. WebGL 실제 출력은 Sirenix API Updater의 `OnBuildPreProcess`에서 중단되어 이번 완료에 포함하지 않았다.
+
+## 2026-08-23 — TPS 플레이어 상태 FSM·기본 애니메이션 구현
+
+- Codex 사용처: 기존 `MvpPlayerController.FixedUpdate`의 이동·접지·중력 책임을 상태별 물리 계약으로 분리하고, Rigidbody 결과를 Toon Soldiers Animator로 표현하는 게임플레이 FSM·Animator FSM을 구성하고 검증했다.
+- 구현하거나 정리한 기능: 일반 C# 상태 인스턴스를 재사용하는 `MvpPlayerStateMachine`과 `Grounded`·`Airborne`·`ZeroGravity`를 추가했다. 기존 지상·공중 이동을 Controller 물리 helper로 보존하고 현재 중력의 반대 방향 점프를 `jumpSpeed = 5` 초기값으로 연결했다. `MvpPlayerAnimationController`는 실제 속도와 게임 상태를 `MoveX`·`MoveY`·`MoveSpeed`·`IsGrounded`·`IsZeroGravity`·`VerticalSpeed`로 공급하며, 새 2D 방향 Blend Tree와 Jump Start/Air/Land 전이를 Player Prefab의 nested Animator에 연결했다.
+- 해결한 문제: 일반·측면·역중력용 상태를 복제하지 않고 `MvpGravityState`의 방향·세기를 매 물리 프레임 Context로 전달하도록 했다. 점프 직후 Ground Probe가 남아 즉시 재접지할 수 있는 경우는 위쪽 속도가 양수인 동안 Airborne을 유지해 막았다. 중력 세기 `0`에서는 이동 속도 덮어쓰기와 중력 힘을 모두 중단하며, Animator Root Motion은 Player Prefab override에서 비활성화해 게임 이동의 정본을 Rigidbody로 유지했다.
+- 사람이 직접 결정한 부분: 승인된 deep 계획의 게임플레이 FSM·Animator 분리, Infantry 인플레이스 클립과 Root Motion 금지, Grappling·Dash·Crouch·Combat 제외 범위를 유지했다. `jumpSpeed = 5`와 Animator damping `0.1초`는 이번 구현의 초기값이며 장애물 높이·발 미끄러짐을 기준으로 한 사용자 체감 튜닝은 후속 조정 대상으로 남겼다.
+- 검증 결과: Unity 재컴파일과 `Assembly-CSharp.csproj` 빌드는 오류 0건으로 성공했고, 빌드에는 기존 애셋 경고 17건만 남았다. Play Mode에서 Grounded/Locomotion 정지, 평면 속도 `3`과 전진 파라미터, 1회 점프 후 Airborne/JumpAir와 착지 복귀, ZeroGravity 진입 시 충돌을 끈 격리 조건에서 선형 속도 보존, 중력 복구 시 Airborne 재선택을 확인했다. Player Prefab의 모든 직렬화 참조, Controller, Apply Root Motion false, nested Prefab Connected, 모델 로컬 위치 `(0, -0.235, 0)`·identity 회전·스케일 `0.3`, Missing Script 0건과 Console 오류 0건을 확인했다. Toon Soldiers 원본과 Original·Player 씬에는 diff가 없다. 전역 Editor 계측에는 Pipeline을 포함한 프레임 할당이 섞여 컴포넌트 단독 GC Alloc 0 B를 수치로 분리하지 못했지만, 두 새 프레임 경로에는 런타임 객체·배열·delegate·컬렉션 생성이 없음을 정적으로 확인했다.
+
+## 2026-08-23 — 점프 입력 래치·착지 버퍼 보정
+
+- Codex 사용처: 렌더 프레임의 Space 눌림이 다음 물리 프레임 전에 덮어써지는 입력 경로와 착지 프레임의 FSM 승인 순서를 진단하고, Input·Controller·StateMachine 사이의 점프 요청 수명을 보정하는 데 사용했다.
+- 구현하거나 정리한 기능: `MvpPlayerInput`이 Space 눌림과 실제 입력 시각을 다음 `FixedUpdate` 소비 시점까지 래치하도록 변경했다. `MvpPlayerController`에는 기본 `0.10초` 착지 버퍼를 추가하고, FSM은 이전 State가 아니라 현재 Ground Probe와 상승 여부를 기준으로 점프를 승인한 뒤 실제 실행 여부를 반환하도록 구성했다.
+- 해결한 문제: 고주사율 렌더링에서 `GetKeyDown` 결과가 50 Hz 물리 프레임 전에 사라지는 문제와, Airborne에서 착지한 같은 물리 프레임의 Space가 이전 State 조건 때문에 무시되는 문제를 분리해 해결했다. 점프 요청은 성공, 만료, 이동 입력 차단 또는 무중력 진입 때 제거해 오래된 입력이 뒤늦게 실행되지 않도록 했다.
+- 사람이 직접 결정한 부분: 공중 입력은 더블 점프나 코요테 타임으로 해석하지 않고, 착지 전 `0.10초` 안에 입력된 경우에만 착지 버퍼로 인정하기로 했다. 점프 속도와 Ground Probe, Animator, Prefab과 Scene은 이번 변경에서 유지했다.
+- 검증 결과: `Assembly-CSharp.csproj` 빌드와 Unity `6000.3.20f1` 재컴파일은 오류 0건으로 성공했으며 기존 애셋 경고 17건만 남았다. Play Mode 초기화 후 기준 커서 이후 신규 런타임 오류가 없었고 정상 종료했다. 실제 Space 반복 입력, 착지 전후 `0.10초` 경계와 공중 연타 체감은 키보드 입력을 자동 주입하지 못해 사용자 Play Mode 확인이 남아 있다.
