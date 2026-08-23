@@ -3,13 +3,13 @@ using UnityEngine.Serialization;
 
 [DefaultExecutionOrder(100)]
 [DisallowMultipleComponent]
-[RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider), typeof(MvpPlayerInput))]
-public sealed class MvpPlayerController : MonoBehaviour
+[RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider), typeof(PlayerInput))]
+public sealed class PlayerController : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private MvpPlayerInput input;
+    [SerializeField] private PlayerInput input;
     [SerializeField] private Transform cameraTransform;
-    [SerializeField] private MvpGravityState gravityState;
+    [SerializeField] private GravityState gravityState;
     [SerializeField] private Transform visualRoot;
 
     [Header("Movement")]
@@ -36,14 +36,14 @@ public sealed class MvpPlayerController : MonoBehaviour
 
     private Rigidbody body;
     private CapsuleCollider capsule;
-    private MvpPlayerStateMachine stateMachine;
+    private PlayerMotionStateMachine stateMachine;
     private bool hasBufferedJump;
     private double jumpRequestExpiresAtRealtime;
     private float standingCapsuleHeight;
     private Vector3 standingCapsuleCenter;
     private bool didWarnAboutStanceBuffer;
 
-    internal MvpPlayerMotionStateId MotionState => stateMachine.CurrentId;
+    internal PlayerMotionStateId MotionState => stateMachine.CurrentId;
     internal Vector3 GravityUp => -gravityState.Direction;
     internal float MoveSpeed => moveSpeed;
     internal float CurrentMoveSpeed { get; private set; }
@@ -54,10 +54,10 @@ public sealed class MvpPlayerController : MonoBehaviour
     {
         body = GetComponent<Rigidbody>();
         capsule = GetComponent<CapsuleCollider>();
-        input ??= GetComponent<MvpPlayerInput>();
+        input ??= GetComponent<PlayerInput>();
         ResolveSceneReferences();
         body.useGravity = false;
-        stateMachine = new MvpPlayerStateMachine();
+        stateMachine = new PlayerMotionStateMachine();
         standingCapsuleHeight = capsule.height;
         standingCapsuleCenter = capsule.center;
         CurrentMoveSpeed = moveSpeed;
@@ -71,7 +71,7 @@ public sealed class MvpPlayerController : MonoBehaviour
         }
 
         Debug.LogError(
-            $"{nameof(MvpPlayerController)} on '{name}' requires Input, Camera Transform, Gravity State, and Visual Root references.",
+            $"{nameof(PlayerController)} on '{name}' requires Input, Camera Transform, Gravity State, and Visual Root references.",
             this);
         enabled = false;
     }
@@ -108,7 +108,7 @@ public sealed class MvpPlayerController : MonoBehaviour
     {
         if (gravityState == null)
         {
-            gravityState = FindFirstObjectByType<MvpGravityState>();
+            gravityState = FindFirstObjectByType<GravityState>();
         }
 
         if (cameraTransform != null)
@@ -123,7 +123,7 @@ public sealed class MvpPlayerController : MonoBehaviour
             return;
         }
 
-        MvpThirdPersonCamera thirdPersonCamera = FindFirstObjectByType<MvpThirdPersonCamera>();
+        ThirdPersonCameraController thirdPersonCamera = FindFirstObjectByType<ThirdPersonCameraController>();
         if (thirdPersonCamera != null)
         {
             cameraTransform = thirdPersonCamera.transform;
@@ -150,7 +150,7 @@ public sealed class MvpPlayerController : MonoBehaviour
         UpdateSprint(isGrounded, hasGravity, moveInput);
         bool jumpRequested = UpdateBufferedJump(hasGravity);
 
-        MvpPlayerFixedContext context = new MvpPlayerFixedContext(
+        PlayerFixedContext context = new PlayerFixedContext(
             gravityDirection,
             up,
             groundNormal,
@@ -204,7 +204,7 @@ public sealed class MvpPlayerController : MonoBehaviour
         jumpRequestExpiresAtRealtime = 0d;
     }
 
-    internal void ApplyGroundedMotion(MvpPlayerFixedContext context)
+    internal void ApplyGroundedMotion(PlayerFixedContext context)
     {
         Vector3 moveDirection = context.MoveDirection;
         if (moveDirection.sqrMagnitude > Mathf.Epsilon)
@@ -222,7 +222,7 @@ public sealed class MvpPlayerController : MonoBehaviour
         body.AddForce(-context.GroundNormal * gravityState.Strength, ForceMode.Acceleration);
     }
 
-    internal void ApplyAirborneMotion(MvpPlayerFixedContext context)
+    internal void ApplyAirborneMotion(PlayerFixedContext context)
     {
         Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, context.GravityDirection);
         body.linearVelocity = context.MoveDirection * moveSpeed + gravityVelocity;
@@ -317,7 +317,7 @@ public sealed class MvpPlayerController : MonoBehaviour
         if (hitCount == stanceHits.Length && !didWarnAboutStanceBuffer)
         {
             Debug.LogWarning(
-                $"{nameof(MvpPlayerController)} on '{name}' filled its stance clearance buffer.",
+                $"{nameof(PlayerController)} on '{name}' filled its stance clearance buffer.",
                 this);
             didWarnAboutStanceBuffer = true;
         }
@@ -336,7 +336,7 @@ public sealed class MvpPlayerController : MonoBehaviour
         return true;
     }
 
-    internal void ApplyJump(MvpPlayerFixedContext context)
+    internal void ApplyJump(PlayerFixedContext context)
     {
         Vector3 moveDirection = context.MoveDirection;
         if (moveDirection.sqrMagnitude > Mathf.Epsilon)

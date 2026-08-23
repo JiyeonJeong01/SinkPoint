@@ -143,7 +143,7 @@ GameObject:
   - component: {fileID: 9134441389679627703}
   - component: {fileID: 2380102746190603987}
   m_Layer: 0
-  m_Name: MvpPlayer
+  m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -227,7 +227,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eed9b06d67a641ff86392811e0c16eda, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MvpPlayerInput
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInput
   allowMovement: 1
   allowLook: 1
   allowCombat: 1
@@ -244,7 +244,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2f1a84376f468ef4b931555f31e26ffd, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MvpPlayerController
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   input: {fileID: 8920254418987295136}
   cameraTransform: {fileID: 0}
   gravityState: {fileID: 0}
@@ -257,7 +257,7 @@ MonoBehaviour:
   crouchHeightRatio: 0.65
   stanceCollisionMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 3127
   gravityAlignmentSpeed: 720
   maxGroundAngle: 50
   groundProbeDistance: 0.15
@@ -272,7 +272,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a045cf1612dcdec40ba8ccc2485db9c9, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MvpPlayerAnimationController
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimationController
   playerController: {fileID: 2466251488171704757}
   body: {fileID: 546398214295609183}
   visualRoot: {fileID: 6573849201642835102}
@@ -291,7 +291,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7848a68aa8743014b8d66cf022df5882, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MvpPlayerCombatController
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatController
   input: {fileID: 8920254418987295136}
   aimCamera: {fileID: 0}
   muzzle: {fileID: 4026860882140793202}
@@ -299,7 +299,7 @@ MonoBehaviour:
   maxRange: 100
   hitMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 3127
   showShotTracer: 1
   shotTracer: {fileID: 1810366946}
   shotTracerDuration: 0.05

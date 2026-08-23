@@ -111,7 +111,7 @@ public sealed class MonsterDamageOnContact : MonoBehaviour
             }
         }
 
-        MvpPlayerInput playerInput = FindFirstObjectByType<MvpPlayerInput>();
+        PlayerInput playerInput = FindFirstObjectByType<PlayerInput>();
         return playerInput != null ? playerInput.transform : null;
     }
 

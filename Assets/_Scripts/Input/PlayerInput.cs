@@ -1,10 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// MVP용 입력 입구입니다.
+/// 플레이어 입력의 단일 입구입니다.
 /// 다른 플레이어 스크립트는 Input.GetKey/GetAxis를 직접 호출하지 말고 이 클래스의 값을 읽습니다.
 /// </summary>
-public class MvpPlayerInput : MonoBehaviour
+public class PlayerInput : MonoBehaviour
 {
     [Header("Input Locks")]
     [Tooltip("WASD, Jump, Shift처럼 플레이어 몸을 움직이는 입력을 허용합니다.")]

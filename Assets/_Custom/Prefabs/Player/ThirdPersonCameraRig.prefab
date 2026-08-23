@@ -307,7 +307,7 @@ GameObject:
   - component: {fileID: 6957484077458409864}
   - component: {fileID: 8581743840162177068}
   m_Layer: 0
-  m_Name: MvpThirdPersonCameraRig
+  m_Name: ThirdPersonCameraRig
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -341,7 +341,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2672877e506792a46bd558bca9b91882, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MvpThirdPersonCamera
+  m_EditorClassIdentifier: Assembly-CSharp::ThirdPersonCameraController
   input: {fileID: 0}
   target: {fileID: 0}
   cameraPivot: {fileID: 8399049422334080590}

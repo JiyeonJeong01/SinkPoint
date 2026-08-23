@@ -41,7 +41,7 @@
 - 중력 방향과 세기는 하나의 공통 상태에서 관리하고, 플레이어와 잔해가 같은 기준으로 반응하게 한다.
 - 중력의 영향을 직접 받는 Rigidbody는 Unity 기본 중력에 의존하지 않고 공통 중력 상태를 적용한다.
 - 지형은 팀장이 Original 씬에 배치하는 BoxCollider와 충돌한다.
-- 입력은 기존 [MvpPlayerInput](../../Assets/_Scripts/Input/MvpPlayerInput.cs)을 단일 입구로 사용한다.
+- 입력은 기존 [PlayerInput](../../Assets/_Scripts/Input/PlayerInput.cs)을 단일 입구로 사용한다.
 - Left Shift는 전진 달리기, Left Ctrl은 웅크리기 입력으로 사용한다.
 - 사격은 카메라 중심에서 조준점을 구한 뒤 총구에서 조준점까지 다시 검사해 가까운 장애물을 실제 적중으로 우선한다.
 - 플레이어 파트는 조준·발사 애니메이션·Raycast 판정까지만 소유하고, 적 체력과 피해 API는 팀장 전투 시스템이 전달된 뒤 연결한다.

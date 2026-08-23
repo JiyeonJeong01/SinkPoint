@@ -2,8 +2,8 @@ using UnityEngine;
 
 [DefaultExecutionOrder(110)]
 [DisallowMultipleComponent]
-[RequireComponent(typeof(MvpPlayerController), typeof(Rigidbody))]
-public sealed class MvpPlayerAnimationController : MonoBehaviour
+[RequireComponent(typeof(PlayerController), typeof(Rigidbody))]
+public sealed class PlayerAnimationController : MonoBehaviour
 {
     private static readonly int MoveXHash = Animator.StringToHash("MoveX");
     private static readonly int MoveYHash = Animator.StringToHash("MoveY");
@@ -17,11 +17,11 @@ public sealed class MvpPlayerAnimationController : MonoBehaviour
     private static readonly int AimPitchHash = Animator.StringToHash("AimPitch");
 
     [Header("References")]
-    [SerializeField] private MvpPlayerController playerController;
+    [SerializeField] private PlayerController playerController;
     [SerializeField] private Rigidbody body;
     [SerializeField] private Transform visualRoot;
     [SerializeField] private Animator animator;
-    [SerializeField] private MvpPlayerCombatController combatController;
+    [SerializeField] private PlayerCombatController combatController;
 
     [Header("Tuning")]
     [SerializeField, Min(0f)] private float movementDampTime = 0.1f;
@@ -33,9 +33,9 @@ public sealed class MvpPlayerAnimationController : MonoBehaviour
 
     private void Awake()
     {
-        playerController ??= GetComponent<MvpPlayerController>();
+        playerController ??= GetComponent<PlayerController>();
         body ??= GetComponent<Rigidbody>();
-        combatController ??= GetComponent<MvpPlayerCombatController>();
+        combatController ??= GetComponent<PlayerCombatController>();
     }
 
     private void Start()
@@ -47,7 +47,7 @@ public sealed class MvpPlayerAnimationController : MonoBehaviour
         }
 
         Debug.LogError(
-            $"{nameof(MvpPlayerAnimationController)} on '{name}' requires Player Controller, Combat Controller, Rigidbody, Visual Root, and Animator references.",
+            $"{nameof(PlayerAnimationController)} on '{name}' requires Player Controller, Combat Controller, Rigidbody, Visual Root, and Animator references.",
             this);
         enabled = false;
     }
@@ -67,8 +67,8 @@ public sealed class MvpPlayerAnimationController : MonoBehaviour
         animator.SetFloat(MoveXHash, moveX, movementDampTime, Time.deltaTime);
         animator.SetFloat(MoveYHash, moveY, movementDampTime, Time.deltaTime);
         animator.SetFloat(MoveSpeedHash, normalizedSpeed, movementDampTime, Time.deltaTime);
-        animator.SetBool(IsGroundedHash, playerController.MotionState == MvpPlayerMotionStateId.Grounded);
-        animator.SetBool(IsZeroGravityHash, playerController.MotionState == MvpPlayerMotionStateId.ZeroGravity);
+        animator.SetBool(IsGroundedHash, playerController.MotionState == PlayerMotionStateId.Grounded);
+        animator.SetBool(IsZeroGravityHash, playerController.MotionState == PlayerMotionStateId.ZeroGravity);
         animator.SetFloat(VerticalSpeedHash, Vector3.Dot(body.linearVelocity, up));
         animator.SetBool(IsSprintingHash, playerController.IsSprinting);
         animator.SetBool(IsCrouchingHash, playerController.IsCrouching);

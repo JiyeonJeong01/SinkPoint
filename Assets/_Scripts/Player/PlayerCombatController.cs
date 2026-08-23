@@ -2,12 +2,12 @@ using UnityEngine;
 
 [DefaultExecutionOrder(105)]
 [DisallowMultipleComponent]
-[RequireComponent(typeof(MvpPlayerInput))]
-public sealed class MvpPlayerCombatController : MonoBehaviour
+[RequireComponent(typeof(PlayerInput))]
+public sealed class PlayerCombatController : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private MvpPlayerInput input;
-    [SerializeField] private MvpThirdPersonCamera aimCamera;
+    [SerializeField] private PlayerInput input;
+    [SerializeField] private ThirdPersonCameraController aimCamera;
     [SerializeField] private Transform muzzle;
 
     [Header("Firing")]
@@ -39,7 +39,7 @@ public sealed class MvpPlayerCombatController : MonoBehaviour
 
     private void Awake()
     {
-        input ??= GetComponent<MvpPlayerInput>();
+        input ??= GetComponent<PlayerInput>();
     }
 
     private void Start()
@@ -47,7 +47,7 @@ public sealed class MvpPlayerCombatController : MonoBehaviour
         if (input == null || aimCamera == null || muzzle == null)
         {
             Debug.LogError(
-                $"{nameof(MvpPlayerCombatController)} on '{name}' requires Input, Aim Camera, and Muzzle references.",
+                $"{nameof(PlayerCombatController)} on '{name}' requires Input, Aim Camera, and Muzzle references.",
                 this);
             enabled = false;
             return;
@@ -56,7 +56,7 @@ public sealed class MvpPlayerCombatController : MonoBehaviour
         if (showShotTracer && shotTracer == null)
         {
             Debug.LogWarning(
-                $"{nameof(MvpPlayerCombatController)} on '{name}' has Shot Tracer enabled without a LineRenderer reference.",
+                $"{nameof(PlayerCombatController)} on '{name}' has Shot Tracer enabled without a LineRenderer reference.",
                 this);
         }
 
@@ -200,7 +200,7 @@ public sealed class MvpPlayerCombatController : MonoBehaviour
         if (hitCount == hits.Length && !didWarnAboutBuffer)
         {
             Debug.LogWarning(
-                $"{nameof(MvpPlayerCombatController)} on '{name}' filled a shot hit buffer.",
+                $"{nameof(PlayerCombatController)} on '{name}' filled a shot hit buffer.",
                 this);
             didWarnAboutBuffer = true;
         }

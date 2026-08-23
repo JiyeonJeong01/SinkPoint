@@ -2,10 +2,10 @@ using DG.Tweening;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public sealed class MvpThirdPersonCamera : MonoBehaviour
+public sealed class ThirdPersonCameraController : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private MvpPlayerInput input;
+    [SerializeField] private PlayerInput input;
     [SerializeField] private Transform target;
     [SerializeField] private Transform cameraPivot;
     [SerializeField] private Transform cameraTransform;
@@ -68,7 +68,7 @@ public sealed class MvpThirdPersonCamera : MonoBehaviour
         }
 
         Debug.LogError(
-            $"{nameof(MvpThirdPersonCamera)} on '{name}' requires Input, Target, Camera Pivot, Camera Transform, and Camera references.",
+            $"{nameof(ThirdPersonCameraController)} on '{name}' requires Input, Target, Camera Pivot, Camera Transform, and Camera references.",
             this);
         enabled = false;
     }
@@ -182,7 +182,7 @@ public sealed class MvpThirdPersonCamera : MonoBehaviour
         if (hitCount == collisionHits.Length && !didWarnAboutHitBuffer)
         {
             Debug.LogWarning(
-                $"{nameof(MvpThirdPersonCamera)} on '{name}' filled its camera collision hit buffer.",
+                $"{nameof(ThirdPersonCameraController)} on '{name}' filled its camera collision hit buffer.",
                 this);
             didWarnAboutHitBuffer = true;
         }

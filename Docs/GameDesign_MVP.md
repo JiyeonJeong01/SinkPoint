@@ -173,13 +173,13 @@ I: 상호작용
 현재 입력 래퍼:
 
 ```text
-Assets/_Scripts/Input/MvpPlayerInput.cs
+Assets/_Scripts/Input/PlayerInput.cs
 ```
 
 구현 규칙:
-- 플레이어 관련 스크립트는 `MvpPlayerInput`에서 입력값을 읽습니다.
+- 플레이어 관련 스크립트는 `PlayerInput`에서 입력값을 읽습니다.
 - 여러 스크립트에서 직접 `Input.GetKey`, `Input.GetAxis`, 마우스 입력을 호출하지 않습니다.
-- 입력 차단은 `MvpPlayerInput`의 플래그를 통해 1차 처리합니다.
+- 입력 차단은 `PlayerInput`의 플래그를 통해 1차 처리합니다.
 
 입력 차단 예시:
 - 일반 플레이: 이동, 시야, 전투, 그래플, 상호작용 모두 허용
@@ -202,7 +202,7 @@ Assets/_Scripts/Input/MvpPlayerInput.cs
 권장 클래스 분리:
 
 ```text
-MvpPlayerInput
+PlayerInput
 - 입력 읽기
 - 입력 차단 처리
 
