@@ -14,6 +14,7 @@ public sealed class PlayerCombatController : MonoBehaviour
     [SerializeField, Min(0.01f)] private float fireInterval = 0.1f;
     [SerializeField, Min(0f)] private float maxRange = 100f;
     [SerializeField] private LayerMask hitMask = ~0;
+    [SerializeField, Min(0)] private int shotDamage = 1;
 
     [Header("Shot Tracer")]
     [SerializeField] private bool showShotTracer = true;
@@ -146,6 +147,11 @@ public sealed class PlayerCombatController : MonoBehaviour
         lastShotCollider = hasShotHit ? shotHit.collider : null;
         lastShotEnd = shotEnd;
 
+        if (hasShotHit && TryGetLivingMonster(shotHit.collider, out MonsterHealth monsterHealth))
+        {
+            monsterHealth.ApplyDamage(shotDamage);
+        }
+
         if (showShotTracer && shotTracer != null)
         {
             Color tracerColor = hasShotHit ? hitTracerColor : missTracerColor;
@@ -195,7 +201,7 @@ public sealed class PlayerCombatController : MonoBehaviour
             hits,
             distance,
             hitMask,
-            QueryTriggerInteraction.Ignore);
+            QueryTriggerInteraction.Collide);
 
         if (hitCount == hits.Length && !didWarnAboutBuffer)
         {
@@ -215,6 +221,11 @@ public sealed class PlayerCombatController : MonoBehaviour
                 continue;
             }
 
+            if (hit.collider.isTrigger && !TryGetLivingMonster(hit.collider, out _))
+            {
+                continue;
+            }
+
             if (hit.distance >= nearestDistance)
             {
                 continue;
@@ -225,5 +236,14 @@ public sealed class PlayerCombatController : MonoBehaviour
         }
 
         return nearestDistance < float.PositiveInfinity;
+    }
+
+    private static bool TryGetLivingMonster(Collider hitCollider, out MonsterHealth monsterHealth)
+    {
+        monsterHealth = hitCollider != null
+            ? hitCollider.GetComponentInParent<MonsterHealth>()
+            : null;
+
+        return monsterHealth != null && !monsterHealth.IsDead;
     }
 }

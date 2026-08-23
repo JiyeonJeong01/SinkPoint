@@ -44,7 +44,8 @@
 - 입력은 기존 [PlayerInput](../../Assets/_Scripts/Input/PlayerInput.cs)을 단일 입구로 사용한다.
 - Left Shift는 전진 달리기, Left Ctrl은 웅크리기 입력으로 사용한다.
 - 사격은 카메라 중심에서 조준점을 구한 뒤 총구에서 조준점까지 다시 검사해 가까운 장애물을 실제 적중으로 우선한다.
-- 플레이어 파트는 조준·발사 애니메이션·Raycast 판정까지만 소유하고, 적 체력과 피해 API는 팀장 전투 시스템이 전달된 뒤 연결한다.
+- 플레이어의 총구 Raycast는 살아 있는 `MonsterHealth`에 피해를 전달하고, 지네의 `Nav Target` Trigger는 `PlayerHealth`에 쿨타임 기반 접촉 피해를 전달한다. 체력 UI·사망 연출·리스폰 연결은 후속 시스템이 이벤트로 구독한다.
+- 새 몬스터의 피격·접촉 판정 구성과 공동 테스트 절차는 [플레이어·몬스터 데미지 연동 가이드](../Player_Monster_Damage_Integration_Guide.md)를 따른다.
 - 무중력 그래플은 카메라 중심 Raycast, 적중 지점 저장, 단순 끌어당김과 LineRenderer 표시까지만 구현한다.
 
 구체적인 클래스 API, 수치와 상태 전이는 각 구현 변경에서 검증한 뒤 확정한다.
