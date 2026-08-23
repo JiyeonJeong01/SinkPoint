@@ -5083,7 +5083,6 @@ GameObject:
   - component: {fileID: 5574372176235473709}
   - component: {fileID: 5032219126189237491}
   - component: {fileID: 301846206165554030}
-  - component: {fileID: 192131124325507751}
   - component: {fileID: 5907961543151969674}
   - component: {fileID: 1184613889912533629}
   - component: {fileID: 4873411882600987138}
@@ -5184,22 +5183,6 @@ MonoBehaviour:
   currentState: 0
   targetDistance: -1
   isTargetInAttackRange: 0
---- !u!114 &192131124325507751
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8029496965554963682}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0840c47eb0a39b34b9aed9453dbe3d47, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MonsterDamageOnContact
-  damage: 1
-  cooldown: 1
-  playerTag: Player
-  showDebugLog: 0
 --- !u!114 &5907961543151969674
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6074,6 +6057,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1879521574420107733}
+  - component: {fileID: 6435173050253678452}
+  - component: {fileID: 8059381767440159136}
   m_Layer: 0
   m_Name: Nav Target
   m_TagString: Untagged
@@ -6097,3 +6082,31 @@ Transform:
   - {fileID: 8305357482535815652}
   m_Father: {fileID: 2793482144542235233}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!135 &6435173050253678452
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9147418070931688851}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 1
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 3
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &8059381767440159136
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9147418070931688851}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0840c47eb0a39b34b9aed9453dbe3d47, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterDamageOnContact
+  damage: 1
+  cooldown: 1
+  showDebugLog: 0

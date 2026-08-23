@@ -123,7 +123,7 @@ public sealed class MonsterTargetSensor : MonoBehaviour
     }
 
     /// <summary>
-    /// 우선 Player 태그를 찾고, 테스트 씬처럼 태그가 빠진 경우에는 MvpPlayerInput 컴포넌트를 가진 오브젝트를 사용합니다.
+    /// 우선 Player 태그를 찾고, 테스트 씬처럼 태그가 빠진 경우에는 PlayerInput 컴포넌트를 가진 오브젝트를 사용합니다.
     /// </summary>
     private Transform FindPlayerTarget()
     {
@@ -136,7 +136,7 @@ public sealed class MonsterTargetSensor : MonoBehaviour
             }
         }
 
-        MvpPlayerInput playerInput = FindFirstObjectByType<MvpPlayerInput>();
+        PlayerInput playerInput = FindFirstObjectByType<PlayerInput>();
         return playerInput != null ? playerInput.transform : null;
     }
 

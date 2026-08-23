@@ -22,7 +22,7 @@ public sealed class CentipedeLungeAttack : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private Transform navTarget;
-    [SerializeField] private MvpGravityState gravityState;
+    [SerializeField] private GravityState gravityState;
     [SerializeField] private MonsterStateMachine stateMachine;
 
     [Header("Timing")]
@@ -103,15 +103,15 @@ public sealed class CentipedeLungeAttack : MonoBehaviour
         }
     }
 
-    private MvpGravityState FindGravityState()
+    private GravityState FindGravityState()
     {
         GameObject gravitySystem = GameObject.Find("GravitySystem");
-        if (gravitySystem != null && gravitySystem.TryGetComponent(out MvpGravityState namedGravityState))
+        if (gravitySystem != null && gravitySystem.TryGetComponent(out GravityState namedGravityState))
         {
             return namedGravityState;
         }
 
-        return FindFirstObjectByType<MvpGravityState>();
+        return FindFirstObjectByType<GravityState>();
     }
 
     /// <summary>

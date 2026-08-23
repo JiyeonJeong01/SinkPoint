@@ -11772,7 +11772,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7200259110762631696, guid: 198d8c72947f18444a1515304b77f550, type: 3}
       propertyPath: m_Name
-      value: MvpThirdPersonCameraRig
+      value: ThirdPersonCameraRig
       objectReference: {fileID: 0}
     - target: {fileID: 8581743840162177068, guid: 198d8c72947f18444a1515304b77f550, type: 3}
       propertyPath: input
@@ -11787,6 +11787,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 198d8c72947f18444a1515304b77f550, type: 3}
+--- !u!114 &700443477 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8581743840162177068, guid: 198d8c72947f18444a1515304b77f550, type: 3}
+  m_PrefabInstance: {fileID: 700443476}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2672877e506792a46bd558bca9b91882, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ThirdPersonCameraController
 --- !u!1001 &703022775
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -15444,7 +15455,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b83af35a1dcd7114eae5e36f094622d3, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MvpGravityState
+  m_EditorClassIdentifier: Assembly-CSharp::GravityState
   gravityDirection: {x: 0, y: -1, z: 0}
   gravityStrength: 9.81
 --- !u!1001 &926666280
@@ -27057,8 +27068,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1477263988422462614, guid: 99859a1a5ae055448ac4c2a5f1713a46, type: 3}
       propertyPath: m_Name
-      value: MvpPlayer
+      value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 2380102746190603987, guid: 99859a1a5ae055448ac4c2a5f1713a46, type: 3}
+      propertyPath: aimCamera
+      value:
+      objectReference: {fileID: 700443477}
     - target: {fileID: 2466251488171704757, guid: 99859a1a5ae055448ac4c2a5f1713a46, type: 3}
       propertyPath: gravityState
       value: 
@@ -31231,7 +31246,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eed9b06d67a641ff86392811e0c16eda, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MvpPlayerInput
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInput
 --- !u!1001 &2028430208
 PrefabInstance:
   m_ObjectHideFlags: 0

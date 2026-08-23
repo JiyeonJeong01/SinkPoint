@@ -8,7 +8,7 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] protected Transform navTarget;
-    [SerializeField] protected MvpGravityState gravityState;
+    [SerializeField] protected GravityState gravityState;
     [SerializeField] protected MonsterStateMachine stateMachine;
 
     [Header("Movement")]
@@ -47,15 +47,15 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
         }
     }
 
-    protected static MvpGravityState FindGravityState()
+    protected static GravityState FindGravityState()
     {
         GameObject gravitySystem = GameObject.Find("GravitySystem");
-        if (gravitySystem != null && gravitySystem.TryGetComponent(out MvpGravityState namedGravityState))
+        if (gravitySystem != null && gravitySystem.TryGetComponent(out GravityState namedGravityState))
         {
             return namedGravityState;
         }
 
-        return FindFirstObjectByType<MvpGravityState>();
+        return FindFirstObjectByType<GravityState>();
     }
 
     protected static Transform FindNavTarget(Transform root)

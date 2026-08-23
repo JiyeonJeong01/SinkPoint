@@ -7,7 +7,7 @@ using UnityEngine;
 public sealed class WormBurrowAttack : MonoBehaviour
 {
     [SerializeField] private MonsterTargetSensor targetSensor;
-    [SerializeField] private MvpGravityState gravityState;
+    [SerializeField] private GravityState gravityState;
     [SerializeField, Min(0f)] private float emergeDistanceFromPlayer = 2f;
     [SerializeField, Min(0f)] private float attackInterval = 3f;
     [SerializeField] private bool showDebugLog;
