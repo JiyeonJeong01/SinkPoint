@@ -1,5 +1,7 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
+[DefaultExecutionOrder(100)]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider), typeof(MvpPlayerInput))]
 public sealed class MvpPlayerController : MonoBehaviour
@@ -8,10 +10,14 @@ public sealed class MvpPlayerController : MonoBehaviour
     [SerializeField] private MvpPlayerInput input;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private MvpGravityState gravityState;
+    [SerializeField] private Transform visualRoot;
 
     [Header("Movement")]
     [SerializeField, Min(0f)] private float moveSpeed = 3f;
-    [SerializeField, Min(0f)] private float rotationSpeed = 720f;
+
+    [Header("Rotation")]
+    [FormerlySerializedAs("rotationSpeed")]
+    [SerializeField, Min(0f)] private float gravityAlignmentSpeed = 720f;
 
     [Header("Grounding")]
     [SerializeField, Range(0f, 89f)] private float maxGroundAngle = 50f;
@@ -32,15 +38,33 @@ public sealed class MvpPlayerController : MonoBehaviour
 
     private void Start()
     {
-        if (input != null && cameraTransform != null && gravityState != null)
+        if (input != null && cameraTransform != null && gravityState != null && visualRoot != null)
         {
             return;
         }
 
         Debug.LogError(
-            $"{nameof(MvpPlayerController)} on '{name}' requires Input, Camera Transform, and Gravity State references.",
+            $"{nameof(MvpPlayerController)} on '{name}' requires Input, Camera Transform, Gravity State, and Visual Root references.",
             this);
         enabled = false;
+    }
+
+    private void LateUpdate()
+    {
+        Vector3 up = -gravityState.Direction;
+        Vector3 facingForward = Vector3.ProjectOnPlane(cameraTransform.forward, up);
+        if (facingForward.sqrMagnitude < Mathf.Epsilon)
+        {
+            facingForward = Vector3.ProjectOnPlane(visualRoot.forward, up);
+        }
+
+        if (facingForward.sqrMagnitude < Mathf.Epsilon)
+        {
+            return;
+        }
+
+        Quaternion targetRotation = Quaternion.LookRotation(facingForward.normalized, up);
+        visualRoot.rotation = targetRotation;
     }
 
     private void FixedUpdate()
@@ -77,11 +101,12 @@ public sealed class MvpPlayerController : MonoBehaviour
             : gravityState.Gravity;
         body.AddForce(appliedGravity, ForceMode.Acceleration);
 
-        Quaternion targetRotation = Quaternion.LookRotation(cameraForward, up);
+        Vector3 currentUp = body.rotation * Vector3.up;
+        Quaternion targetRotation = Quaternion.FromToRotation(currentUp, up) * body.rotation;
         Quaternion nextRotation = Quaternion.RotateTowards(
             body.rotation,
             targetRotation,
-            rotationSpeed * Time.fixedDeltaTime);
+            gravityAlignmentSpeed * Time.fixedDeltaTime);
         body.MoveRotation(nextRotation);
     }
 
