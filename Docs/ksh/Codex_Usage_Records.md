@@ -136,3 +136,11 @@
 - 해결한 문제: 고주사율 렌더링에서 `GetKeyDown` 결과가 50 Hz 물리 프레임 전에 사라지는 문제와, Airborne에서 착지한 같은 물리 프레임의 Space가 이전 State 조건 때문에 무시되는 문제를 분리해 해결했다. 점프 요청은 성공, 만료, 이동 입력 차단 또는 무중력 진입 때 제거해 오래된 입력이 뒤늦게 실행되지 않도록 했다.
 - 사람이 직접 결정한 부분: 공중 입력은 더블 점프나 코요테 타임으로 해석하지 않고, 착지 전 `0.10초` 안에 입력된 경우에만 착지 버퍼로 인정하기로 했다. 점프 속도와 Ground Probe, Animator, Prefab과 Scene은 이번 변경에서 유지했다.
 - 검증 결과: `Assembly-CSharp.csproj` 빌드와 Unity `6000.3.20f1` 재컴파일은 오류 0건으로 성공했으며 기존 애셋 경고 17건만 남았다. Play Mode 초기화 후 기준 커서 이후 신규 런타임 오류가 없었고 정상 종료했다. 실제 Space 반복 입력, 착지 전후 `0.10초` 경계와 공중 연타 체감은 키보드 입력을 자동 주입하지 못해 사용자 Play Mode 확인이 남아 있다.
+
+## 2026-08-23 — 플레이어 조준·사격·달리기·웅크리기 구현
+
+- Codex 사용처: 플레이어 기본 액션 확장 계획에 따라 입력·Rigidbody 이동 stance·CapsuleCollider·Animator·카메라 조준과 Raycast 사격을 구현하고 Prefab·Player 씬 참조 및 Play Mode를 검증했다.
+- 구현하거나 정리한 기능: Left Shift 전진 Sprint와 Left Ctrl 홀드 Crouch를 분리하고 속도 `3/5/1.5`, Crouch Capsule 높이 `65%`, 기립 공간 SphereCast를 연결했다. Machinegun Sprint·Crouch 방향 이동·Standing/Crouch 연사 애니메이션, Upper Body Mask, 카메라 pitch 기반 Spine 조준, M4 Muzzle, 중앙 4x4 임시 점과 카메라 중심→총구 2단계 Raycast를 추가했다.
+- 해결한 문제: standing Capsule 전체 Overlap이 바닥을 천장으로 오인하던 문제를 현재 Crouch 상단에서 standing 상단까지만 검사하도록 수정했다. 카메라가 찾은 표면점과 총구 Ray 종점이 같아 적중이 누락되는 경우는 사거리 안에서 5cm 검사 여유를 추가했다. Spine·Chest·UpperChest 분배 보정이 자식 world rotation으로 부모 보정을 상쇄한 문제는 Spine 단일 pitch 보정으로 단순화했다.
+- 사람이 직접 결정한 부분: Shift는 전진할 때만 Sprint, Ctrl은 누르는 동안 Crouch, 좌클릭은 `0.1초` 간격 연사로 확정했다. 사격 책임은 애니메이션과 판정까지만 두고 적 체력·피해 API, 탄약·재장전·반동·VFX·사운드와 정식 UI는 제외했다. 마스터 플랜과 게임 기획서의 오래된 Shift 단일 해석과 입력 경로도 현재 결정에 맞췄다.
+- 검증 결과: 자동 Play Mode 입력으로 Sprint 속도 `5`와 Animator 상태, Crouch 속도 `1.5`·Capsule 높이 `0.585`·천장 차단 후 복귀를 확인했다. 약 6초 연사에서 56회 판정, 테스트 Collider 적중, 총구 앞 장애물 우선, Upper Body 발사 상태와 위·아래 조준 시 Muzzle/카메라 Ray 내적 `0.9998` 이상을 확인했다. Unity 재컴파일과 `Assembly-CSharp.csproj` 빌드는 오류 0건이며 기존 애셋 경고 17건만 남았고, 최종 Play Mode에는 신규 런타임 오류가 없었다. `Original_GamePlayScene`, Toon Soldiers 원본과 ProjectSettings는 변경하지 않았으며 실제 키보드·마우스 체감 튜닝과 WebGL 빌드는 이번 범위에서 실행하지 않았다.

@@ -41,11 +41,15 @@ public sealed class MvpThirdPersonCamera : MonoBehaviour
     private bool wasCollisionLimited;
     private bool didWarnAboutHitBuffer;
     private Tween distanceTween;
+    private Camera gameplayCamera;
+
+    internal float PitchDegrees => pitch;
 
     private void Awake()
     {
         cameraPivot ??= transform.Find("CameraPivot");
         cameraTransform ??= cameraPivot != null ? cameraPivot.Find("Main Camera") : null;
+        gameplayCamera = cameraTransform != null ? cameraTransform.GetComponent<Camera>() : null;
         yaw = transform.eulerAngles.y;
         pitch = cameraPivot != null ? NormalizeAngle(cameraPivot.localEulerAngles.x) : 0f;
 
@@ -58,13 +62,13 @@ public sealed class MvpThirdPersonCamera : MonoBehaviour
 
     private void Start()
     {
-        if (input != null && target != null && cameraPivot != null && cameraTransform != null)
+        if (input != null && target != null && cameraPivot != null && cameraTransform != null && gameplayCamera != null)
         {
             return;
         }
 
         Debug.LogError(
-            $"{nameof(MvpThirdPersonCamera)} on '{name}' requires Input, Target, Camera Pivot, and Camera Transform references.",
+            $"{nameof(MvpThirdPersonCamera)} on '{name}' requires Input, Target, Camera Pivot, Camera Transform, and Camera references.",
             this);
         enabled = false;
     }
@@ -243,5 +247,10 @@ public sealed class MvpThirdPersonCamera : MonoBehaviour
     private static float NormalizeAngle(float angle)
     {
         return angle > 180f ? angle - 360f : angle;
+    }
+
+    internal Ray CreateCenterRay()
+    {
+        return gameplayCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f));
     }
 }

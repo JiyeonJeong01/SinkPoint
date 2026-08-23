@@ -14,8 +14,14 @@ public sealed class MvpPlayerController : MonoBehaviour
 
     [Header("Movement")]
     [SerializeField, Min(0f)] private float moveSpeed = 3f;
+    [SerializeField, Min(0f)] private float sprintSpeed = 5f;
+    [SerializeField, Min(0f)] private float crouchSpeed = 1.5f;
     [SerializeField, Min(0f)] private float jumpSpeed = 5f;
     [SerializeField, Min(0f)] private float jumpInputBufferDuration = 0.1f;
+
+    [Header("Crouch")]
+    [SerializeField, Range(0.5f, 1f)] private float crouchHeightRatio = 0.65f;
+    [SerializeField] private LayerMask stanceCollisionMask = ~0;
 
     [Header("Rotation")]
     [FormerlySerializedAs("rotationSpeed")]
@@ -26,16 +32,23 @@ public sealed class MvpPlayerController : MonoBehaviour
     [SerializeField, Min(0f)] private float groundProbeDistance = 0.15f;
 
     private readonly RaycastHit[] groundHits = new RaycastHit[8];
+    private readonly RaycastHit[] stanceHits = new RaycastHit[16];
 
     private Rigidbody body;
     private CapsuleCollider capsule;
     private MvpPlayerStateMachine stateMachine;
     private bool hasBufferedJump;
     private double jumpRequestExpiresAtRealtime;
+    private float standingCapsuleHeight;
+    private Vector3 standingCapsuleCenter;
+    private bool didWarnAboutStanceBuffer;
 
     internal MvpPlayerMotionStateId MotionState => stateMachine.CurrentId;
     internal Vector3 GravityUp => -gravityState.Direction;
     internal float MoveSpeed => moveSpeed;
+    internal float CurrentMoveSpeed { get; private set; }
+    internal bool IsSprinting { get; private set; }
+    internal bool IsCrouching { get; private set; }
 
     private void Awake()
     {
@@ -44,6 +57,9 @@ public sealed class MvpPlayerController : MonoBehaviour
         input ??= GetComponent<MvpPlayerInput>();
         body.useGravity = false;
         stateMachine = new MvpPlayerStateMachine();
+        standingCapsuleHeight = capsule.height;
+        standingCapsuleCenter = capsule.center;
+        CurrentMoveSpeed = moveSpeed;
     }
 
     private void Start()
@@ -62,6 +78,8 @@ public sealed class MvpPlayerController : MonoBehaviour
     private void OnDisable()
     {
         ClearBufferedJump();
+        IsSprinting = false;
+        SetCrouching(false);
     }
 
     private void LateUpdate()
@@ -98,6 +116,8 @@ public sealed class MvpPlayerController : MonoBehaviour
         Vector2 moveInput = Vector2.ClampMagnitude(input.Move, 1f);
         Vector3 moveDirection = cameraForward * moveInput.y + cameraRight * moveInput.x;
         bool hasGravity = gravityState.Strength > 0f;
+        UpdateStance(isGrounded, hasGravity, up);
+        UpdateSprint(isGrounded, hasGravity, moveInput);
         bool jumpRequested = UpdateBufferedJump(hasGravity);
 
         MvpPlayerFixedContext context = new MvpPlayerFixedContext(
@@ -122,7 +142,7 @@ public sealed class MvpPlayerController : MonoBehaviour
     private bool UpdateBufferedJump(bool hasGravity)
     {
         bool receivedJump = input.TryConsumeJumpPressed(out double pressedAtRealtime);
-        if (!input.AllowMovement || !hasGravity)
+        if (!input.AllowMovement || !hasGravity || IsCrouching)
         {
             ClearBufferedJump();
             return false;
@@ -168,7 +188,7 @@ public sealed class MvpPlayerController : MonoBehaviour
             gravityVelocity = Vector3.zero;
         }
 
-        body.linearVelocity = moveDirection * moveSpeed + gravityVelocity;
+        body.linearVelocity = moveDirection * CurrentMoveSpeed + gravityVelocity;
         body.AddForce(-context.GroundNormal * gravityState.Strength, ForceMode.Acceleration);
     }
 
@@ -177,6 +197,113 @@ public sealed class MvpPlayerController : MonoBehaviour
         Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, context.GravityDirection);
         body.linearVelocity = context.MoveDirection * moveSpeed + gravityVelocity;
         body.AddForce(gravityState.Gravity, ForceMode.Acceleration);
+    }
+
+    private void UpdateSprint(bool isGrounded, bool hasGravity, Vector2 moveInput)
+    {
+        IsSprinting = input.AllowMovement
+            && hasGravity
+            && isGrounded
+            && !IsCrouching
+            && input.SprintHeld
+            && moveInput.y > 0.1f;
+
+        CurrentMoveSpeed = IsCrouching
+            ? crouchSpeed
+            : IsSprinting
+                ? sprintSpeed
+                : moveSpeed;
+    }
+
+    private void UpdateStance(bool isGrounded, bool hasGravity, Vector3 up)
+    {
+        if (IsCrouching)
+        {
+            if (!input.CrouchHeld && CanUseStandingCapsule(up))
+            {
+                SetCrouching(false);
+            }
+
+            return;
+        }
+
+        if (input.AllowMovement && hasGravity && isGrounded && input.CrouchHeld)
+        {
+            SetCrouching(true);
+        }
+    }
+
+    private void SetCrouching(bool crouching)
+    {
+        IsCrouching = crouching;
+
+        if (capsule == null)
+        {
+            return;
+        }
+
+        if (!crouching)
+        {
+            capsule.height = standingCapsuleHeight;
+            capsule.center = standingCapsuleCenter;
+            return;
+        }
+
+        float minimumHeight = capsule.radius * 2f;
+        float crouchingHeight = Mathf.Max(minimumHeight, standingCapsuleHeight * crouchHeightRatio);
+        float centerOffset = (standingCapsuleHeight - crouchingHeight) * 0.5f;
+        capsule.height = crouchingHeight;
+        capsule.center = standingCapsuleCenter - Vector3.up * centerOffset;
+    }
+
+    private bool CanUseStandingCapsule(Vector3 up)
+    {
+        Vector3 scale = transform.lossyScale;
+        float radiusScale = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.z));
+        float radius = capsule.radius * radiusScale * 0.95f;
+        float heightScale = Mathf.Abs(scale.y);
+        float crouchingHeight = Mathf.Max(capsule.height * heightScale, radius * 2f);
+        float standingHeight = Mathf.Max(standingCapsuleHeight * heightScale, radius * 2f);
+        Vector3 crouchingCenter = transform.TransformPoint(capsule.center);
+        Vector3 standingCenter = transform.TransformPoint(standingCapsuleCenter);
+        Vector3 crouchingTop = crouchingCenter + up * (crouchingHeight * 0.5f - radius);
+        Vector3 standingTop = standingCenter + up * (standingHeight * 0.5f - radius);
+        float clearanceDistance = Vector3.Dot(standingTop - crouchingTop, up);
+
+        if (clearanceDistance <= Mathf.Epsilon)
+        {
+            return true;
+        }
+
+        int hitCount = Physics.SphereCastNonAlloc(
+            crouchingTop,
+            radius,
+            up,
+            stanceHits,
+            clearanceDistance,
+            stanceCollisionMask,
+            QueryTriggerInteraction.Ignore);
+
+        if (hitCount == stanceHits.Length && !didWarnAboutStanceBuffer)
+        {
+            Debug.LogWarning(
+                $"{nameof(MvpPlayerController)} on '{name}' filled its stance clearance buffer.",
+                this);
+            didWarnAboutStanceBuffer = true;
+        }
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hitCollider = stanceHits[i].collider;
+            if (hitCollider == null || hitCollider == capsule || hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     internal void ApplyJump(MvpPlayerFixedContext context)
