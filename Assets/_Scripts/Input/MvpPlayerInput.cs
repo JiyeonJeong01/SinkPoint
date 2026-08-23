@@ -22,10 +22,20 @@ public class MvpPlayerInput : MonoBehaviour
     [Tooltip("I 상호작용 입력을 허용합니다. 대화 중에도 보통 이 값은 켜둡니다.")]
     [SerializeField] private bool allowInteract = true;
 
+    private bool jumpPressedPending;
+    private double jumpPressedAtRealtime;
+
     public bool AllowMovement
     {
         get => allowMovement;
-        set => allowMovement = value;
+        set
+        {
+            allowMovement = value;
+            if (!allowMovement)
+            {
+                ClearMovementInput();
+            }
+        }
     }
 
     public bool AllowLook
@@ -54,7 +64,7 @@ public class MvpPlayerInput : MonoBehaviour
 
     public Vector2 Move { get; private set; }
     public Vector2 Look { get; private set; }
-    public bool JumpPressed { get; private set; }
+    public float CameraZoomDelta { get; private set; }
     public bool SprintOrCrouchHeld { get; private set; }
     public bool ReloadPressed { get; private set; }
     public bool InteractPressed { get; private set; }
@@ -67,6 +77,24 @@ public class MvpPlayerInput : MonoBehaviour
         ReadMovementInput();
         ReadLookInput();
         ReadActionInput();
+    }
+
+    private void OnDisable()
+    {
+        ClearMovementInput();
+    }
+
+    internal bool TryConsumeJumpPressed(out double pressedAtRealtime)
+    {
+        if (!jumpPressedPending)
+        {
+            pressedAtRealtime = 0d;
+            return false;
+        }
+
+        pressedAtRealtime = jumpPressedAtRealtime;
+        jumpPressedPending = false;
+        return true;
     }
 
     public void SetGameplayInput()
@@ -111,7 +139,7 @@ public class MvpPlayerInput : MonoBehaviour
         bool grapple,
         bool interact)
     {
-        allowMovement = movement;
+        AllowMovement = movement;
         allowLook = look;
         allowCombat = combat;
         allowGrapple = grapple;
@@ -122,9 +150,7 @@ public class MvpPlayerInput : MonoBehaviour
     {
         if (!allowMovement)
         {
-            Move = Vector2.zero;
-            JumpPressed = false;
-            SprintOrCrouchHeld = false;
+            ClearMovementInput();
             return;
         }
 
@@ -133,11 +159,23 @@ public class MvpPlayerInput : MonoBehaviour
             Input.GetAxisRaw("Vertical")
         );
 
-        // GetKeyDown은 누른 첫 프레임만 true라 점프처럼 한 번 발생하는 행동에 씁니다.
-        JumpPressed = Input.GetKeyDown(KeyCode.Space);
+        // 렌더 프레임에서 감지한 눌림을 다음 물리 프레임이 소비할 때까지 보존합니다.
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            jumpPressedPending = true;
+            jumpPressedAtRealtime = Time.realtimeSinceStartupAsDouble;
+        }
 
         // Shift 자체는 입력만 전달합니다. 대쉬/웅크리기 해석은 PlayerController가 상태에 따라 결정합니다.
         SprintOrCrouchHeld = Input.GetKey(KeyCode.LeftShift);
+    }
+
+    private void ClearMovementInput()
+    {
+        Move = Vector2.zero;
+        SprintOrCrouchHeld = false;
+        jumpPressedPending = false;
+        jumpPressedAtRealtime = 0d;
     }
 
     private void ReadLookInput()
@@ -145,6 +183,7 @@ public class MvpPlayerInput : MonoBehaviour
         if (!allowLook)
         {
             Look = Vector2.zero;
+            CameraZoomDelta = 0f;
             return;
         }
 
@@ -152,6 +191,7 @@ public class MvpPlayerInput : MonoBehaviour
             Input.GetAxis("Mouse X"),
             Input.GetAxis("Mouse Y")
         );
+        CameraZoomDelta = Input.mouseScrollDelta.y;
     }
 
     private void ReadActionInput()

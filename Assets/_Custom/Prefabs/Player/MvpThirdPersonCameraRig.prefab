@@ -185,9 +185,23 @@ MonoBehaviour:
   input: {fileID: 0}
   target: {fileID: 0}
   cameraPivot: {fileID: 8399049422334080590}
+  cameraTransform: {fileID: 2845837598643240656}
   mouseSensitivity: 2
   minPitch: -40
   maxPitch: 70
+  defaultDistance: 1.605
+  minDistance: 0.6
+  maxDistance: 3
+  zoomStep: 0.25
+  collisionMask:
+    serializedVersion: 2
+    m_Bits: 55
+  collisionRadius: 0.2
+  collisionPadding: 0.05
+  collisionReturnSpeed: 8
+  zoomDuration: 0.15
+  collisionReturnDuration: 0.2
+  distanceEase: 6
 --- !u!1 &8455138081731226722
 GameObject:
   m_ObjectHideFlags: 0
