@@ -6,6 +6,21 @@ using UnityEngine;
 /// </summary>
 public sealed class CentipedeFloorMover : MonsterNavTargetMover
 {
+    private enum MoveDebugStatus
+    {
+        None,
+        NoNavTarget,
+        NoStateMachine,
+        Dead,
+        NoTarget,
+        AttackState,
+        ReachedStoppingDistance,
+        Forward,
+        AvoidRight,
+        AvoidLeft,
+        Blocked
+    }
+
     [Header("Obstacle Probe")]
     [Tooltip("NavTarget 앞을 검사할 장애물 레이어입니다. 보통 Obstacle 레이어만 넣습니다.")]
     [SerializeField] private LayerMask obstacleMask;
@@ -21,6 +36,18 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
     [SerializeField, Range(5f, 85f)] private float avoidanceAngle = 45f;
     [Tooltip("씬에서 지네를 선택했을 때 전방 장애물 검사 범위를 표시합니다. 초록은 통과, 빨강은 막힘입니다.")]
     [SerializeField] private bool drawObstacleProbe = true;
+
+    [Header("Debug Readout")]
+    [SerializeField, Tooltip("현재 이동이 멈췄거나 진행 중인 이유입니다. 런타임 확인용입니다.")]
+    private MoveDebugStatus moveDebugStatus;
+    [SerializeField, Tooltip("NavTarget 월드 좌표입니다. 자식 로컬 좌표와 헷갈릴 때 확인합니다.")]
+    private Vector3 navTargetWorldPosition;
+    [SerializeField, Tooltip("현재 추적 타겟의 월드 좌표입니다.")]
+    private Vector3 targetWorldPosition;
+    [SerializeField, Tooltip("NavTarget 기준 타겟까지의 거리입니다.")]
+    private float navTargetDistanceToTarget = -1f;
+    [SerializeField, Tooltip("직진 방향 SphereCast가 Obstacle에 막혔는지 표시합니다.")]
+    private bool isForwardBlocked;
 
     private Vector3 lastProbeOrigin;
     private Vector3 lastProbeDirection;
@@ -45,14 +72,28 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
 
     private void FixedUpdate()
     {
-        if (stateMachine == null || stateMachine.State == MonsterState.Dead)
+        if (stateMachine == null)
         {
+            moveDebugStatus = MoveDebugStatus.NoStateMachine;
+            return;
+        }
+
+        if (stateMachine.State == MonsterState.Dead)
+        {
+            moveDebugStatus = MoveDebugStatus.Dead;
             return;
         }
 
         Transform target = stateMachine.Target;
-        if (target == null || stateMachine.State == MonsterState.Attack)
+        if (target == null)
         {
+            moveDebugStatus = MoveDebugStatus.NoTarget;
+            return;
+        }
+
+        if (stateMachine.State == MonsterState.Attack)
+        {
+            moveDebugStatus = MoveDebugStatus.AttackState;
             return;
         }
 
@@ -68,8 +109,13 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
     {
         if (navTarget == null)
         {
+            moveDebugStatus = MoveDebugStatus.NoNavTarget;
             return;
         }
+
+        navTargetWorldPosition = navTarget.position;
+        targetWorldPosition = destination;
+        navTargetDistanceToTarget = Vector3.Distance(navTarget.position, destination);
 
         Vector3 normal = floorNormal.sqrMagnitude < Mathf.Epsilon
             ? Vector3.up
@@ -79,12 +125,14 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
 
         if (moveDirection.magnitude <= stoppingDistance)
         {
+            moveDebugStatus = MoveDebugStatus.ReachedStoppingDistance;
             return;
         }
 
         Vector3 direction = moveDirection.normalized;
         if (!TryGetWalkDirection(direction, normal, out Vector3 walkDirection))
         {
+            moveDebugStatus = MoveDebugStatus.Blocked;
             return;
         }
 
@@ -99,9 +147,11 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
         walkDirection = desiredDirection;
         lastMoveDirection = desiredDirection;
 
-        if (obstacleMask.value == 0 || !IsDirectionBlocked(desiredDirection, floorNormal))
+        isForwardBlocked = obstacleMask.value != 0 && IsDirectionBlocked(desiredDirection, floorNormal);
+        if (!isForwardBlocked)
         {
             lastProbeBlocked = false;
+            moveDebugStatus = MoveDebugStatus.Forward;
             return true;
         }
 
@@ -116,6 +166,7 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
         {
             walkDirection = rightDirection.normalized;
             lastMoveDirection = walkDirection;
+            moveDebugStatus = MoveDebugStatus.AvoidRight;
             return true;
         }
 
@@ -124,6 +175,7 @@ public sealed class CentipedeFloorMover : MonsterNavTargetMover
         {
             walkDirection = leftDirection.normalized;
             lastMoveDirection = walkDirection;
+            moveDebugStatus = MoveDebugStatus.AvoidLeft;
             return true;
         }
 
