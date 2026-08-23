@@ -34,6 +34,7 @@ public class GameFlowManager : MonoBehaviour
     [Header("Gravity Event Triggers")]
     [Tooltip("씬에 배치된 GravityEventTrigger 목록입니다. 시작 시 코드로 일괄 구독합니다.")]
     [SerializeField] private GravityEventTrigger[] gravityEventTriggers;
+    [SerializeField] private GravityManager gravityManager;
 
     [Header("Respawn")]
     [Tooltip("플레이어 위치/속도 리스폰을 담당하는 컨트롤러입니다.")]
@@ -169,6 +170,18 @@ public class GameFlowManager : MonoBehaviour
         }
 
         GameFlowState nextState = ConvertToFlowState(trigger.EventType);
+
+        if (gravityManager == null)
+        {
+            Debug.LogError("[GameFlowManager] GravityManager is not assigned.", this);
+            return;
+        }
+
+        if (!gravityManager.ActivateZone(trigger.Zone))
+        {
+            return;
+        }
+
         SetState(nextState);
 
         if (showDebugLog)
@@ -176,7 +189,6 @@ public class GameFlowManager : MonoBehaviour
             Debug.Log($"[GameFlowManager] Gravity event received: {trigger.EventType}. Objective: {trigger.ObjectiveText}", trigger);
         }
 
-        // TODO: GravityManager.SetGravityMode(trigger.EventType) 형태로 실제 중력 변경을 연결할 것.
         // TODO: Objective UI가 생기면 trigger.ObjectiveText를 표시할 것.
         // TODO: 필요하면 이벤트 타입별 몬스터 스폰, 문 개방, VFX/SFX를 호출할 것.
     }

@@ -2,8 +2,6 @@ using System;
 using UnityEngine;
 using UnityEngine.Events;
 
-// TODO: GravityManager 클래스가 생기면 GameFlowManager에서 이 트리거 이벤트를 받아 반드시 중력 변경 호출로 연결할 것.
-
 /// <summary>
 /// 플레이어가 중력 전환 트리거를 올바른 진행 방향으로 통과했는지 판정하는 컴포넌트입니다.
 /// 이 클래스는 중력을 직접 바꾸지 않고, 통과가 확정됐을 때 이벤트만 발생시켜 GameFlowManager나 GravityManager가 받아서 처리하게 둡니다.
@@ -27,6 +25,7 @@ public class GravityEventTrigger : MonoBehaviour
     [Header("Event")]
     [SerializeField] private GravityEventType eventType = GravityEventType.ShiftGravity;
     [SerializeField] private bool oneShot = true;
+    [SerializeField] private GravityZone zone;
 
     [Header("Pass Direction")]
     [Tooltip("통과 방향 기준입니다. 비워두면 이 트리거 오브젝트의 forward 축을 사용합니다.")]
@@ -58,6 +57,7 @@ public class GravityEventTrigger : MonoBehaviour
     private float enterSide;
 
     public GravityEventType EventType => eventType;
+    public GravityZone Zone => zone;
     public string ObjectiveText => objectiveText;
     public bool HasTriggered => hasTriggered;
 
