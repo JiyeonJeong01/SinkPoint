@@ -13,8 +13,14 @@ public sealed class MonsterTargetSensor : MonoBehaviour
     [SerializeField, Min(0f)] private float detectionRadius = 12f;
     [SerializeField, Min(0f)] private float loseRadius = 16f;
     [SerializeField] private string playerTag = "Player";
+    [SerializeField, Tooltip("켜면 탐지 범위 밖에서 맞아도 일단 플레이어를 추적 대상으로 잡습니다.")]
+    private bool aggroOnDamaged = true;
+    [SerializeField, Min(0f), Tooltip("피격 후 탐지 범위와 무관하게 Chase를 유지할 시간입니다. 이후 Lose Radius 밖이면 대상을 잃습니다.")]
+    private float damagedAggroSeconds = 1.5f;
 
     private Transform currentTarget;
+    private MonsterHealth health;
+    private float forceTargetUntil;
 
     public Transform CurrentTarget => currentTarget;
     public bool HasTarget => currentTarget != null;
@@ -23,6 +29,14 @@ public sealed class MonsterTargetSensor : MonoBehaviour
     private void Awake()
     {
         ResolveSceneReferences();
+    }
+
+    private void OnDestroy()
+    {
+        if (health != null)
+        {
+            health.Damaged -= OnDamaged;
+        }
     }
 
     private void Reset()
@@ -40,16 +54,77 @@ public sealed class MonsterTargetSensor : MonoBehaviour
     /// </summary>
     private void ResolveSceneReferences()
     {
-        if (sensingOrigin != null)
+        if (sensingOrigin == null)
         {
-            return;
+            Transform navTarget = FindNavTarget();
+            if (navTarget != null)
+            {
+                sensingOrigin = navTarget;
+            }
         }
 
+        MonsterHealth foundHealth = GetComponent<MonsterHealth>();
+        foundHealth ??= GetComponentInParent<MonsterHealth>();
+        foundHealth ??= GetComponentInChildren<MonsterHealth>();
+        if (health != foundHealth)
+        {
+            if (health != null)
+            {
+                health.Damaged -= OnDamaged;
+            }
+
+            health = foundHealth;
+            if (health != null)
+            {
+                health.Damaged -= OnDamaged;
+                health.Damaged += OnDamaged;
+            }
+        }
+    }
+
+    private Transform FindNavTarget()
+    {
         Transform navTarget = transform.Find("Nav Target");
         if (navTarget != null)
         {
-            sensingOrigin = navTarget;
+            return navTarget;
         }
+
+        navTarget = transform.Find("NavTarget");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform found = FindNavTargetRecursive(transform.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private static Transform FindNavTargetRecursive(Transform root)
+    {
+        if (root.name == "Nav Target" || root.name == "NavTarget")
+        {
+            return root;
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindNavTargetRecursive(root.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private void Update()
@@ -88,6 +163,11 @@ public sealed class MonsterTargetSensor : MonoBehaviour
 
         if (currentTarget != null)
         {
+            if (Time.time < forceTargetUntil)
+            {
+                return;
+            }
+
             float sqrLoseRadius = loseRadius * loseRadius;
             if ((currentTarget.position - SensingOrigin.position).sqrMagnitude <= sqrLoseRadius)
             {
@@ -129,9 +209,27 @@ public sealed class MonsterTargetSensor : MonoBehaviour
         return playerInput != null ? playerInput.transform : null;
     }
 
+    private void OnDamaged(MonsterHealth monsterHealth, int amount)
+    {
+        if (!aggroOnDamaged)
+        {
+            return;
+        }
+
+        Transform player = FindPlayerTarget();
+        if (player == null)
+        {
+            return;
+        }
+
+        currentTarget = player;
+        forceTargetUntil = Time.time + damagedAggroSeconds;
+    }
+
     private void OnValidate()
     {
         detectionRadius = Mathf.Max(0f, detectionRadius);
         loseRadius = Mathf.Max(detectionRadius, loseRadius);
+        damagedAggroSeconds = Mathf.Max(0f, damagedAggroSeconds);
     }
 }

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 10de39a6392c86b479f4efe7e9856584
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 379232
+  packageName: Pee VFX - URP
+  packageVersion: 1.0.1
+  assetPath: Assets/Vefects/Pee VFX URP/VFX/Shaders/Functions/SH_F_Vefects_VFX_UV_Controls.asset
+  uploadId: 969892

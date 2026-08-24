@@ -4,7 +4,7 @@ using UnityEngine;
 /// NavTarget을 현재 표면 위에서 이동시키는 공통 기반 클래스입니다.
 /// Spider처럼 procedural leg가 root.up을 기준으로 발을 찾는 몬스터는 navTarget의 up 방향을 표면 normal에 맞춰야 합니다.
 /// </summary>
-public abstract class MonsterNavTargetMover : MonoBehaviour
+public abstract class MonsterNavTargetMover : MonoBehaviour, IMonsterResettable
 {
     [Header("References")]
     [SerializeField] protected Transform navTarget;
@@ -34,6 +34,7 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
     /// </summary>
     protected virtual void ResolveSceneReferences()
     {
+        navTarget ??= FindNavTarget(transform);
         navTarget ??= transform;
 
         stateMachine ??= GetComponent<MonsterStateMachine>();
@@ -55,6 +56,47 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
         }
 
         return FindFirstObjectByType<GravityState>();
+    }
+
+    protected static Transform FindNavTarget(Transform root)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        Transform navTarget = root.Find("Nav Target");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        navTarget = root.Find("NavTarget");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindNavTarget(root.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// MonsterManager 리스폰 시 공통 이동 기준을 초기화합니다.
+    /// 구체적인 waypoint index나 공격 상태는 파생 클래스가 추가로 정리합니다.
+    /// </summary>
+    public virtual void ResetMonsterRuntime()
+    {
+        ResolveSceneReferences();
+        currentSurfaceNormal = Vector3.up;
     }
 
     /// <summary>
@@ -79,12 +121,39 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
         // 목적지에 거의 도착했으면 더 이동하지 않고, 회전만 표면 normal에 맞춰 정리한 뒤 도착했다고 알려준다.
         if (moveDirection.magnitude <= stoppingDistance)
         {
-            AlignNavTarget(currentSurfaceNormal, deltaTime);
+            AlignNavTarget(currentSurfaceNormal, deltaTime, moveDirection);
             return true;
         }
 
         navTarget.position += moveDirection.normalized * moveSpeed * deltaTime;
-        AlignNavTarget(currentSurfaceNormal, deltaTime);
+        AlignNavTarget(currentSurfaceNormal, deltaTime, moveDirection);
+        return false;
+    }
+
+    /// <summary>
+    /// 표면이 바뀌는 waypoint 전환처럼 평면 투영 이동이 목적지 접근을 막을 때 사용합니다.
+    /// 위치는 목적지로 직접 이동하되, up 방향은 새 표면 normal에 맞춥니다.
+    /// </summary>
+    protected bool MoveNavTargetDirectlyToward(Vector3 destination, Vector3 surfaceNormal, float deltaTime)
+    {
+        if (navTarget == null)
+        {
+            return false;
+        }
+
+        currentSurfaceNormal = surfaceNormal.sqrMagnitude < Mathf.Epsilon
+            ? currentSurfaceNormal
+            : surfaceNormal.normalized;
+
+        Vector3 toDestination = destination - navTarget.position;
+        if (toDestination.magnitude <= stoppingDistance)
+        {
+            AlignNavTarget(currentSurfaceNormal, deltaTime, toDestination);
+            return true;
+        }
+
+        navTarget.position += toDestination.normalized * moveSpeed * deltaTime;
+        AlignNavTarget(currentSurfaceNormal, deltaTime, toDestination);
         return false;
     }
 
@@ -94,13 +163,26 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
     /// </summary>
     protected void AlignNavTarget(Vector3 surfaceNormal, float deltaTime)
     {
+        AlignNavTarget(surfaceNormal, deltaTime, navTarget != null ? navTarget.forward : Vector3.forward);
+    }
+
+    /// <summary>
+    /// NavTarget의 up은 표면 normal에 맞추고, forward는 실제 이동 방향을 바라보게 합니다.
+    /// </summary>
+    protected void AlignNavTarget(Vector3 surfaceNormal, float deltaTime, Vector3 desiredForward)
+    {
         if (navTarget == null)
         {
             return;
         }
 
         Vector3 up = surfaceNormal.normalized;
-        Vector3 forward = Vector3.ProjectOnPlane(navTarget.forward, up);
+        Vector3 forward = Vector3.ProjectOnPlane(desiredForward, up);
+        if (forward.sqrMagnitude < 0.0001f)
+        {
+            forward = Vector3.ProjectOnPlane(navTarget.forward, up);
+        }
+
         if (forward.sqrMagnitude < 0.0001f)
         {
             forward = Vector3.ProjectOnPlane(transform.forward, up);

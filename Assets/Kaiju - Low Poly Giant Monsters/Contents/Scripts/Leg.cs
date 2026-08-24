@@ -35,11 +35,15 @@ namespace DistantLands
         public float distanceToLiftLeg;
         public bool paused;
 
+        private GetVelocityFromTransform rootVelocity;
+        private int cachedGroundedLegCount = -1;
+
 
         // Start is called before the first frame update
         void Start()
         {
             IKSolver = GetComponent<LegIK>();
+            rootVelocity = root != null ? root.GetComponent<GetVelocityFromTransform>() : null;
             IKSolver.elbow.parent = root.transform;
             IKSolver.target.parent = null;
             currentTarget = new GameObject(gameObject.name + " Target").transform;
@@ -60,7 +64,7 @@ namespace DistantLands
 
             }
 
-            if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance * scale, layerMask))
+            if (Physics.Raycast(nextFootTarget.position + GetRootVelocity() * offsetByVelocity, -root.up, out hit, maxRayDistance * scale, layerMask))
             {
 
 
@@ -86,58 +90,26 @@ namespace DistantLands
         // Update is called once per frame
         public void UpdateLeg()
         {
+            UpdateLeg(true, -1);
+        }
+
+        public void UpdateLeg(bool allowGroundProbe, int groundedLegCount)
+        {
             float scale = GetReferenceScale();
+            cachedGroundedLegCount = groundedLegCount;
 
 
             if (!paused)
             {
-                if (CheckLegsGrounded() > minLegsGrounded)
+                if (allowGroundProbe && CheckLegsGrounded() > minLegsGrounded)
                 {
 
-                    RaycastHit hit;
-                    if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance * scale, layerMask))
-                    {
-
-
-                        point = hit.point + (root.up * groundOffset * scale);
-
-
-
-
-                        if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset * scale) > maxDistance * scale)
-                        {
-
-
-                            currentTarget.position = point;
-                            currentTarget.LookAt(hit.point, root.up);
-
-
-                        }
-                    }
+                    TryUpdateCurrentTarget(scale);
                 }
 
-                if (Vector3.Distance(currentTarget.position, IKSolver.target.position) > failDistance * scale) {
+                if (allowGroundProbe && Vector3.Distance(currentTarget.position, IKSolver.target.position) > failDistance * scale) {
 
-                    RaycastHit hit;
-                    if (Physics.Raycast(nextFootTarget.position + root.GetComponent<GetVelocityFromTransform>().velocity * offsetByVelocity, -root.up, out hit, maxRayDistance * scale, layerMask))
-                    {
-
-
-                        point = hit.point + (root.up * groundOffset * scale);
-
-
-
-
-                        if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset * scale) > maxDistance * scale)
-                        {
-
-
-                            currentTarget.position = point;
-                            currentTarget.LookAt(hit.point, root.up);
-
-
-                        }
-                    }
+                    TryUpdateCurrentTarget(scale);
                 }
 
                 grounded = Vector3.Distance(IKSolver.target.position, currentTarget.position) < groundSnap * scale;
@@ -161,6 +133,29 @@ namespace DistantLands
 
         }
 
+        private void TryUpdateCurrentTarget(float scale)
+        {
+            RaycastHit hit;
+            if (Physics.Raycast(nextFootTarget.position + GetRootVelocity() * offsetByVelocity, -root.up, out hit, maxRayDistance * scale, layerMask))
+            {
+                point = hit.point + (root.up * groundOffset * scale);
+
+                if (Vector3.Distance(IKSolver.hand.position, hit.point + root.up * groundOffset * scale) > maxDistance * scale)
+                {
+                    currentTarget.position = point;
+                    currentTarget.LookAt(hit.point, root.up);
+                }
+            }
+        }
+
+        private Vector3 GetRootVelocity()
+        {
+            if (rootVelocity == null && root != null)
+                rootVelocity = root.GetComponent<GetVelocityFromTransform>();
+
+            return rootVelocity != null ? rootVelocity.velocity : Vector3.zero;
+        }
+
         private float GetReferenceScale()
         {
             Transform reference = root != null ? root : transform;
@@ -174,6 +169,8 @@ namespace DistantLands
 
         public int CheckLegsGrounded()
         {
+            if (cachedGroundedLegCount >= 0)
+                return cachedGroundedLegCount;
 
             int grounded = 0;
 

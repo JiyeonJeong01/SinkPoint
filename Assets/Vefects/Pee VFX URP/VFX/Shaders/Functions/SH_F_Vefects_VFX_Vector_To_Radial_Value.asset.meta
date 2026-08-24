@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 56cc3109e9c9cfb4eb8311df7a8658f8
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 379232
+  packageName: Pee VFX - URP
+  packageVersion: 1.0.1
+  assetPath: Assets/Vefects/Pee VFX URP/VFX/Shaders/Functions/SH_F_Vefects_VFX_Vector_To_Radial_Value.asset
+  uploadId: 969892

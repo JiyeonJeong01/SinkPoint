@@ -6,7 +6,7 @@ using UnityEngine;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(MonsterTargetSensor))]
-public sealed class MonsterStateMachine : MonoBehaviour
+public sealed class MonsterStateMachine : MonoBehaviour, IMonsterResettable
 {
     [SerializeField, Tooltip("공격 거리 판정에 사용할 기준 Transform입니다. 비워두면 이 오브젝트 기준이고, 지네처럼 NavTarget이 실제 이동 기준이면 Nav Target을 넣습니다.")]
     private Transform distanceOrigin;
@@ -22,6 +22,8 @@ public sealed class MonsterStateMachine : MonoBehaviour
     private float targetDistance = -1f;
     [SerializeField, Tooltip("현재 타겟 거리가 Attack Range 안에 들어왔는지 표시합니다.")]
     private bool isTargetInAttackRange;
+    [SerializeField, Tooltip("Sensor가 놓친 경우에도 디버그 거리 표시용으로 찾은 플레이어입니다. 상태 전환에는 Sensor Target만 사용합니다.")]
+    private Transform debugDistanceTarget;
 
     private MonsterTargetSensor targetSensor;
     private MonsterHealth health;
@@ -62,12 +64,57 @@ public sealed class MonsterStateMachine : MonoBehaviour
 
         if (distanceOrigin == null)
         {
-            Transform navTarget = transform.Find("Nav Target");
+            Transform navTarget = FindNavTarget();
             if (navTarget != null)
             {
                 distanceOrigin = navTarget;
             }
         }
+    }
+
+    private Transform FindNavTarget()
+    {
+        Transform navTarget = transform.Find("Nav Target");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        navTarget = transform.Find("NavTarget");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform found = FindNavTargetRecursive(transform.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private static Transform FindNavTargetRecursive(Transform root)
+    {
+        if (root.name == "Nav Target" || root.name == "NavTarget")
+        {
+            return root;
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindNavTargetRecursive(root.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private void OnDestroy()
@@ -96,13 +143,17 @@ public sealed class MonsterStateMachine : MonoBehaviour
         Transform target = Target;
         if (target == null)
         {
-            targetDistance = -1f;
+            debugDistanceTarget = FindDebugDistanceTarget();
+            targetDistance = debugDistanceTarget != null
+                ? Vector3.Distance(debugDistanceTarget.position, DistanceOrigin.position)
+                : -1f;
             isTargetInAttackRange = false;
             SetState(initialState);
             return;
         }
 
         Transform origin = DistanceOrigin;
+        debugDistanceTarget = target;
         targetDistance = Vector3.Distance(target.position, origin.position);
         float sqrAttackRange = attackRange * attackRange;
         isTargetInAttackRange = targetDistance * targetDistance <= sqrAttackRange;
@@ -131,6 +182,18 @@ public sealed class MonsterStateMachine : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// MonsterManager 리스폰 시 사망/공격 상태와 디버그 거리값을 시작 상태로 되돌립니다.
+    /// </summary>
+    public void ResetMonsterRuntime()
+    {
+        ResolveSceneReferences();
+        currentState = initialState;
+        targetDistance = -1f;
+        isTargetInAttackRange = false;
+        debugDistanceTarget = null;
+    }
+
     private void OnDied(MonsterHealth monsterHealth)
     {
         SetState(MonsterState.Dead);
@@ -153,6 +216,24 @@ public sealed class MonsterStateMachine : MonoBehaviour
         {
             Debug.Log($"[{nameof(MonsterStateMachine)}] {name}: {previousState} -> {currentState}", this);
         }
+    }
+
+    private Transform FindDebugDistanceTarget()
+    {
+        GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+        if (taggedPlayer != null)
+        {
+            return taggedPlayer.transform;
+        }
+
+        PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+        if (playerHealth != null)
+        {
+            return playerHealth.transform;
+        }
+
+        PlayerInput playerInput = FindFirstObjectByType<PlayerInput>();
+        return playerInput != null ? playerInput.transform : null;
     }
 
     private void OnValidate()
