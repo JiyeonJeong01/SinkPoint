@@ -12,20 +12,25 @@ public sealed class PlayerHealth : MonoBehaviour
     [SerializeField, Tooltip("Play Mode에서 확인하는 사망 상태입니다.")]
     private bool dead;
 
-    public int CurrentHealth => currentHealth;
+    private bool initialized;
+
+    public int CurrentHealth => initialized ? currentHealth : maxHealth;
     public int MaxHealth => maxHealth;
     public bool IsDead => dead;
 
     public event Action<PlayerHealth> Died;
+    public event Action<PlayerHealth> Restored;
     public event Action<PlayerHealth, int> Damaged;
 
     private void Awake()
     {
-        currentHealth = maxHealth;
+        InitializeHealthIfNeeded();
     }
 
     public void ApplyDamage(int amount)
     {
+        InitializeHealthIfNeeded();
+
         if (dead || amount <= 0)
         {
             return;
@@ -42,8 +47,10 @@ public sealed class PlayerHealth : MonoBehaviour
 
     public void ResetHealth()
     {
+        initialized = true;
         dead = false;
         currentHealth = maxHealth;
+        Restored?.Invoke(this);
     }
 
     private void Die()
@@ -60,5 +67,16 @@ public sealed class PlayerHealth : MonoBehaviour
     private void OnValidate()
     {
         maxHealth = Mathf.Max(1, maxHealth);
+    }
+
+    private void InitializeHealthIfNeeded()
+    {
+        if (initialized)
+        {
+            return;
+        }
+
+        initialized = true;
+        currentHealth = maxHealth;
     }
 }

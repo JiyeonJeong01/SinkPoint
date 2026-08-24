@@ -270,8 +270,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 365a3bd4fa1e5e84392c11f7aeacd7d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InGameHudCanvas
-  hpText: {fileID: 0}
+  hpSlider: {fileID: 359232355670804512}
   monsterCountText: {fileID: 4016010212587901060}
+  playerHealth: {fileID: 0}
+  gameFlowManager: {fileID: 0}
+  monsterManager: {fileID: 0}
+  autoBindRuntimeReferences: 1
+  retryBindInterval: 0.5
 --- !u!1 &5747370466697346398
 GameObject:
   m_ObjectHideFlags: 0

@@ -8,6 +8,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class MonsterManager : MonoBehaviour
 {
+    public event Action<ZoneId, int, int> ZoneMonsterCountChanged;
+
     [Serializable]
     private sealed class ZoneMonsterGroup
     {
@@ -146,9 +148,46 @@ public sealed class MonsterManager : MonoBehaviour
         UpdateReadouts();
     }
 
+    /// <summary>
+    /// HUD처럼 현재 Zone 남은 몬스터 수만 읽는 시스템이 사용합니다.
+    /// </summary>
+    public int GetAliveMonsterCount(ZoneId zoneId)
+    {
+        RefreshMonsterListIfEmpty();
+        return CountLivingMonsters(zoneId);
+    }
+
+    /// <summary>
+    /// HUD에서 "남은 수 / 전체 수" 표시가 필요할 때 사용합니다.
+    /// </summary>
+    public int GetTotalMonsterCount(ZoneId zoneId)
+    {
+        RefreshMonsterListIfEmpty();
+        return CountZoneMonsters(zoneId);
+    }
+
+    /// <summary>
+    /// HUD나 디버그 UI가 현재 카운트를 즉시 다시 밀어달라고 요청할 때 사용합니다.
+    /// </summary>
+    public void RefreshMonsterCountReadout()
+    {
+        RefreshMonsterListIfEmpty();
+        UpdateReadouts();
+    }
+
     private void ResolveReferences()
     {
         gameFlowManager ??= FindFirstObjectByType<GameFlowManager>();
+    }
+
+    private void RefreshMonsterListIfEmpty()
+    {
+        if (trackedMonsters != null && trackedMonsters.Length > 0)
+        {
+            return;
+        }
+
+        RefreshMonsterList();
     }
 
     private void RefreshMonsterList()
@@ -329,6 +368,8 @@ public sealed class MonsterManager : MonoBehaviour
                 alive = CountLivingMonsters(zoneId),
                 active = HasActiveMonster(zoneId)
             };
+
+            ZoneMonsterCountChanged?.Invoke(zoneId, zoneReadouts[i].alive, zoneReadouts[i].total);
         }
     }
 
