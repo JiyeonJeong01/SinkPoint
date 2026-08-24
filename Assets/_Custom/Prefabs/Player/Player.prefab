@@ -301,6 +301,10 @@ MonoBehaviour:
   hitMask:
     serializedVersion: 2
     m_Bits: 3127
+  shotPushVelocityChange: 1.5
+  lastShotCollider: {fileID: 0}
+  lastShotRigidbody: {fileID: 0}
+  lastShotAppliedPhysicsPush: 0
   showShotTracer: 1
   shotTracer: {fileID: 1810366946}
   shotTracerDuration: 0.05

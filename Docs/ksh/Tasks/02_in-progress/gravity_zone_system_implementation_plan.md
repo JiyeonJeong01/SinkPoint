@@ -1,7 +1,8 @@
 # Zone 기반 중력 시스템 구현 실행 계획
 
 문서 작성일: 2026-08-24  
-현재 상태: Phase 1 구현 완료 · Play Mode 사용자 기능 검증 대기  
+현재 상태: Phase 2 구현·검증 경로 개선 완료 · Unity Play Mode 사용자 검증 대기
+
 계획 프로필: `deep`
 
 기준 문서:
@@ -59,14 +60,13 @@ Normal Gravity
 
 ### 4.1 중력 상태
 
-- `Assets/_Scripts/Gravity/GravityState.cs`는 정규화된 `Direction`, 0 이상 `Strength`와 두 값을 곱한 `Gravity`를 제공한다.
-- 현재는 런타임 변경 메서드와 변경 이벤트가 없다.
+- `Assets/_Scripts/Gravity/GravityState.cs`는 정규화된 `Direction`, 0 이상 `Strength`, 두 값을 곱한 `Gravity`, 런타임 `SetGravity()`와 `Changed` 이벤트를 제공한다.
 - `GamePlayScene_Player/GravitySystem`에는 아래 방향 `(0, -1, 0)`, 세기 `9.81`의 `GravityState`가 하나 배치돼 있다.
 
 ### 4.2 Zone과 게임 진행
 
-- `GravityEventTrigger`는 플레이어가 트리거를 올바른 방향으로 통과했는지 판정하고 `Triggered` 이벤트를 발생시킨다.
-- `GameFlowManager`는 이 이벤트를 받아 `GameFlowState`만 갱신하며 실제 중력 변경은 TODO로 남아 있다.
+- `GravityEventTrigger`는 플레이어가 처음 닿는 `OnTriggerEnter`에서 `Triggered` 이벤트를 한 번 발생시킨다.
+- `GameFlowManager`는 이 이벤트를 받아 `GravityManager.ActivateZone()`을 호출한 뒤 `GameFlowState`를 갱신한다.
 - 현재 이벤트 타입은 `ShiftGravity`, `Inversion`, `FastDown`, `Slow`, `ZeroGravity`다.
 - 씬에는 `Zone_02_Normal`, `Zone_03_GravityShift`, `Zone_04_Inversion`, `Zone_05_ZeroGravity`와 다섯 종류의 중력 이벤트 트리거가 이미 존재한다.
 
@@ -108,7 +108,7 @@ Normal Gravity
 
 ```text
 GravityEventTrigger
-  └─ 플레이어 통과 판정만 소유
+  └─ 플레이어 첫 접촉과 one-shot 판정만 소유
         ↓
 GameFlowManager
   ├─ GameFlowState 갱신
@@ -162,7 +162,7 @@ GravityState
 - 필요한 설정은 동작 종류, 방향 또는 방향 목록, 세기, 변경 간격과 예고 시간이다.
 - 월드 방향을 직접 저장할지 Zone Transform의 로컬 축을 사용할지는 Phase 1 Scene View 확인 후 확정한다.
 - 방향을 로컬 축으로 표현할 경우 런타임에 Zone Transform을 기준으로 월드 방향을 계산한다.
-- 통과 판정과 one-shot 여부는 기존 `GravityEventTrigger`가 계속 소유한다.
+- Player 판정과 첫 Enter 이후의 one-shot 여부는 기존 `GravityEventTrigger`가 계속 소유한다.
 
 ### 6.4 `GravityBody`
 
@@ -236,18 +236,18 @@ GravityState
 - 투영 결과가 거의 0이면 플레이어 또는 카메라의 안정적인 보조 전방을 사용한다.
 - Phase 1에서는 전환 연출을 추가하지 않고 기존 정렬 속도로 기능을 먼저 검증한다.
 - 방향 전환 시 플레이어 선속도는 우선 보존한다. 통제 불가능한 발사나 관통이 재현될 때만 이전·새 중력축 속도 정책을 별도 근거로 조정한다.
-- 수동 테스트는 `GameFlowState`나 `GravityEventType`을 복제한 중력 프리셋 enum을 만들지 않고, Inspector에서 선택한 `GravityZone` 참조를 사용한다.
-- 디버그 컨트롤러는 `FollowGameFlow` / `Manual` 제어 모드만 소유하고, 수동 적용도 운영 경로와 동일한 `GravityManager.ActivateZone(GravityZone)` 진입점을 호출한다.
+- 수동 테스트는 `GameFlowState`나 `GravityEventType`을 복제하지 않고 `GravityManager`의 `initialZone`과 `manualTestZone` 참조를 사용한다.
+- `GravityManager`의 Custom Inspector에 `Apply Initial Zone` / `Apply Manual Test Zone` 버튼과 현재 Zone을 표시하며, 두 버튼도 운영 경로와 동일한 `ActivateZone(GravityZone)` 진입점을 호출한다.
+- 두 버튼은 Play Mode에서만 활성화되고 Zone 참조가 비어 있으면 해당 버튼을 비활성화한다.
 - 디버그 경로는 `GravityState` 직렬화 필드나 `GameFlowManager.CurrentState`를 직접 덮어쓰지 않는다. 그래야 이전 Zone 취소, 활성 Zone 교체와 중력 변경 이벤트까지 같이 검증된다.
-- Phase 1에서는 Normal과 90도 Shift Zone만 수동 선택 대상으로 구성하고, 후속 Phase에서 Reverse·Zero Zone 참조를 추가해도 디버그 코드를 변경하지 않는다.
-- 수동 모드는 명시적인 Inspector/Context Menu 조작에서만 Zone을 적용하고, 기본값인 `FollowGameFlow`에서는 자동 진행을 덮어쓰지 않는다.
+- Phase 1에서는 Normal을 `initialZone`, 90도 Shift를 `manualTestZone`으로 구성한다.
+- 별도 DebugController와 제어 모드를 두지 않으며 Inspector 버튼은 사용자가 명시적으로 누를 때만 동작한다.
 
 ### 예상 변경 파일
 
 - `Assets/_Scripts/Gravity/GravityState.cs`
 - `Assets/_Scripts/Gravity/GravityManager.cs` 신규
 - `Assets/_Scripts/Gravity/GravityZone.cs` 신규
-- `Assets/_Scripts/Gravity/GravityDebugController.cs` 신규
 - `Assets/_Scripts/GameFlow/GameFlowManager.cs`
 - 필요할 경우 `Assets/_Scripts/GameFlow/Triggers/GravityEventTrigger.cs`
 - `Assets/_Scripts/Player/PlayerController.cs`
@@ -260,8 +260,8 @@ GravityState
 1. `[Git·씬·Console 기준선과 사용자 미커밋 변경 기록]` → verify: `[GameDesign과 Master Plan 변경 보존, Original·ProjectSettings 의도하지 않은 diff 없음]`
 2. `[GravityState 런타임 변경 계약 구현]` → verify: `[정규화, 세기 0 이상, 동일 값 중복 이벤트 방지, 컴파일 오류 0건]`
 3. `[최소 GravityManager와 고정형 GravityZone 구현]` → verify: `[새 Zone 활성화 1회당 GravityState가 정확히 한 번 변경]`
-4. `[수동 GravityZone 테스트 하네스 구현]` → verify: `[Normal·Shift를 선택해도 동일한 ActivateZone 경로만 호출, FollowGameFlow 복귀 후 자동 진행 덮어쓰기 없음]`
-5. `[기존 GravityEventTrigger와 GameFlowManager 연결]` → verify: `[통과 실패는 변경 없음, 올바른 통과는 Flow 상태와 중력 상태가 함께 한 번 변경]`
+4. `[GravityManager Inspector 테스트 진입점 구현]` → verify: `[Normal·Shift 버튼 모두 동일한 ActivateZone 경로만 호출]`
+5. `[GravityEventTrigger 첫 Enter와 GameFlowManager 연결]` → verify: `[첫 접촉에 Flow 상태와 중력 상태가 함께 한 번 변경]`
 6. `[Player Rigidbody 제약과 정렬 경로 수정]` → verify: `[90도 회전 가능, 물리 루트와 VisualRoot가 서로 싸우지 않음]`
 7. `[카메라를 현재 중력 Up 기준으로 수정]` → verify: `[새 벽 착지 후 좌우 yaw·상하 pitch·카메라 충돌이 새 기준으로 동작]`
 8. `[Zone_03_GravityShift에 첫 고정 방향 설정]` → verify: `[Inspector 참조 누락과 잘못된 0 방향 없음]`
@@ -274,9 +274,8 @@ GravityState
 - Normal 구간에서 기존 이동·점프·달리기·웅크리기·사격이 회귀하지 않는다.
 - 플레이어를 이동하지 않고 수동으로 Normal과 Shift를 반복 선택할 수 있다.
 - 수동 Shift와 실제 트리거 Shift가 같은 `GravityManager.ActivateZone()` 경로를 통해 같은 중력·플레이어·카메라 결과를 낸다.
-- `FollowGameFlow`로 복귀한 후 수동 테스트가 후속 트리거 상태를 다시 덮어쓰지 않는다.
-- 트리거를 같은 쪽으로 빠져나오면 중력이 바뀌지 않는다.
-- 올바르게 통과하면 중력이 한 번만 90도 변경된다.
+- Inspector 버튼을 누르지 않으면 수동 테스트가 후속 트리거 상태를 덮어쓰지 않는다.
+- Shift Trigger에 처음 닿는 순간 중력이 한 번만 90도 변경된다.
 - 플레이어가 새 중력 방향으로 떨어지고 몸의 Up이 새 바닥 normal과 맞는다.
 - 새 바닥에서 WASD, 점프, 달리기와 웅크리기가 가능하다.
 - 카메라가 월드 Up에 남거나 갑자기 뒤집히지 않는다.
@@ -294,13 +293,16 @@ GravityState
 
 ### 구현·검증 결과 (2026-08-24)
 
-- `GravityState.SetGravity()`와 `Changed`, 고정형 `GravityZone`, `GravityManager`, `GravityDebugController`를 구현했다.
+- `GravityState.SetGravity()`와 `Changed`, 고정형 `GravityZone`, `GravityManager`를 구현했다.
 - `GravityEventTrigger.Zone` → `GameFlowManager` → `GravityManager.ActivateZone()` 경로를 연결했다.
 - `GravitySystem` 아래 Normal `(0, -1, 0)`과 Shift `(+1, 0, 0)` Zone을 구성하고 Shift Trigger, Camera, Flow 참조를 저장했다.
 - Player Rigidbody의 X/Z 회전 고정을 제거하고 Camera yaw·pitch 기준을 현재 중력 Up으로 변경했다.
 - Unity 스크립트 재컴파일은 `failed=false`, 컴파일 오류 0건으로 완료했다.
 - Play Mode에서 Normal 초기값과 임시 Shift 초기 Zone 활성화를 각각 확인했다. Shift에서 `GravityState.Direction == (+1, 0, 0)`이 적용되고 Player와 Camera Rig가 같은 축으로 이동했으며 신규 게임플레이 오류는 없었다. 테스트 후 초기 Zone은 Normal로 복구했다.
-- 남은 사용자 검증은 실제 조작으로 Trigger 통과, 새 바닥 착지, WASD·Jump·Sprint·Crouch, Camera·조준, 수동 Normal ↔ Shift 반복을 확인하는 것이다.
+- 반대편 통과 판정을 제거하고 Player가 Trigger에 처음 닿는 순간 한 번 실행하도록 단순화했다.
+- 별도 `GravityDebugController`를 제거하고 `GravityManager`의 Play Mode 전용 Inspector 버튼에서 Normal ↔ Shift를 반복 적용하도록 검증 진입점을 모았다.
+- 사용자 Play Mode 테스트에서 Trigger 첫 접촉 중력 전환, Player와 두 테스트 Cube의 새 벽 착지, 착지 후 Player 이동을 확인했다.
+- 남은 사용자 검증은 새 Inspector 버튼의 Normal ↔ Shift 반복, 사격 피격 이동과 Runtime Shot Debug 값 확인이다.
 
 ### 중단 조건
 
@@ -321,6 +323,7 @@ GravityState
 - 중력 변경 시 잠든 Rigidbody 깨우기
 - 질량과 무관한 동일 가속도 확인
 - 정적 지형의 중력 비참여 확인
+- 테스트 Cube의 통로 이동과 사격 피격 이동
 
 ### 구현 방향
 
@@ -329,11 +332,16 @@ GravityState
 - `GravityState` 변경 이벤트에서 Rigidbody를 `WakeUp()`한다.
 - Phase 2에서는 중력 반응 배율, 항력 프리셋과 오브젝트별 예외를 추가하지 않는다.
 - 지형용 환경 Prefab 원본을 수정하지 않는다. 테스트 Cube 또는 별도 연출용 Prefab을 사용한다.
+- Scene 전용 Cube 두 개는 `0.4` 크기로 줄여 Shift Trigger 직전의 Normal 중력 바닥에 배치한다.
+- 사격 Ray가 비키네마틱 `GravityBody`를 맞힌 경우에만 Rigidbody를 깨우고 `1.5`의 `ForceMode.VelocityChange`를 무게중심에 적용한다.
+- 사격으로 인한 회전보다 통로 운반에 필요한 병진 이동을 우선하며, 마지막 Collider·Rigidbody·힘 적용 여부를 Inspector에서 확인한다.
 
 ### 예상 변경 파일
 
 - `Assets/_Scripts/Gravity/GravityBody.cs` 신규
-- 필요할 경우 `Assets/_Custom/Prefabs/Gravity/GravityTestBody.prefab` 신규
+- `Assets/_Scripts/Gravity/Editor/GravityManagerEditor.cs` 신규
+- `Assets/_Scripts/Player/PlayerCombatController.cs`
+- `Assets/_Custom/Prefabs/Player/Player.prefab`
 - `Assets/_Scenes/GamePlayScene_Player.unity`
 
 ### 실행 순서
@@ -342,7 +350,8 @@ GravityState
 2. `[질량이 다른 테스트 오브젝트 2개 구성]` → verify: `[두 오브젝트 모두 GravityBody만 opt-in하고 지형에는 추가되지 않음]`
 3. `[Normal 중력 낙하 검증]` → verify: `[동일 높이에서 질량과 무관하게 같은 가속도로 낙하]`
 4. `[90도 Shift 검증]` → verify: `[잠든 오브젝트가 깨어나 플레이어와 같은 방향으로 낙하]`
-5. `[정적 지형 회귀 확인]` → verify: `[바위·벽·바닥 Transform과 Collider 구성 불변]`
+5. `[사격 피격 이동 연결]` → verify: `[GravityBody만 질량과 무관하게 한 발당 작은 폭으로 이동]`
+6. `[정적 지형 회귀 확인]` → verify: `[바위·벽·바닥 Transform과 Collider 구성 불변]`
 
 ### Play Mode 테스트
 
@@ -352,12 +361,24 @@ GravityState
 - 중력이 바뀌기 전 기존 속도가 Unity 기본 중력과 중복되어 증가하지 않는다.
 - 정적 바위와 지형은 움직이지 않는다.
 - Player에는 `GravityBody`가 없어 중력이 두 번 적용되지 않는다.
+- 테스트 Cube는 총에 맞으면 조금씩 이동하고 정적 지형과 Player는 사격 힘을 받지 않는다.
 
 ### 완료 기준
 
 - 플레이어와 최소 2개의 동적 오브젝트가 한 번의 90도 전환에 함께 반응한다.
 - 중력 영향 대상이 컴포넌트 부착 여부로 명확히 구분된다.
 - 씬 전체 Rigidbody 검색과 지형 Prefab 수정이 없다.
+
+### 구현·검증 결과 (2026-08-24)
+
+- `GravityBody`를 추가하고 Rigidbody 필수 계약, Unity 기본 중력 비활성화, `ForceMode.Acceleration` 기반 사용자 정의 중력, `GravityState.Changed` 구독·해제와 변경 시 `WakeUp()`을 구현했다.
+- `GamePlayScene_Player/GravitySystem` 아래에 질량 `1`과 `5`, 크기 `0.4`인 Scene 전용 Cube 두 개를 Shift Trigger 직전 바닥에 배치하고 같은 `GravityState`를 연결했다. Player와 정적 지형에는 `GravityBody`를 추가하지 않았다.
+- Player 사격이 비키네마틱 `GravityBody`에만 `1.5`의 질량 독립 속도 변화를 무게중심에 적용하도록 보강하고, 적용 전에 Rigidbody를 깨우도록 했다.
+- `GravityManager` Inspector에 Play Mode 전용 Initial·Manual Zone 버튼과 현재 Zone 표시를 추가해 숨겨진 Context Menu 없이 Normal과 Shift를 전환할 수 있게 했다.
+- Player의 마지막 사격 Collider·GravityBody Rigidbody·물리 밀기 성공 여부를 Inspector 런타임 상태로 노출했다.
+- 신규 파일과 검증 경로 개선 코드를 생성 Unity C# 프로젝트에 포함한 정적 빌드는 오류 0건, 기존 경고 19건으로 완료했다.
+- 사용자 Play Mode 테스트에서 Trigger 진입 즉시 중력이 전환됐고, 전환 후 Player와 질량 `1`·`5` 테스트 Cube가 모두 새 벽에 착지했으며 Player 이동도 정상 동작했다.
+- 강화한 사격 이동과 새 Inspector 버튼은 Unity의 스크립트 재로드 후 Play Mode 재검증이 남아 있다.
 
 ## 11. Phase 3 — 고정형 Zone 상태 확장과 전환 소유권 정리
 
@@ -635,7 +656,6 @@ Editor Play Mode에서 확인한 방향성 중력과 무중력 전환이 WebGL �
 
 - `Assets/_Scripts/Gravity/GravityManager.cs`
 - `Assets/_Scripts/Gravity/GravityZone.cs`
-- `Assets/_Scripts/Gravity/GravityDebugController.cs`
 - `Assets/_Scripts/Gravity/GravityBody.cs`
 - 필요할 경우 `Assets/_Custom/Prefabs/Gravity/GravityTestBody.prefab`
 

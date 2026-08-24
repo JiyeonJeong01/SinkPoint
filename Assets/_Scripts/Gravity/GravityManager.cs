@@ -3,8 +3,13 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class GravityManager : MonoBehaviour
 {
+    [Header("Gravity")]
     [SerializeField] private GravityState gravityState;
     [SerializeField] private GravityZone initialZone;
+
+    [Header("Manual Test")]
+    [Tooltip("Play Mode 중 GravityManager Inspector의 테스트 버튼으로 적용할 Zone입니다.")]
+    [SerializeField] private GravityZone manualTestZone;
 
     public GravityZone CurrentZone { get; private set; }
 
