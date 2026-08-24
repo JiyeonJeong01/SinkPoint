@@ -23,6 +23,9 @@ namespace DistantLands
         void Start()
         {
 
+            if (legUpdateImportance == null)
+                legUpdateImportance = new List<Leg>();
+
             legUpdateImportance.AddRange(legs);
 
         }
@@ -51,6 +54,9 @@ namespace DistantLands
 
         private void LateUpdate()
         {
+
+            if (legUpdateImportance == null)
+                legUpdateImportance = new List<Leg>();
 
             foreach (Leg i in legs)
             {

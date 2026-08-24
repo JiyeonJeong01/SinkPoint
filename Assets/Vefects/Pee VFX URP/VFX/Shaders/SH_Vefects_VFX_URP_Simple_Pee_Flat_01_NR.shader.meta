@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: c81024d6f733b844c8c3084d7da4af8c
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 379232
+  packageName: Pee VFX - URP
+  packageVersion: 1.0.1
+  assetPath: Assets/Vefects/Pee VFX URP/VFX/Shaders/SH_Vefects_VFX_URP_Simple_Pee_Flat_01_NR.shader
+  uploadId: 969892

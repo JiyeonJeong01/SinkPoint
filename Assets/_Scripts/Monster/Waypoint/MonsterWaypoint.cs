@@ -10,6 +10,10 @@ public sealed class MonsterWaypoint : MonoBehaviour
     [SerializeField] private MonsterWaypoint[] nextWaypoints;   // 각 WayPoint는 갈림길을 가질 수 있다.
     [SerializeField] private bool jumpRequired;
 
+    [Header("Debug Gizmos")]
+    [SerializeField, Tooltip("이 waypoint의 구체와 normal 방향선을 표시합니다. 부모 MonsterRoute가 있으면 route의 Draw Route Gizmos가 꺼졌을 때 함께 숨겨집니다.")]
+    private bool drawWaypointGizmos = true;
+
     // WayPoint의 노멀 Local -> World 
     public Vector3 SurfaceNormal => transform.TransformDirection(localSurfaceNormal.normalized);
     public MonsterWaypoint[] NextWaypoints => nextWaypoints;
@@ -29,9 +33,25 @@ public sealed class MonsterWaypoint : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        if (!ShouldDrawGizmos())
+        {
+            return;
+        }
+
         // 점프가 필요하면 청록색, 일반 이동은 초록색으로 표시한다.
         Gizmos.color = jumpRequired ? Color.cyan : Color.green;
         Gizmos.DrawWireSphere(transform.position, 0.25f);
         Gizmos.DrawRay(transform.position, SurfaceNormal * 0.75f);
+    }
+
+    private bool ShouldDrawGizmos()
+    {
+        if (!drawWaypointGizmos)
+        {
+            return false;
+        }
+
+        MonsterRoute parentRoute = GetComponentInParent<MonsterRoute>();
+        return parentRoute == null || parentRoute.DrawRouteGizmos;
     }
 }
