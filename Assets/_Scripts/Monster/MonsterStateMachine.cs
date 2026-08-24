@@ -22,6 +22,8 @@ public sealed class MonsterStateMachine : MonoBehaviour
     private float targetDistance = -1f;
     [SerializeField, Tooltip("현재 타겟 거리가 Attack Range 안에 들어왔는지 표시합니다.")]
     private bool isTargetInAttackRange;
+    [SerializeField, Tooltip("Sensor가 놓친 경우에도 디버그 거리 표시용으로 찾은 플레이어입니다. 상태 전환에는 Sensor Target만 사용합니다.")]
+    private Transform debugDistanceTarget;
 
     private MonsterTargetSensor targetSensor;
     private MonsterHealth health;
@@ -107,13 +109,17 @@ public sealed class MonsterStateMachine : MonoBehaviour
         Transform target = Target;
         if (target == null)
         {
-            targetDistance = -1f;
+            debugDistanceTarget = FindDebugDistanceTarget();
+            targetDistance = debugDistanceTarget != null
+                ? Vector3.Distance(debugDistanceTarget.position, DistanceOrigin.position)
+                : -1f;
             isTargetInAttackRange = false;
             SetState(initialState);
             return;
         }
 
         Transform origin = DistanceOrigin;
+        debugDistanceTarget = target;
         targetDistance = Vector3.Distance(target.position, origin.position);
         float sqrAttackRange = attackRange * attackRange;
         isTargetInAttackRange = targetDistance * targetDistance <= sqrAttackRange;
@@ -164,6 +170,24 @@ public sealed class MonsterStateMachine : MonoBehaviour
         {
             Debug.Log($"[{nameof(MonsterStateMachine)}] {name}: {previousState} -> {currentState}", this);
         }
+    }
+
+    private Transform FindDebugDistanceTarget()
+    {
+        GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+        if (taggedPlayer != null)
+        {
+            return taggedPlayer.transform;
+        }
+
+        PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+        if (playerHealth != null)
+        {
+            return playerHealth.transform;
+        }
+
+        PlayerInput playerInput = FindFirstObjectByType<PlayerInput>();
+        return playerInput != null ? playerInput.transform : null;
     }
 
     private void OnValidate()

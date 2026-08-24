@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: fa1d83392910bb64f99b24bfc39a0a60
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 379232
+  packageName: Pee VFX - URP
+  packageVersion: 1.0.1
+  assetPath: Assets/Vefects/Pee VFX URP/VFX/Shaders/SH_Vefects_VFX_URP_Pee_Stream_01_NR.shader
+  uploadId: 969892

@@ -16,6 +16,7 @@ public sealed class SpiderSurfaceRouteMover : MonsterNavTargetMover
         ChaseTarget,
         AttackTarget,
         RoutePause,
+        MovementLocked,
         NullWaypoint,
         SurfaceTransition,
         MovingToWaypoint,
@@ -33,6 +34,8 @@ public sealed class SpiderSurfaceRouteMover : MonsterNavTargetMover
     private int routeIndexOffset;
     [SerializeField, Tooltip("route 전체를 다 돌면 다음 route로 넘어갑니다. 꺼두면 선택된 route 안에서만 반복합니다.")]
     private bool advanceToNextRouteAfterLoop = true;
+    [SerializeField, Tooltip("켜면 route waypoint를 NavTarget의 실제 목적지로 보고 3D 위치까지 정확히 이동합니다. 거미 waypoint는 표면점이 아니라 NavTarget 위치이므로 보통 켜둡니다.")]
+    private bool moveToExactWaypointPosition = true;
     [SerializeField, Tooltip("서로 다른 면의 waypoint로 넘어갈 때 평면 투영 대신 목표점으로 직접 접근합니다. 꺾이는 벽/천장 전환 구간에서 멈춤을 줄입니다.")]
     private bool directMoveOnSurfaceChange = true;
     [SerializeField, Tooltip("현재 표면 normal과 목표 waypoint normal의 각도가 이 값보다 크면 표면 전환으로 봅니다.")]
@@ -84,6 +87,7 @@ public sealed class SpiderSurfaceRouteMover : MonsterNavTargetMover
     private int routeStepCounter;
     private float routePauseTimer;
     private bool pausedBeforeCurrentWaypoint;
+    private bool movementLocked;
     private Vector3 lastProjectedMoveDirection;
 
     private int RouteCount => routes != null && routes.Length > 0 ? routes.Length : route != null ? 1 : 0;
@@ -119,26 +123,25 @@ public sealed class SpiderSurfaceRouteMover : MonsterNavTargetMover
             return;
         }
 
-        if (stateMachine != null && stateMachine.State == MonsterState.Chase && stateMachine.Target != null)
+        if (movementLocked)
         {
-            routeDebugStatus = RouteDebugStatus.ChaseTarget;
-            ClearRouteDebugTarget();
-            MoveNavTargetToward(stateMachine.Target.position, GetCombatSurfaceNormal(), Time.fixedDeltaTime);
-            return;
-        }
-
-        if (stateMachine != null && stateMachine.State == MonsterState.Attack && stateMachine.Target != null)
-        {
-            routeDebugStatus = RouteDebugStatus.AttackTarget;
-            ClearRouteDebugTarget();
-            Vector3 lookDirection = navTarget != null
-                ? stateMachine.Target.position - navTarget.position
-                : stateMachine.Target.position - transform.position;
-            AlignNavTarget(GetCombatSurfaceNormal(), Time.fixedDeltaTime, lookDirection);
+            routeDebugStatus = RouteDebugStatus.MovementLocked;
             return;
         }
 
         FollowRoute();
+    }
+
+    public bool IsRoutePauseActive => routePauseTimer > 0f;
+    public float RoutePauseRemaining => routePauseTimer;
+
+    /// <summary>
+    /// 공격 연출이 NavTarget을 직접 움직이는 동안 route/chase 이동을 잠깐 멈춥니다.
+    /// 컴포넌트를 disable하지 않아서 현재 route와 waypoint index는 유지됩니다.
+    /// </summary>
+    public void SetMovementLocked(bool locked)
+    {
+        movementLocked = locked;
     }
 
     /// <summary>
@@ -192,7 +195,7 @@ public sealed class SpiderSurfaceRouteMover : MonsterNavTargetMover
             return;
         }
 
-        bool arrived = isSurfaceTransition
+        bool arrived = moveToExactWaypointPosition || isSurfaceTransition
             ? MoveNavTargetDirectlyToward(waypoint.transform.position, waypoint.SurfaceNormal, Time.fixedDeltaTime)
             : MoveNavTargetToward(waypoint.transform.position, waypoint.SurfaceNormal, Time.fixedDeltaTime);
         if (arrived)
