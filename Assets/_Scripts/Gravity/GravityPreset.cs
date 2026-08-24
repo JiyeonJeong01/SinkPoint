@@ -1,10 +1,10 @@
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public sealed class GravityZone : MonoBehaviour
+public sealed class GravityPreset : MonoBehaviour
 {
     [SerializeField] private Vector3 direction = Vector3.down;
-    [SerializeField, Min(0f)] private float strength = 9.81f;
+    [SerializeField] private float strength = 9.81f;
 
     public Vector3 Direction => direction;
     public float Strength => strength;

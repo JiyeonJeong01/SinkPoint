@@ -10,6 +10,7 @@ public sealed class PlayerController : MonoBehaviour
     [SerializeField] private PlayerInput input;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private GravityState gravityState;
+    [SerializeField] private GravityManager gravityManager;
     [SerializeField] private Transform visualRoot;
 
     [Header("Movement")]
@@ -42,13 +43,22 @@ public sealed class PlayerController : MonoBehaviour
     private float standingCapsuleHeight;
     private Vector3 standingCapsuleCenter;
     private bool didWarnAboutStanceBuffer;
+    private bool ownsTransitionPositionLock;
+    private Vector3 transitionAnchorPosition;
+    private RigidbodyConstraints constraintsBeforeGravityTransition;
+
+    [Header("Runtime State")]
+    [SerializeField] private bool gravityTransitionActive;
 
     internal PlayerMotionStateId MotionState => stateMachine.CurrentId;
-    internal Vector3 GravityUp => -gravityState.Direction;
+    internal Vector3 GravityUp => gravityTransitionActive && gravityManager != null
+        ? gravityManager.PresentationUp
+        : -gravityState.Direction;
     internal float MoveSpeed => moveSpeed;
     internal float CurrentMoveSpeed { get; private set; }
     internal bool IsSprinting { get; private set; }
     internal bool IsCrouching { get; private set; }
+    internal bool IsGravityTransitioning => gravityTransitionActive;
 
     private void Awake()
     {
@@ -61,6 +71,15 @@ public sealed class PlayerController : MonoBehaviour
         standingCapsuleHeight = capsule.height;
         standingCapsuleCenter = capsule.center;
         CurrentMoveSpeed = moveSpeed;
+    }
+
+    private void OnEnable()
+    {
+        if (gravityManager != null)
+        {
+            gravityManager.TransitionStarted += BeginGravityTransition;
+            gravityManager.TransitionCompleted += EndGravityTransition;
+        }
     }
 
     private void Start()
@@ -77,6 +96,13 @@ public sealed class PlayerController : MonoBehaviour
     }
     private void OnDisable()
     {
+        if (gravityManager != null)
+        {
+            gravityManager.TransitionStarted -= BeginGravityTransition;
+            gravityManager.TransitionCompleted -= EndGravityTransition;
+        }
+
+        EndGravityTransition();
         ClearBufferedJump();
         IsSprinting = false;
         SetCrouching(false);
@@ -84,7 +110,7 @@ public sealed class PlayerController : MonoBehaviour
 
     private void LateUpdate()
     {
-        Vector3 up = -gravityState.Direction;
+        Vector3 up = GravityUp;
         Vector3 facingForward = Vector3.ProjectOnPlane(cameraTransform.forward, up);
         if (facingForward.sqrMagnitude < Mathf.Epsilon)
         {
@@ -111,6 +137,11 @@ public sealed class PlayerController : MonoBehaviour
             gravityState = FindFirstObjectByType<GravityState>();
         }
 
+        if (gravityManager == null)
+        {
+            gravityManager = FindFirstObjectByType<GravityManager>();
+        }
+
         if (cameraTransform != null)
         {
             return;
@@ -132,6 +163,12 @@ public sealed class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (gravityTransitionActive)
+        {
+            MaintainGravityTransition();
+            return;
+        }
+
         Vector3 gravityDirection = gravityState.Direction;
         Vector3 up = -gravityDirection;
         bool isGrounded = TryGetGroundNormal(gravityDirection, up, out Vector3 groundNormal);
@@ -167,6 +204,73 @@ public sealed class PlayerController : MonoBehaviour
         }
 
         AlignWithGravity(up);
+    }
+
+    private void BeginGravityTransition()
+    {
+        if (gravityTransitionActive || body == null)
+        {
+            return;
+        }
+
+        gravityTransitionActive = true;
+        transitionAnchorPosition = body.position;
+        constraintsBeforeGravityTransition = body.constraints;
+        body.constraints = constraintsBeforeGravityTransition | RigidbodyConstraints.FreezePosition;
+        ownsTransitionPositionLock = true;
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+        ClearBufferedJump();
+        IsSprinting = false;
+        CurrentMoveSpeed = IsCrouching ? crouchSpeed : moveSpeed;
+    }
+
+    private void MaintainGravityTransition()
+    {
+        input.TryConsumeJumpPressed(out _);
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+        AlignBodyUp(gravityManager.PresentationUp, useMoveRotation: true);
+    }
+
+    private void EndGravityTransition()
+    {
+        if (!gravityTransitionActive || body == null)
+        {
+            return;
+        }
+
+        Vector3 finalUp = gravityManager != null
+            ? gravityManager.PresentationUp
+            : -gravityState.Direction;
+
+        AlignBodyUp(finalUp, useMoveRotation: false);
+        body.position = transitionAnchorPosition;
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+
+        if (ownsTransitionPositionLock)
+        {
+            body.constraints = constraintsBeforeGravityTransition;
+            ownsTransitionPositionLock = false;
+        }
+
+        gravityTransitionActive = false;
+    }
+
+    private void AlignBodyUp(Vector3 up, bool useMoveRotation)
+    {
+        Vector3 normalizedUp = up.normalized;
+        Vector3 currentUp = body.rotation * Vector3.up;
+        Quaternion targetRotation = Quaternion.FromToRotation(currentUp, normalizedUp) * body.rotation;
+
+        if (useMoveRotation)
+        {
+            body.MoveRotation(targetRotation);
+            return;
+        }
+
+        body.rotation = targetRotation;
     }
 
     private bool UpdateBufferedJump(bool hasGravity)

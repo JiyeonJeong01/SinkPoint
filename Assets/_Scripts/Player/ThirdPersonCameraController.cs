@@ -10,6 +10,7 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
     [SerializeField] private Transform cameraPivot;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private GravityState gravityState;
+    [SerializeField] private GravityManager gravityManager;
 
     [Header("Look")]
     [SerializeField, Min(0f)] private float mouseSensitivity = 2f;
@@ -44,6 +45,8 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
     private Camera gameplayCamera;
     private Vector3 gravityUp;
     private Vector3 orbitForward;
+    private bool gravityTransitionActive;
+    private Vector3 transitionViewForward;
 
     internal float PitchDegrees => pitch;
 
@@ -52,6 +55,7 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
         cameraPivot ??= transform.Find("CameraPivot");
         cameraTransform ??= cameraPivot != null ? cameraPivot.Find("Main Camera") : null;
         gravityState ??= FindFirstObjectByType<GravityState>();
+        gravityManager ??= FindFirstObjectByType<GravityManager>();
         gameplayCamera = cameraTransform != null ? cameraTransform.GetComponent<Camera>() : null;
         pitch = cameraPivot != null ? NormalizeAngle(cameraPivot.localEulerAngles.x) : 0f;
         gravityUp = gravityState != null ? -gravityState.Direction : Vector3.up;
@@ -89,6 +93,12 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
             gravityState.Changed += OnGravityChanged;
         }
 
+        if (gravityManager != null)
+        {
+            gravityManager.TransitionStarted += BeginGravityTransition;
+            gravityManager.TransitionCompleted += EndGravityTransition;
+        }
+
         if (!Application.isPlaying)
         {
             return;
@@ -105,6 +115,14 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
             gravityState.Changed -= OnGravityChanged;
         }
 
+        if (gravityManager != null)
+        {
+            gravityManager.TransitionStarted -= BeginGravityTransition;
+            gravityManager.TransitionCompleted -= EndGravityTransition;
+        }
+
+        gravityTransitionActive = false;
+
         KillDistanceTween();
 
         if (!Application.isPlaying)
@@ -118,15 +136,23 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
 
     private void LateUpdate()
     {
-        Vector3 currentUp = -gravityState.Direction;
-        if (Vector3.Dot(gravityUp, currentUp) < 0.9999f)
+        if (gravityTransitionActive && gravityManager != null)
         {
-            RebuildOrbitBasis(currentUp);
+            gravityUp = gravityManager.PresentationUp.normalized;
+            orbitForward = GetPlanarForward(transitionViewForward, gravityUp);
         }
+        else
+        {
+            Vector3 currentUp = -gravityState.Direction;
+            if (Vector3.Dot(gravityUp, currentUp) < 0.9999f)
+            {
+                RebuildOrbitBasis(currentUp);
+            }
 
-        orbitForward = Quaternion.AngleAxis(input.Look.x * mouseSensitivity, gravityUp) * orbitForward;
-        orbitForward = GetPlanarForward(orbitForward, gravityUp);
-        pitch = Mathf.Clamp(pitch - input.Look.y * mouseSensitivity, minPitch, maxPitch);
+            orbitForward = Quaternion.AngleAxis(input.Look.x * mouseSensitivity, gravityUp) * orbitForward;
+            orbitForward = GetPlanarForward(orbitForward, gravityUp);
+            pitch = Mathf.Clamp(pitch - input.Look.y * mouseSensitivity, minPitch, maxPitch);
+        }
 
         transform.SetPositionAndRotation(
             target.position,
@@ -277,7 +303,30 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
 
     private void OnGravityChanged()
     {
+        if (gravityManager != null && gravityManager.IsTransitioning)
+        {
+            return;
+        }
+
         RebuildOrbitBasis(-gravityState.Direction);
+    }
+
+    private void BeginGravityTransition()
+    {
+        gravityTransitionActive = true;
+        transitionViewForward = cameraTransform != null
+            ? cameraTransform.forward
+            : transform.forward;
+    }
+
+    private void EndGravityTransition()
+    {
+        gravityTransitionActive = false;
+
+        if (gravityManager != null)
+        {
+            RebuildOrbitBasis(gravityManager.PresentationUp);
+        }
     }
 
     private void RebuildOrbitBasis(Vector3 newUp)

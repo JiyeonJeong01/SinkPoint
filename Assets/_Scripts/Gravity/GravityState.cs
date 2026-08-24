@@ -4,10 +4,10 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class GravityState : MonoBehaviour
 {
-    [Tooltip("현재 중력 방향입니다. 런타임 전환은 GravityManager.ActivateZone을 사용합니다.")]
+    [Tooltip("현재 중력 방향입니다. 런타임 전환은 GravityManager.ApplyPreset을 사용합니다.")]
     [SerializeField] private Vector3 gravityDirection = Vector3.down;
 
-    [Tooltip("현재 중력 세기입니다. 런타임 전환은 GravityManager.ActivateZone을 사용합니다.")]
+    [Tooltip("현재 중력 세기입니다. 런타임 전환은 GravityManager.ApplyPreset을 사용합니다.")]
     [SerializeField, Min(0f)] private float gravityStrength = 9.81f;
 
     public Vector3 Direction => gravityDirection;

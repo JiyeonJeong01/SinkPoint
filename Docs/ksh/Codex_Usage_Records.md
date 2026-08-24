@@ -152,3 +152,11 @@
 - 해결한 문제: 환경 Trigger가 사격을 막지 않으면서 몬스터 Trigger는 맞출 수 있도록 카메라·총구 Ray의 후보 규칙을 통일했다. 태그·씬 전역 검색 기반 접촉 판정을 접촉 Collider의 부모 `PlayerHealth` 탐색으로 바꾸고, 죽은 플레이어나 몬스터의 추가 피해를 차단했다. 분리된 Player와 CameraRig Prefab 사이의 `aimCamera` 참조는 `MonsterTest` 씬 override로 연결했다.
 - 사람이 직접 결정한 부분: 기본 체력 `3`, 사격·접촉 피해 `1`, 접촉 쿨타임 `1초`, `Nav Target` SphereCollider 로컬 반경 `3`을 MVP 초기값으로 사용했다. HP UI, 피격·사망 연출, 넉백, 무적 시간, 리스폰과 몸통 부위별 Hitbox는 후속 작업으로 남겼다.
 - 검증 결과: Unity `6000.3.20f1` 재컴파일과 `Assembly-CSharp.csproj` 빌드는 오류 0건으로 성공했으며 빌드에는 기존 애셋·몬스터 디버그 필드 경고 19건만 남았다. `MonsterTest` Play Mode에서 지네가 RouteMove→Chase→Attack으로 전환하고 Trigger Enter 직후 1회, Stay 중 약 1초 간격으로 두 번 더 접촉 피해를 준 뒤 플레이어 사망 상태에서 추가 피해가 멈추는 것을 확인했다. Player Prefab의 `PlayerHealth`, `Nav Target`의 Trigger·접촉 컴포넌트, 루트 접촉 컴포넌트 제거와 `aimCamera` 참조를 확인했다. 사용자가 Inspector의 실시간 체력으로 플레이어 사격 시 몬스터 체력 감소와 몬스터 접촉 시 플레이어 체력 감소를 모두 확인했고, 몬스터가 정해진 횟수만큼 피격된 뒤 이동을 멈추는 사망 동작도 확인해 기본 데미지 상호작용을 완료로 결정했다. 기본 Inspector에는 비직렬화 런타임 필드가 보이지 않았으므로 두 Health 컴포넌트의 `currentHealth`와 `dead`를 Play Mode 확인용 직렬화 필드로 보완했다. `Original_GamePlayScene`, Build Settings, `ProjectSettings`와 외부 에셋 원본은 변경하지 않았다.
+
+## 2026-08-24 — Zone 중력 전환·테스트 Inspector 구현
+
+- Codex 사용처: Zone 기반 90도 중력 전환의 물리·표현 책임을 분리하고, Player·Camera 동기화와 팀원이 반복 사용하기 쉬운 Inspector 테스트 UX를 구현·검증하는 데 사용했다.
+- 구현하거나 정리한 기능: `GravityManager`가 실제 중력을 즉시 적용하면서 단일 `PresentationUp`·진행률·시작/완료 신호를 소유하도록 확장했다. Player는 전환 중 위치와 속도를 고정하고, Camera는 같은 진행률로 Roll한 뒤 새 Up에서 Orbit을 재구성한다. Custom Inspector에는 씬 Zone 드롭다운과 고정 실행 버튼을 둔 `Gravity Zone Select`, 현재 Zone·중력·전환 진행률을 보여 주는 `Play Mode Zone Info`를 분리했다.
+- 해결한 문제: 환경 `GravityBody`의 즉시 반응과 Player·Camera의 짧은 표현 전환을 분리하고, 전환 도중 최신 Zone 재요청도 현재 표시 자세에서 연속되게 했다. 직렬화된 테스트 Zone 슬롯과 Zone별 버튼을 제거하고, 선택과 실행 버튼 사이에 런타임 정보가 끼어 다른 팀원이 조작하기 불편한 Inspector 배치도 정리했다.
+- 사람이 직접 결정한 부분: 실제 게임 전환은 화면 기준 반시계 Roll, 기본 전환 시간 `0.5초`, Player 속도 제거 후 새 중력 방향으로 재개하는 정책으로 확정했다. 사용자가 Play Mode 테스트 성공을 확인했고, 선택 조작과 런타임 정보를 별도 영역으로 나누는 최종 Inspector 구성을 제안했다.
+- 검증 결과: 런타임·Editor 어셈블리 빌드는 오류 0건이며 기존 경고 19건만 남았다. Unity MCP에서 Normal↔Shift 5회 반복, 중간 재요청 연속 오차 `0.000000`, Player·Camera·Presentation Up 일치, Rigidbody 제약과 상위 입력 잠금 복구, Console 오류 0건과 씬 dirty 없음이 확인됐다. 사용자가 실제 Play Mode에서도 중력 전환이 성공적이라고 확인했다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 외부 에셋 원본은 변경하지 않았다.

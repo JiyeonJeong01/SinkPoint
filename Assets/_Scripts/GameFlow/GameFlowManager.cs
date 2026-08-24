@@ -177,7 +177,7 @@ public class GameFlowManager : MonoBehaviour
             return;
         }
 
-        if (!gravityManager.ActivateZone(trigger.Zone))
+        if (!gravityManager.ApplyPreset(trigger.Preset))
         {
             return;
         }

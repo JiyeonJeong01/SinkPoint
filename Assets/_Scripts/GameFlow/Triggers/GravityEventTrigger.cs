@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// 플레이어가 처음 닿았을 때 중력 이벤트를 한 번 발생시키는 컴포넌트입니다.
@@ -24,7 +25,8 @@ public class GravityEventTrigger : MonoBehaviour
 
     [Header("Event")]
     [SerializeField] private GravityEventType eventType = GravityEventType.ShiftGravity;
-    [SerializeField] private GravityZone zone;
+    [FormerlySerializedAs("zone")]
+    [SerializeField] private GravityPreset gravityPreset;
 
     [Header("Optional Flow Data")]
     [TextArea]
@@ -43,7 +45,7 @@ public class GravityEventTrigger : MonoBehaviour
     private bool hasTriggered;
 
     public GravityEventType EventType => eventType;
-    public GravityZone Zone => zone;
+    public GravityPreset Preset => gravityPreset;
     public string ObjectiveText => objectiveText;
     public bool HasTriggered => hasTriggered;
 
