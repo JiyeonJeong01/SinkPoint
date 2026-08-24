@@ -90,7 +90,41 @@ public sealed class MonsterTargetSensor : MonoBehaviour
             return navTarget;
         }
 
-        return transform.Find("NavTarget");
+        navTarget = transform.Find("NavTarget");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform found = FindNavTargetRecursive(transform.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private static Transform FindNavTargetRecursive(Transform root)
+    {
+        if (root.name == "Nav Target" || root.name == "NavTarget")
+        {
+            return root;
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindNavTargetRecursive(root.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private void Update()

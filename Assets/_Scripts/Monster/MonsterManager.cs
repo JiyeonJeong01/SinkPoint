@@ -1,4 +1,5 @@
 using System;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 /// <summary>
@@ -58,6 +59,14 @@ public sealed class MonsterManager : MonoBehaviour
     {
         ResolveReferences();
         RefreshMonsterList();
+    }
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Alpha9))
+        {
+            DebugKillCurrentZoneMonsters();
+        }
     }
 
     private void OnDestroy()
@@ -175,9 +184,77 @@ public sealed class MonsterManager : MonoBehaviour
         UpdateReadouts();
     }
 
+    /// <summary>
+    /// 테스트 진행용 치트입니다. GameFlowManager의 현재 Zone에 살아있는 몬스터만 즉시 사망 처리합니다.
+    /// </summary>
+    [Button("Kill Current Zone Monsters")]
+    public void DebugKillCurrentZoneMonsters()
+    {
+        GameFlowManager manager = gameFlowManager != null ? gameFlowManager : GameFlowManager.Instance;
+        if (manager == null)
+        {
+            Debug.LogWarning("[MonsterManager] Cannot kill current Zone monsters. GameFlowManager is missing.", this);
+            return;
+        }
+
+        KillLivingMonstersInZone(manager.CurrentZone);
+    }
+
+    /// <summary>
+    /// 특정 Zone에 속한 살아있는 몬스터만 강제로 체력을 0까지 깎습니다.
+    /// 다른 Zone 몬스터는 건드리지 않습니다.
+    /// </summary>
+    public void KillLivingMonstersInZone(ZoneId zoneId)
+    {
+        RefreshMonsterListIfEmpty();
+
+        Monster[] monsters = GetMonstersForZone(zoneId);
+        int killedCount = 0;
+
+        for (int i = 0; i < monsters.Length; i++)
+        {
+            Monster monster = monsters[i];
+            if (monster == null || monster.IsDead)
+            {
+                continue;
+            }
+
+            MonsterHealth health = ResolveMonsterHealth(monster);
+            if (health == null)
+            {
+                Debug.LogWarning($"[MonsterManager] Cannot kill {monster.name}. MonsterHealth is missing.", monster);
+                continue;
+            }
+
+            health.ApplyDamage(Mathf.Max(1, health.CurrentHealth));
+            killedCount++;
+        }
+
+        UpdateReadouts();
+        NotifyClearedIfNoLivingMonsters(zoneId);
+
+        if (showDebugLog)
+        {
+            Debug.Log($"[MonsterManager] Debug killed {killedCount} living monster(s) in {zoneId}.", this);
+        }
+    }
+
     private void ResolveReferences()
     {
         gameFlowManager ??= FindFirstObjectByType<GameFlowManager>();
+    }
+
+    private static MonsterHealth ResolveMonsterHealth(Monster monster)
+    {
+        if (monster == null)
+        {
+            return null;
+        }
+
+        MonsterHealth health = monster.GetComponent<MonsterHealth>();
+        health ??= monster.GetComponentInChildren<MonsterHealth>(true);
+        health ??= monster.GetComponentInParent<MonsterHealth>();
+        return health;
     }
 
     private void RefreshMonsterListIfEmpty()

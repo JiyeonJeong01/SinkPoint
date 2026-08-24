@@ -272,7 +272,22 @@ public sealed class Monster : MonoBehaviour
             return navTarget;
         }
 
-        return root.Find("Nav Target");
+        navTarget = root.Find("Nav Target");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindNavTarget(root.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 }
 
