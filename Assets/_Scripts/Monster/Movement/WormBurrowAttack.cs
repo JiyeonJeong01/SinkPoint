@@ -4,7 +4,7 @@ using UnityEngine;
 /// Inversion Zone 땅 지렁이의 단순 MVP 공격 컴포넌트입니다.
 /// 완전한 잠복 이동 대신, 플레이어 근처의 현재 중력 기준 바닥 위치를 골라 등장/공격 타이밍을 만듭니다.
 /// </summary>
-public sealed class WormBurrowAttack : MonoBehaviour
+public sealed class WormBurrowAttack : MonoBehaviour, IMonsterResettable
 {
     [SerializeField] private MonsterTargetSensor targetSensor;
     [SerializeField] private GravityState gravityState;
@@ -17,6 +17,12 @@ public sealed class WormBurrowAttack : MonoBehaviour
     private void Awake()
     {
         targetSensor ??= GetComponent<MonsterTargetSensor>();
+    }
+
+    public void ResetMonsterRuntime()
+    {
+        targetSensor ??= GetComponent<MonsterTargetSensor>();
+        nextAttackTime = 0f;
     }
 
     private void Update()
