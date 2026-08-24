@@ -5,7 +5,7 @@ using UnityEngine;
 /// 지네가 Attack 상태일 때 Nav Target을 들어올린 뒤 플레이어 쪽으로 짧게 돌진하고 빠지는 공격 연출을 수행합니다.
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class CentipedeLungeAttack : MonoBehaviour
+public sealed class CentipedeLungeAttack : MonoBehaviour, IMonsterResettable, IMonsterDeathHandler
 {
     private enum AttackDebugStatus
     {
@@ -81,6 +81,21 @@ public sealed class CentipedeLungeAttack : MonoBehaviour
     private void OnDisable()
     {
         KillAttackSequence(false);
+    }
+
+    public void ResetMonsterRuntime()
+    {
+        ResolveSceneReferences();
+        KillAttackSequence(false);
+        nextAttackTime = 0f;
+        cooldownRemaining = 0f;
+        attackDebugStatus = AttackDebugStatus.Ready;
+    }
+
+    public void OnMonsterDied()
+    {
+        KillAttackSequence(false);
+        attackDebugStatus = AttackDebugStatus.Cooldown;
     }
 
     /// <summary>

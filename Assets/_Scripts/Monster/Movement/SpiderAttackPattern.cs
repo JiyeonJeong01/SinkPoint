@@ -6,7 +6,7 @@ using UnityEngine;
 /// 이동은 NavTarget만 조작하고, 공격 중에는 route mover를 잠깐 멈춰 기존 순찰 index를 보존합니다.
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class SpiderAttackPattern : MonoBehaviour
+public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMonsterDeathHandler
 {
     private enum AttackDebugStatus
     {
@@ -217,6 +217,36 @@ public sealed class SpiderAttackPattern : MonoBehaviour
         KillAttackSequence(false);
         SetRouteMoverPaused(false);
         SetSprayVfxActive(false);
+    }
+
+    /// <summary>
+    /// 리스폰 때 진행 중인 DOTween 공격, 독 VFX, 쿨다운, route pause 잠금을 모두 정리합니다.
+    /// </summary>
+    public void ResetMonsterRuntime()
+    {
+        ResolveSceneReferences();
+        ResolveDefaultLayers();
+        KillAttackSequence(false);
+        SetRouteMoverPaused(false);
+        SetSprayVfxActive(false);
+
+        nextMeleeTime = 0f;
+        nextSprayTime = 0f;
+        meleeCooldownRemaining = 0f;
+        sprayCooldownRemaining = 0f;
+        sprayedDuringCurrentRoutePause = false;
+        sprayBlockedDuringCurrentRoutePause = false;
+        lastSprayHit = false;
+        sprayBlockedByObstacle = false;
+        attackDebugStatus = AttackDebugStatus.Ready;
+    }
+
+    public void OnMonsterDied()
+    {
+        KillAttackSequence(false);
+        SetRouteMoverPaused(false);
+        SetSprayVfxActive(false);
+        attackDebugStatus = AttackDebugStatus.Cooldown;
     }
 
     /// <summary>

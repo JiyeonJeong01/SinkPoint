@@ -145,6 +145,19 @@ public sealed class SpiderSurfaceRouteMover : MonsterNavTargetMover
     }
 
     /// <summary>
+    /// 리스폰 때 route 선택과 waypoint 진행 상태를 처음부터 다시 시작합니다.
+    /// advanceRouteOnEnable이 켜져 있으면 다음 route index를 골라 반복 플레이가 덜 티나게 합니다.
+    /// </summary>
+    public override void ResetMonsterRuntime()
+    {
+        base.ResetMonsterRuntime();
+        movementLocked = false;
+        SelectInitialRoute();
+        ClearRouteDebugTarget();
+        routeDebugStatus = RouteDebugStatus.None;
+    }
+
+    /// <summary>
     /// 현재 route waypoint를 향해 이동하고, 도착하면 다음 waypoint로 넘깁니다.
     /// waypoint의 SurfaceNormal을 사용해 NavTarget.up을 벽/천장 방향으로 맞춥니다.
     /// </summary>

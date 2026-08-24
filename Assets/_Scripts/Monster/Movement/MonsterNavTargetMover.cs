@@ -4,7 +4,7 @@ using UnityEngine;
 /// NavTarget을 현재 표면 위에서 이동시키는 공통 기반 클래스입니다.
 /// Spider처럼 procedural leg가 root.up을 기준으로 발을 찾는 몬스터는 navTarget의 up 방향을 표면 normal에 맞춰야 합니다.
 /// </summary>
-public abstract class MonsterNavTargetMover : MonoBehaviour
+public abstract class MonsterNavTargetMover : MonoBehaviour, IMonsterResettable
 {
     [Header("References")]
     [SerializeField] protected Transform navTarget;
@@ -72,6 +72,16 @@ public abstract class MonsterNavTargetMover : MonoBehaviour
         }
 
         return root.Find("NavTarget");
+    }
+
+    /// <summary>
+    /// MonsterManager 리스폰 시 공통 이동 기준을 초기화합니다.
+    /// 구체적인 waypoint index나 공격 상태는 파생 클래스가 추가로 정리합니다.
+    /// </summary>
+    public virtual void ResetMonsterRuntime()
+    {
+        ResolveSceneReferences();
+        currentSurfaceNormal = Vector3.up;
     }
 
     /// <summary>

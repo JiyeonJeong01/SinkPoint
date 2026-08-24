@@ -6,7 +6,7 @@ using UnityEngine;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(MonsterTargetSensor))]
-public sealed class MonsterStateMachine : MonoBehaviour
+public sealed class MonsterStateMachine : MonoBehaviour, IMonsterResettable
 {
     [SerializeField, Tooltip("공격 거리 판정에 사용할 기준 Transform입니다. 비워두면 이 오브젝트 기준이고, 지네처럼 NavTarget이 실제 이동 기준이면 Nav Target을 넣습니다.")]
     private Transform distanceOrigin;
@@ -146,6 +146,18 @@ public sealed class MonsterStateMachine : MonoBehaviour
         {
             SetState(initialState);
         }
+    }
+
+    /// <summary>
+    /// MonsterManager 리스폰 시 사망/공격 상태와 디버그 거리값을 시작 상태로 되돌립니다.
+    /// </summary>
+    public void ResetMonsterRuntime()
+    {
+        ResolveSceneReferences();
+        currentState = initialState;
+        targetDistance = -1f;
+        isTargetInAttackRange = false;
+        debugDistanceTarget = null;
     }
 
     private void OnDied(MonsterHealth monsterHealth)

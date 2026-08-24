@@ -68,6 +68,9 @@ public class GameFlowManager : MonoBehaviour
     [Tooltip("플레이어 위치/속도 리스폰을 담당하는 컨트롤러입니다.")]
     [SerializeField] private RespawnController respawnController;
 
+    [Tooltip("Zone별 몬스터 활성화, 리스폰, 전멸 알림을 담당하는 매니저입니다.")]
+    [SerializeField] private MonsterManager monsterManager;
+
     [Tooltip("현재 GameFlowState에 따라 사용할 리스폰 위치 목록입니다.")]
     [SerializeField] private StateRespawnPoint[] stateRespawnPoints;
 
@@ -87,6 +90,7 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private bool showDebugLog = true;
 
     public GameFlowState CurrentState => currentState;
+    public ZoneId CurrentZone => currentZone;
 
     private void Awake()
     {
@@ -98,6 +102,7 @@ public class GameFlowManager : MonoBehaviour
         }
 
         Instance = this;
+        ResolveSceneReferences();
         RegisterGravityTriggers();
         InitializeZones();
     }
@@ -109,6 +114,14 @@ public class GameFlowManager : MonoBehaviour
         if (Instance == this)
         {
             Instance = null;
+        }
+    }
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Alpha0))
+        {
+            DebugOpenCurrentNextBarrier();
         }
     }
 
@@ -212,15 +225,28 @@ public class GameFlowManager : MonoBehaviour
             Debug.LogWarning("[GameFlowManager] RespawnController is not assigned.", this);
         }
 
+        if (monsterManager != null)
+        {
+            monsterManager.RespawnZone(currentZone);
+        }
+        else
+        {
+            Debug.LogWarning("[GameFlowManager] MonsterManager is not assigned.", this);
+        }
+
         if (showDebugLog)
         {
             Debug.Log("[GameFlowManager] Player death handled. TODO: respawn player, restore HP, reset enemies, restore checkpoint state.", this);
         }
 
         // TODO: PlayerHealth가 생기면 HP를 풀피로 복구하는 함수를 호출할 것.
-        // TODO: Enemy/Spawn 시스템이 생기면 현재 구역 몬스터를 정리하고 풀피 상태로 재배치할 것.
         // TODO: GravityManager가 생기면 체크포인트 기준 중력 상태로 복구할지 결정해서 연결할 것.
         // TODO: UI가 생기면 사망/리스폰 피드백과 현재 목표 텍스트를 갱신할 것.
+    }
+
+    private void ResolveSceneReferences()
+    {
+        monsterManager ??= FindFirstObjectByType<MonsterManager>();
     }
 
     // 현재 진행 상태에 맞는 리스폰 위치를 찾습니다.
@@ -300,6 +326,12 @@ public class GameFlowManager : MonoBehaviour
                 zone.nextBarrier.SetImmediate(true);
             }
         }
+
+        if (monsterManager != null)
+        {
+            monsterManager.InitializeForGameFlow(this);
+            monsterManager.BeginZone(currentZone);
+        }
     }
 
     private void RegisterZoneTrigger(ZoneFlowData zone)
@@ -322,6 +354,10 @@ public class GameFlowManager : MonoBehaviour
         SetZoneActive(zone, true);
         zone.entered = true;
         currentZone = zoneId;
+        if (monsterManager != null)
+        {
+            monsterManager.BeginZone(zoneId);
+        }
 
         if (showDebugLog)
         {
@@ -344,6 +380,10 @@ public class GameFlowManager : MonoBehaviour
             }
 
             SetZoneActive(previousZone, false);
+            if (monsterManager != null)
+            {
+                monsterManager.DeactivateZone(previousZoneId);
+            }
         }
 
         isZoneTransitionRunning = false;
@@ -395,6 +435,10 @@ public class GameFlowManager : MonoBehaviour
         }
 
         SetZoneActive(nextZone, true);
+        if (monsterManager != null)
+        {
+            monsterManager.PrepareZone(nextZoneId);
+        }
     }
 
     private void SetZoneActive(ZoneFlowData zone, bool active)
