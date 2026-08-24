@@ -8,8 +8,8 @@ using UnityEngine;
 public sealed class ZoneEntryTrigger : MonoBehaviour
 {
     [Header("Zone")]
-    [SerializeField, Min(0), Tooltip("GameFlowManager의 Zones 배열에서 진입할 Zone 인덱스입니다.")]
-    private int zoneIndex;
+    [SerializeField, Tooltip("플레이어가 이 Trigger에 들어오면 진입 처리할 Zone입니다.")]
+    private ZoneId zoneId;
     [SerializeField, Tooltip("비워두면 GameFlowManager.Instance를 사용합니다.")]
     private GameFlowManager gameFlowManager;
     [SerializeField, Tooltip("켜면 한 번 성공한 뒤 같은 Trigger는 다시 동작하지 않습니다.")]
@@ -24,7 +24,7 @@ public sealed class ZoneEntryTrigger : MonoBehaviour
 
     private bool hasTriggered;
 
-    public int ZoneIndex => zoneIndex;
+    public ZoneId ZoneId => zoneId;
 
     private void Reset()
     {
@@ -55,11 +55,11 @@ public sealed class ZoneEntryTrigger : MonoBehaviour
         }
 
         hasTriggered = true;
-        manager.NotifyZoneEntered(zoneIndex, this);
+        manager.NotifyZoneEntered(zoneId, this);
 
         if (showDebugLog)
         {
-            Debug.Log($"[{nameof(ZoneEntryTrigger)}] Player entered Zone {zoneIndex}.", this);
+            Debug.Log($"[{nameof(ZoneEntryTrigger)}] Player entered {zoneId}.", this);
         }
     }
 

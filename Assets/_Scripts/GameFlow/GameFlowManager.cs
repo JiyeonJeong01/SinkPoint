@@ -1,5 +1,5 @@
 using System.Collections;
-using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 /// <summary>
@@ -21,14 +21,11 @@ public class GameFlowManager : MonoBehaviour
     [System.Serializable]
     private sealed class ZoneFlowData
     {
-        [Tooltip("진행용 Zone 번호입니다. 배열 순서와 맞추는 것을 권장합니다.")]
-        public int zoneIndex;
+        [Tooltip("이 데이터가 담당하는 Zone입니다.")]
+        public ZoneId zoneId;
 
         [Tooltip("이 Zone의 메시, 이펙트 등 시각 오브젝트 부모입니다.")]
         public GameObject visualRoot;
-
-        [Tooltip("이 Zone의 이동/전투용 콜라이더 오브젝트 부모입니다. ZoneEntryTrigger는 꺼지지 않도록 별도 부모에 두는 것을 권장합니다.")]
-        public GameObject colliderRoot;
 
         [Tooltip("플레이어가 이 Zone에 들어왔음을 알리는 Trigger입니다.")]
         public ZoneEntryTrigger entryTrigger;
@@ -39,20 +36,12 @@ public class GameFlowManager : MonoBehaviour
         [Tooltip("현재 Zone 몬스터를 모두 처치하면 열릴 다음 Zone 방향 바리게이트입니다. 마지막 Zone은 비워둡니다.")]
         public MapBoxBarrier nextBarrier;
 
-        [Tooltip("이 Zone 완료 조건으로 추적할 몬스터 목록입니다. 비어 있으면 진입 즉시 완료로 처리합니다.")]
-        public MonsterHealth[] monsters;
-
         [Header("Runtime State")]
-        [Tooltip("Play Mode에서 확인하는 남은 몬스터 수입니다.")]
-        public int remainingMonsterCount;
-
         [Tooltip("이 Zone 완료 처리가 끝났는지 표시합니다.")]
         public bool completed;
 
         [Tooltip("이 Zone에 한 번이라도 진입했는지 표시합니다.")]
         public bool entered;
-
-        [System.NonSerialized] public readonly HashSet<MonsterHealth> defeatedMonsters = new HashSet<MonsterHealth>();
     }
 
     public enum GameFlowState
@@ -83,16 +72,16 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private StateRespawnPoint[] stateRespawnPoints;
 
     [Header("Zone Activation")]
-    [Tooltip("씬 시작 시 활성화할 Zone 인덱스입니다.")]
-    [SerializeField, Min(0)] private int initialZoneIndex;
+    [Tooltip("씬 시작 시 활성화할 Zone입니다.")]
+    [SerializeField] private ZoneId initialZone = ZoneId.Zone01_Entry;
 
-    [Tooltip("Zone별 시각/콜라이더 부모, 진입 Trigger, 바리게이트, 몬스터 목록입니다.")]
+    [Tooltip("Zone별 시각 오브젝트 부모, 진입 Trigger, 바리게이트 목록입니다.")]
     [SerializeField] private ZoneFlowData[] zones;
 
     [Header("Current State")]
     [SerializeField] private GameFlowState currentState = GameFlowState.Entry;
-    [SerializeField, Tooltip("현재 활성 진행 Zone 인덱스입니다.")]
-    private int currentZoneIndex = -1;
+    [SerializeField, Tooltip("현재 활성 진행 Zone입니다.")]
+    private ZoneId currentZone = ZoneId.Zone01_Entry;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLog = true;
@@ -116,7 +105,6 @@ public class GameFlowManager : MonoBehaviour
     private void OnDestroy()
     {
         UnregisterGravityTriggers();
-        UnregisterZoneEvents();
 
         if (Instance == this)
         {
@@ -124,15 +112,34 @@ public class GameFlowManager : MonoBehaviour
         }
     }
 
+    [Button("Open Current Next Barrier")]
+    private void DebugOpenCurrentNextBarrier()
+    {
+        if (!TryGetZone(currentZone, out ZoneFlowData zone))
+        {
+            Debug.LogWarning($"[GameFlowManager] Cannot open barrier. Missing current Zone data: {currentZone}", this);
+            return;
+        }
+
+        if (zone.nextBarrier == null)
+        {
+            Debug.LogWarning($"[GameFlowManager] {currentZone} has no next barrier to open.", this);
+            return;
+        }
+
+        PrepareNextZoneBeforeOpeningBarrier(currentZone);
+        StartCoroutine(zone.nextBarrier.OpenRoutine());
+    }
+
     /// <summary>
     /// ZoneEntryTrigger가 플레이어 진입을 감지했을 때 호출하는 진입점입니다.
     /// 빠른 중복 Trigger는 무시하고, 이전 Zone 정리는 바리게이트 닫힘 이후에만 실행합니다.
     /// </summary>
-    public void NotifyZoneEntered(int zoneIndex, ZoneEntryTrigger trigger)
+    public void NotifyZoneEntered(ZoneId zoneId, ZoneEntryTrigger trigger)
     {
-        if (!TryGetZone(zoneIndex, out ZoneFlowData zone))
+        if (!TryGetZone(zoneId, out ZoneFlowData zone))
         {
-            Debug.LogWarning($"[GameFlowManager] Ignored Zone enter. Invalid Zone index: {zoneIndex}", trigger != null ? trigger : this);
+            Debug.LogWarning($"[GameFlowManager] Ignored Zone enter. Missing Zone data: {zoneId}", trigger != null ? trigger : this);
             return;
         }
 
@@ -140,59 +147,53 @@ public class GameFlowManager : MonoBehaviour
         {
             if (showDebugLog)
             {
-                Debug.Log($"[GameFlowManager] Ignored Zone {zoneIndex} enter because a transition is already running.", trigger);
+                Debug.Log($"[GameFlowManager] Ignored {zoneId} enter because a transition is already running.", trigger);
             }
 
             return;
         }
 
-        if (currentZoneIndex == zoneIndex && zone.entered)
+        if (currentZone == zoneId && zone.entered)
         {
             return;
         }
 
-        StartCoroutine(EnterZoneRoutine(zoneIndex, zone));
+        StartCoroutine(EnterZoneRoutine(zoneId, zone));
     }
 
     /// <summary>
-    /// 몬스터 매니저나 몬스터 사망 이벤트에서 호출할 Zone 완료 추적 API입니다.
-    /// 같은 몬스터 사망이 중복으로 들어와도 남은 수가 두 번 줄지 않습니다.
+    /// 몬스터 매니저가 현재 Zone의 몬스터가 모두 정리됐을 때 호출하는 API입니다.
+    /// 완료 처리는 한 번만 실행되며, 성공하면 현재 Zone의 다음 바리게이트를 엽니다.
     /// </summary>
-    public void NotifyMonsterDied(MonsterHealth monsterHealth)
+    public void NotifyCurrentZoneCleared()
     {
-        if (monsterHealth == null || zones == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < zones.Length; i++)
-        {
-            ZoneFlowData zone = zones[i];
-            if (zone == null || zone.monsters == null)
-            {
-                continue;
-            }
-
-            for (int j = 0; j < zone.monsters.Length; j++)
-            {
-                if (zone.monsters[j] == monsterHealth)
-                {
-                    RegisterMonsterDeath(i, zone, monsterHealth);
-                    return;
-                }
-            }
-        }
+        NotifyZoneCleared(currentZone);
     }
 
-    public void NotifyMonsterDied(int zoneIndex, MonsterHealth monsterHealth)
+    /// <summary>
+    /// 몬스터 매니저가 특정 Zone의 몬스터가 모두 정리됐을 때 호출하는 API입니다.
+    /// 현재 플레이어가 있는 Zone이 아닌 완료 알림은 진행 순서가 꼬이지 않도록 무시합니다.
+    /// </summary>
+    public void NotifyZoneCleared(ZoneId zoneId)
     {
-        if (!TryGetZone(zoneIndex, out ZoneFlowData zone))
+        if (!TryGetZone(zoneId, out ZoneFlowData zone))
         {
-            Debug.LogWarning($"[GameFlowManager] Ignored monster death. Invalid Zone index: {zoneIndex}", this);
+            Debug.LogWarning($"[GameFlowManager] Ignored Zone clear. Missing Zone data: {zoneId}", this);
             return;
         }
 
-        RegisterMonsterDeath(zoneIndex, zone, monsterHealth);
+        TryCompleteZone(zoneId, zone);
+    }
+
+    public void NotifyZoneCleared(Zone zone)
+    {
+        if (zone == null)
+        {
+            Debug.LogWarning("[GameFlowManager] Ignored Zone clear. Zone reference is null.", this);
+            return;
+        }
+
+        NotifyZoneCleared(zone.Id);
     }
 
     /// <summary>
@@ -272,7 +273,7 @@ public class GameFlowManager : MonoBehaviour
             return;
         }
 
-        currentZoneIndex = Mathf.Clamp(initialZoneIndex, 0, zones.Length - 1);
+        currentZone = initialZone;
 
         for (int i = 0; i < zones.Length; i++)
         {
@@ -283,21 +284,13 @@ public class GameFlowManager : MonoBehaviour
                 continue;
             }
 
-            if (zone.zoneIndex < 0)
-            {
-                zone.zoneIndex = i;
-            }
-
-            zone.entered = i == currentZoneIndex;
+            zone.entered = zone.zoneId == currentZone;
             zone.completed = false;
-            zone.defeatedMonsters.Clear();
-            zone.remainingMonsterCount = CountLivingMonsters(zone);
 
-            SetZoneActive(zone, i == currentZoneIndex);
+            SetZoneActive(zone, zone.zoneId == currentZone);
             RegisterZoneTrigger(zone);
-            RegisterMonsterEvents(zone);
 
-            if (zone.previousBarrier != null && i == currentZoneIndex)
+            if (zone.previousBarrier != null && zone.zoneId == currentZone)
             {
                 zone.previousBarrier.SetImmediate(true);
             }
@@ -307,8 +300,6 @@ public class GameFlowManager : MonoBehaviour
                 zone.nextBarrier.SetImmediate(true);
             }
         }
-
-        TryCompleteZone(currentZoneIndex, zones[currentZoneIndex]);
     }
 
     private void RegisterZoneTrigger(ZoneFlowData zone)
@@ -321,73 +312,23 @@ public class GameFlowManager : MonoBehaviour
         // Trigger는 자체 OnTriggerEnter로 NotifyZoneEntered를 호출하므로 여기서는 누락 여부만 확인합니다.
     }
 
-    private void RegisterMonsterEvents(ZoneFlowData zone)
-    {
-        if (zone.monsters == null)
-        {
-            return;
-        }
-
-        foreach (MonsterHealth monster in zone.monsters)
-        {
-            if (monster == null)
-            {
-                continue;
-            }
-
-            monster.Died -= OnTrackedMonsterDied;
-            monster.Died += OnTrackedMonsterDied;
-        }
-    }
-
-    private void UnregisterZoneEvents()
-    {
-        if (zones == null)
-        {
-            return;
-        }
-
-        foreach (ZoneFlowData zone in zones)
-        {
-            if (zone == null || zone.monsters == null)
-            {
-                continue;
-            }
-
-            foreach (MonsterHealth monster in zone.monsters)
-            {
-                if (monster != null)
-                {
-                    monster.Died -= OnTrackedMonsterDied;
-                }
-            }
-        }
-    }
-
-    private void OnTrackedMonsterDied(MonsterHealth monsterHealth)
-    {
-        NotifyMonsterDied(monsterHealth);
-    }
-
-    private IEnumerator EnterZoneRoutine(int zoneIndex, ZoneFlowData zone)
+    private IEnumerator EnterZoneRoutine(ZoneId zoneId, ZoneFlowData zone)
     {
         isZoneTransitionRunning = true;
 
-        int previousZoneIndex = currentZoneIndex;
-        ZoneFlowData previousZone = previousZoneIndex >= 0 && previousZoneIndex < zones.Length
-            ? zones[previousZoneIndex]
-            : null;
+        ZoneId previousZoneId = currentZone;
+        TryGetZone(previousZoneId, out ZoneFlowData previousZone);
 
         SetZoneActive(zone, true);
         zone.entered = true;
-        currentZoneIndex = zoneIndex;
+        currentZone = zoneId;
 
         if (showDebugLog)
         {
-            Debug.Log($"[GameFlowManager] Enter Zone {zoneIndex}. Previous Zone: {previousZoneIndex}", this);
+            Debug.Log($"[GameFlowManager] Enter {zoneId}. Previous Zone: {previousZoneId}", this);
         }
 
-        if (previousZone != null && previousZoneIndex != zoneIndex)
+        if (previousZone != null && previousZoneId != zoneId)
         {
             MapBoxBarrier barrierToClose = zone.previousBarrier != null
                 ? zone.previousBarrier
@@ -397,51 +338,28 @@ public class GameFlowManager : MonoBehaviour
             {
                 yield return barrierToClose.CloseRoutine();
             }
-            else if (zoneIndex > 0)
+            else if (TryGetPreviousZone(zoneId, out _))
             {
-                Debug.LogWarning($"[GameFlowManager] Zone {zoneIndex} has no previous barrier to close.", this);
+                Debug.LogWarning($"[GameFlowManager] {zoneId} has no previous barrier to close.", this);
             }
 
             SetZoneActive(previousZone, false);
         }
 
-        TryCompleteZone(zoneIndex, zone);
         isZoneTransitionRunning = false;
     }
 
-    private void RegisterMonsterDeath(int zoneIndex, ZoneFlowData zone, MonsterHealth monsterHealth)
+    private void TryCompleteZone(ZoneId zoneId, ZoneFlowData zone)
     {
-        if (zone == null || zone.completed)
+        if (zone == null || zone.completed || zoneId != currentZone)
         {
             return;
         }
 
-        if (monsterHealth != null && !zone.defeatedMonsters.Add(monsterHealth))
-        {
-            return;
-        }
-
-        zone.remainingMonsterCount = Mathf.Max(0, zone.remainingMonsterCount - 1);
-
-        if (showDebugLog)
-        {
-            Debug.Log($"[GameFlowManager] Zone {zoneIndex} monster defeated. Remaining: {zone.remainingMonsterCount}", this);
-        }
-
-        TryCompleteZone(zoneIndex, zone);
+        StartCoroutine(CompleteZoneRoutine(zoneId, zone));
     }
 
-    private void TryCompleteZone(int zoneIndex, ZoneFlowData zone)
-    {
-        if (zone == null || zone.completed || zoneIndex != currentZoneIndex || zone.remainingMonsterCount > 0)
-        {
-            return;
-        }
-
-        StartCoroutine(CompleteZoneRoutine(zoneIndex, zone));
-    }
-
-    private IEnumerator CompleteZoneRoutine(int zoneIndex, ZoneFlowData zone)
+    private IEnumerator CompleteZoneRoutine(ZoneId zoneId, ZoneFlowData zone)
     {
         if (zone.completed)
         {
@@ -452,13 +370,31 @@ public class GameFlowManager : MonoBehaviour
 
         if (showDebugLog)
         {
-            Debug.Log($"[GameFlowManager] Zone {zoneIndex} completed.", this);
+            Debug.Log($"[GameFlowManager] {zoneId} completed.", this);
         }
 
         if (zone.nextBarrier != null)
         {
+            PrepareNextZoneBeforeOpeningBarrier(zoneId);
             yield return zone.nextBarrier.OpenRoutine();
         }
+    }
+
+    // 다음 Zone 문이 열릴 때 너머가 비어 보이지 않도록, 진행 상태 변경 없이 시각 루트만 미리 켭니다.
+    private void PrepareNextZoneBeforeOpeningBarrier(ZoneId zoneId)
+    {
+        if (!TryGetNextZone(zoneId, out ZoneId nextZoneId))
+        {
+            return;
+        }
+
+        if (!TryGetZone(nextZoneId, out ZoneFlowData nextZone))
+        {
+            Debug.LogWarning($"[GameFlowManager] Cannot prepare next Zone. Missing Zone data: {nextZoneId}", this);
+            return;
+        }
+
+        SetZoneActive(nextZone, true);
     }
 
     private void SetZoneActive(ZoneFlowData zone, bool active)
@@ -474,48 +410,56 @@ public class GameFlowManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"[GameFlowManager] Zone {zone.zoneIndex} visual root is not assigned.", this);
-        }
-
-        if (zone.colliderRoot != null)
-        {
-            zone.colliderRoot.SetActive(active);
-        }
-        else
-        {
-            Debug.LogWarning($"[GameFlowManager] Zone {zone.zoneIndex} collider root is not assigned.", this);
+            Debug.LogWarning($"[GameFlowManager] {zone.zoneId} visual root is not assigned.", this);
         }
     }
 
-    private int CountLivingMonsters(ZoneFlowData zone)
-    {
-        if (zone.monsters == null || zone.monsters.Length == 0)
-        {
-            return 0;
-        }
-
-        int count = 0;
-        foreach (MonsterHealth monster in zone.monsters)
-        {
-            if (monster != null && !monster.IsDead)
-            {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    private bool TryGetZone(int zoneIndex, out ZoneFlowData zone)
+    private bool TryGetZone(ZoneId zoneId, out ZoneFlowData zone)
     {
         zone = null;
-        if (zones == null || zoneIndex < 0 || zoneIndex >= zones.Length)
+        if (zones == null)
         {
             return false;
         }
 
-        zone = zones[zoneIndex];
-        return zone != null;
+        foreach (ZoneFlowData candidate in zones)
+        {
+            if (candidate == null || candidate.zoneId != zoneId)
+            {
+                continue;
+            }
+
+            zone = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetPreviousZone(ZoneId zoneId, out ZoneId previousZone)
+    {
+        int previousValue = (int)zoneId - 1;
+        if (!System.Enum.IsDefined(typeof(ZoneId), previousValue))
+        {
+            previousZone = zoneId;
+            return false;
+        }
+
+        previousZone = (ZoneId)previousValue;
+        return true;
+    }
+
+    public static bool TryGetNextZone(ZoneId zoneId, out ZoneId nextZone)
+    {
+        int nextValue = (int)zoneId + 1;
+        if (!System.Enum.IsDefined(typeof(ZoneId), nextValue))
+        {
+            nextZone = zoneId;
+            return false;
+        }
+
+        nextZone = (ZoneId)nextValue;
+        return true;
     }
 
     private void UnregisterGravityTriggers()
