@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -19,17 +20,24 @@ public sealed class GravityManager : MonoBehaviour
     public Vector3 PresentationUp { get; private set; } = Vector3.up;
     public float TransitionProgress { get; private set; } = 1f;
     public bool IsTransitioning { get; private set; }
+    public bool IsPeriodicRunning => periodicRoutine != null;
+    public bool IsWarningActive { get; private set; }
+    public Vector3 NextPeriodicDirection { get; private set; }
+    public float SecondsUntilNextGravityChange { get; private set; }
     public Vector3 Direction => gravityState != null ? gravityState.Direction : Vector3.down;
     public float Strength => gravityState != null ? gravityState.Strength : 0f;
 
     public event Action TransitionStarted;
     public event Action TransitionCompleted;
+    public event Action<GravityPreset, Vector3, float> GravityChangeWarning;
 
     private Vector3 transitionStartUp;
     private Vector3 transitionTargetUp;
     private Vector3 transitionAxis;
     private float transitionAngle;
     private float transitionElapsed;
+    private Coroutine periodicRoutine;
+    private int periodicRunId;
 
     private void Awake()
     {
@@ -46,7 +54,7 @@ public sealed class GravityManager : MonoBehaviour
 
         if (initialPreset != null)
         {
-            ApplyInitialPreset();
+            ApplyPreset(initialPreset);
         }
     }
 
@@ -75,6 +83,8 @@ public sealed class GravityManager : MonoBehaviour
 
     private void OnDisable()
     {
+        StopPeriodicRoutine();
+
         if (IsTransitioning)
         {
             PresentationUp = transitionTargetUp;
@@ -84,42 +94,201 @@ public sealed class GravityManager : MonoBehaviour
 
     public bool ApplyPreset(GravityPreset preset)
     {
-        if (preset == null)
+        if (!TryValidatePreset(preset))
         {
-            Debug.LogError("[GravityManager] Cannot apply a null GravityPreset.", this);
             return false;
         }
 
-        if (gravityState == null)
+        if (CurrentPreset == preset
+            && preset.Mode == GravityPresetMode.Periodic
+            && IsPeriodicRunning)
         {
-            Debug.LogError($"[GravityManager] Failed to apply GravityPreset '{preset.name}'.", preset);
+            return true;
+        }
+
+        StopPeriodicRoutine();
+
+        switch (preset.Mode)
+        {
+            case GravityPresetMode.Fixed:
+                return ApplyGravityValue(preset, preset.Direction, preset.Strength, false);
+            case GravityPresetMode.Periodic:
+                return StartPeriodicPreset(preset, false);
+            case GravityPresetMode.ZeroGravity:
+                return ApplyGravityValue(preset, gravityState.Direction, 0f, false);
+            default:
+                Debug.LogError($"[GravityManager] GravityPreset '{preset.name}' has an unsupported mode.", preset);
+                return false;
+        }
+    }
+
+    public bool RestoreCurrentPresetImmediately()
+    {
+        GravityPreset preset = CurrentPreset != null ? CurrentPreset : initialPreset;
+        if (!TryValidatePreset(preset))
+        {
             return false;
         }
 
-        Vector3 targetUp = -preset.Direction;
+        StopPeriodicRoutine();
+
+        switch (preset.Mode)
+        {
+            case GravityPresetMode.Fixed:
+                return ApplyGravityValue(preset, preset.Direction, preset.Strength, true);
+            case GravityPresetMode.Periodic:
+                return StartPeriodicPreset(preset, true);
+            case GravityPresetMode.ZeroGravity:
+                return ApplyGravityValue(preset, gravityState.Direction, 0f, true);
+            default:
+                Debug.LogError($"[GravityManager] GravityPreset '{preset.name}' has an unsupported mode.", preset);
+                return false;
+        }
+    }
+
+    public bool RestoreInitialPreset()
+    {
+        if (initialPreset == null)
+        {
+            Debug.LogError("[GravityManager] Cannot restore a missing initial GravityPreset.", this);
+            return false;
+        }
+
+        return ApplyPreset(initialPreset);
+    }
+
+    private bool StartPeriodicPreset(GravityPreset preset, bool instantPresentation)
+    {
+        Vector3 firstDirection = preset.GetPeriodicDirection(0);
+        if (!ApplyGravityValue(preset, firstDirection, preset.Strength, instantPresentation))
+        {
+            return false;
+        }
+
+        int runId = ++periodicRunId;
+        periodicRoutine = StartCoroutine(RunPeriodicPreset(preset, 0, runId));
+        return true;
+    }
+
+    private IEnumerator RunPeriodicPreset(GravityPreset preset, int currentIndex, int runId)
+    {
+        while (enabled && CurrentPreset == preset && runId == periodicRunId)
+        {
+            int nextIndex = (currentIndex + 1) % preset.PeriodicDirectionCount;
+            NextPeriodicDirection = preset.GetPeriodicDirection(nextIndex).normalized;
+            SecondsUntilNextGravityChange = preset.ChangeInterval;
+            IsWarningActive = false;
+
+            float warningDelay = preset.ChangeInterval - preset.WarningDuration;
+            yield return WaitForPeriodicDelay(warningDelay, runId);
+
+            if (!CanContinuePeriodic(preset, runId))
+            {
+                break;
+            }
+
+            IsWarningActive = true;
+            GravityChangeWarning?.Invoke(preset, NextPeriodicDirection, preset.WarningDuration);
+            yield return WaitForPeriodicDelay(preset.WarningDuration, runId);
+
+            if (!CanContinuePeriodic(preset, runId))
+            {
+                break;
+            }
+
+            IsWarningActive = false;
+            SecondsUntilNextGravityChange = 0f;
+            if (!ApplyGravityValue(preset, NextPeriodicDirection, preset.Strength, false))
+            {
+                break;
+            }
+
+            currentIndex = nextIndex;
+        }
+
+        if (runId == periodicRunId)
+        {
+            periodicRoutine = null;
+            ResetPeriodicReadout();
+        }
+    }
+
+    private IEnumerator WaitForPeriodicDelay(float duration, int runId)
+    {
+        float elapsed = 0f;
+        while (elapsed < duration && runId == periodicRunId)
+        {
+            yield return null;
+            float deltaTime = Time.deltaTime;
+            elapsed += deltaTime;
+            SecondsUntilNextGravityChange = Mathf.Max(
+                0f,
+                SecondsUntilNextGravityChange - deltaTime);
+        }
+    }
+
+    private bool CanContinuePeriodic(GravityPreset preset, int runId)
+    {
+        return enabled
+            && CurrentPreset == preset
+            && runId == periodicRunId;
+    }
+
+    private void StopPeriodicRoutine()
+    {
+        periodicRunId++;
+
+        if (periodicRoutine != null)
+        {
+            StopCoroutine(periodicRoutine);
+            periodicRoutine = null;
+        }
+
+        ResetPeriodicReadout();
+    }
+
+    private void ResetPeriodicReadout()
+    {
+        IsWarningActive = false;
+        NextPeriodicDirection = Vector3.zero;
+        SecondsUntilNextGravityChange = 0f;
+    }
+
+    private bool ApplyGravityValue(
+        GravityPreset preset,
+        Vector3 direction,
+        float strength,
+        bool instantPresentation)
+    {
+        Vector3 targetUp = -direction;
         if (!IsFinite(targetUp) || targetUp.sqrMagnitude < Mathf.Epsilon)
         {
             Debug.LogError($"[GravityManager] GravityPreset '{preset.name}' has an invalid direction.", preset);
             return false;
         }
 
-        if (float.IsNaN(preset.Strength) || float.IsInfinity(preset.Strength) || preset.Strength < 0f)
+        if (float.IsNaN(strength) || float.IsInfinity(strength) || strength < 0f)
         {
             Debug.LogError($"[GravityManager] GravityPreset '{preset.name}' has an invalid strength.", preset);
             return false;
         }
 
         targetUp.Normalize();
-        bool gravityAlreadyMatches = gravityState.Direction == preset.Direction.normalized
-            && Mathf.Approximately(gravityState.Strength, preset.Strength);
+        Vector3 normalizedDirection = direction.normalized;
+        bool gravityAlreadyMatches = gravityState.Direction == normalizedDirection
+            && Mathf.Approximately(gravityState.Strength, strength);
         bool presentationAlreadyMatches = Vector3.Dot(PresentationUp, targetUp) > 0.9999f;
 
-        if (IsTransitioning && TargetPreset == preset && gravityAlreadyMatches)
+        if (!instantPresentation
+            && IsTransitioning
+            && TargetPreset == preset
+            && gravityAlreadyMatches)
         {
             return true;
         }
 
-        if (!IsTransitioning
+        if (!instantPresentation
+            && !IsTransitioning
             && CurrentPreset == preset
             && gravityAlreadyMatches
             && presentationAlreadyMatches)
@@ -127,7 +296,30 @@ public sealed class GravityManager : MonoBehaviour
             return true;
         }
 
-        bool wasTransitioning = IsTransitioning;
+        if (instantPresentation)
+        {
+            bool wasTransitioning = IsTransitioning;
+            if (!gravityState.SetGravity(direction, strength))
+            {
+                Debug.LogError($"[GravityManager] Failed to apply GravityPreset '{preset.name}'.", preset);
+                return false;
+            }
+
+            CurrentPreset = preset;
+            TargetPreset = null;
+            PresentationUp = targetUp;
+            TransitionProgress = 1f;
+            IsTransitioning = false;
+
+            if (wasTransitioning)
+            {
+                TransitionCompleted?.Invoke();
+            }
+
+            return true;
+        }
+
+        bool wasTransitioningRegularly = IsTransitioning;
         transitionStartUp = PresentationUp.normalized;
         transitionTargetUp = targetUp;
         transitionAngle = Vector3.Angle(transitionStartUp, transitionTargetUp);
@@ -137,14 +329,14 @@ public sealed class GravityManager : MonoBehaviour
         TargetPreset = preset;
         IsTransitioning = !presentationAlreadyMatches;
 
-        if (IsTransitioning && !wasTransitioning)
+        if (IsTransitioning && !wasTransitioningRegularly)
         {
             TransitionStarted?.Invoke();
         }
 
-        if (!gravityState.SetGravity(preset.Direction, preset.Strength))
+        if (!gravityState.SetGravity(direction, strength))
         {
-            AbortTransition(wasTransitioning || IsTransitioning);
+            AbortTransition(wasTransitioningRegularly || IsTransitioning);
             Debug.LogError($"[GravityManager] Failed to apply GravityPreset '{preset.name}'.", preset);
             return false;
         }
@@ -163,7 +355,7 @@ public sealed class GravityManager : MonoBehaviour
             TransitionProgress = 1f;
             TargetPreset = null;
 
-            if (wasTransitioning)
+            if (wasTransitioningRegularly)
             {
                 TransitionCompleted?.Invoke();
             }
@@ -172,30 +364,27 @@ public sealed class GravityManager : MonoBehaviour
         return true;
     }
 
-    public bool RestoreInitialPreset()
+    private bool TryValidatePreset(GravityPreset preset)
     {
-        if (initialPreset == null)
+        if (preset == null)
         {
-            Debug.LogError("[GravityManager] Cannot restore a missing initial GravityPreset.", this);
+            Debug.LogError("[GravityManager] Cannot apply a null GravityPreset.", this);
             return false;
         }
 
-        return ApplyPreset(initialPreset);
-    }
-
-    private void ApplyInitialPreset()
-    {
-        if (!gravityState.SetGravity(initialPreset.Direction, initialPreset.Strength))
+        if (gravityState == null)
         {
-            Debug.LogError($"[GravityManager] Failed to apply initial GravityPreset '{initialPreset.name}'.", initialPreset);
-            return;
+            Debug.LogError($"[GravityManager] Failed to apply GravityPreset '{preset.name}'.", preset);
+            return false;
         }
 
-        CurrentPreset = initialPreset;
-        TargetPreset = null;
-        PresentationUp = -gravityState.Direction;
-        TransitionProgress = 1f;
-        IsTransitioning = false;
+        if (!preset.TryValidate(out string error))
+        {
+            Debug.LogError($"[GravityManager] GravityPreset '{preset.name}' is invalid: {error}", preset);
+            return false;
+        }
+
+        return true;
     }
 
     private void CompleteTransition()

@@ -1,7 +1,7 @@
-# Zone 기반 중력 시스템 구현 실행 계획
+﻿# Zone 기반 중력 시스템 구현 실행 계획
 
-문서 작성일: 2026-08-24  
-현재 상태: Phase 2.5 구현·사용자 Play Mode 검증 완료 · Phase 3 물리 Preset 책임 명칭 정리·컴파일 검증 완료, 사용자 Play Mode 검증 대기
+문서 작성일: 2026-08-24
+현재 상태: 완료 — Phase 1~7 구현·자동 검증·사용자 Play Mode 확인 완료 · Zone/Trigger별 Preset 연결은 레벨 설계 확정 후속 작업으로 분리
 
 계획 프로필: `deep`
 
@@ -12,11 +12,11 @@
 
 ## 1. 목표
 
-`GamePlayScene_Player`의 순차형 Zone 진행에 맞춰 일반 중력, 한 번의 방향 전환, 주기적 방향 전환과 무중력을 단계적으로 구현한다.
+`GamePlayScene_Player`에서 고정형·주기형·무중력 Preset을 공통 경로로 적용하고, 플레이어·카메라·동적 Rigidbody와 리스폰이 현재 중력 상태를 일관되게 사용하게 한다.
 
-중력 상태의 소유권, Zone 활성화, 플레이어·카메라·동적 Rigidbody의 반응을 분리하고 각 Phase가 독립적으로 Play Mode 검증을 통과한 뒤 다음 Phase로 진행한다.
+중력 상태, 물리 Preset, 게임 진행 Trigger, 플레이어 표현 전환과 동적 Rigidbody의 책임을 분리한다. 구체적인 Zone별 효과와 Trigger 연결은 레벨 기획이 확정되기 전에 하드코딩하지 않는다.
 
-최종적으로 다음 흐름을 안정적으로 재현하는 것이 이번 계획의 목표다.
+완료된 코어 시스템은 다음 흐름을 각각 Inspector 운영 경로로 재현할 수 있다.
 
 ```text
 Normal Gravity
@@ -25,13 +25,13 @@ Normal Gravity
   → Zero Gravity: 중력 제거와 그래플 구현을 위한 상태 인계
 ```
 
-이번 계획은 중력 시스템과 무중력 상태 기반까지 다룬다. 그래플 이동 자체는 중력 시스템 검증이 끝난 뒤 별도 실행 계획에서 구현한다.
+이 흐름의 실제 Zone 배치 순서는 후속 레벨 통합에서 확정한다. 그래플과 무중력 사격 반작용은 별도 실행 계획에서 다룬다.
 
 ## 2. 범위
 
 - 실행 중 중력 방향과 세기를 안전하게 변경하는 공통 상태
-- 현재 활성 Zone을 기준으로 중력 동작을 시작·교체·종료하는 조정자
-- 기존 `GravityEventTrigger`와 실제 중력 변경의 연결
+- 현재 `GravityPreset`을 기준으로 중력 동작을 시작·교체·종료하는 조정자
+- 기존 Normal·Shift·Inversion `GravityEventTrigger`와 고정형 Preset 연결 보존
 - 한 번 적용하고 유지하는 고정 방향 중력
 - 방향 목록과 시간을 사용하는 주기적 중력
 - 세기 `0`인 무중력 진입과 일반 중력 복귀
@@ -40,7 +40,7 @@ Normal Gravity
 - Zone 수와 무관하게 실제 `GravityPreset`을 선택해 운영 경로로 실행하는 Play Mode 테스트 UI
 - 환경의 실제 중력 변경과 플레이어·카메라의 짧은 회전 전환을 분리한 `PresentationUp` 계약
 - 중력 변경 시 이전 주기 동작 취소, Rigidbody 깨우기와 리스폰 상태 복구
-- Zone별 Play Mode 검증과 전체 구간 회귀 검증
+- Inspector 운영 경로의 고정형·주기형·무중력·리스폰 Play Mode 회귀 검증
 
 ## 3. 하지 않을 것
 
@@ -55,62 +55,61 @@ Normal Gravity
 - ScriptableObject 기반 범용 중력 프레임워크
 - 여러 씬과 게임 모드를 포괄하는 범용 서비스 로케이터 또는 싱글턴 재설계
 - 아이템, 인벤토리, 무기, 전투와 적 AI 확장
-- 사용자 승인 없는 실제 WebGL 빌드, Build Settings 또는 활성 빌드 타깃 변경
+- Periodic·Zero Gravity 테스트 Preset을 미확정 Zone이나 Trigger에 연결
+- Entry부터 엔딩까지의 실제 중력 동선 확정
 - 현재 사용자의 미커밋 `Docs/GameDesign_MVP.md` 변경을 덮어쓰기·정리·되돌리기
 
 ## 4. 현재 상태와 근거
 
-### 4.1 중력 상태
+### 4.1 중력 상태와 Preset
 
-- `Assets/_Scripts/Gravity/GravityState.cs`는 정규화된 `Direction`, 0 이상 `Strength`, 두 값을 곱한 `Gravity`, 런타임 `SetGravity()`와 `Changed` 이벤트를 제공한다.
-- `GamePlayScene_Player/GravitySystem`에는 아래 방향 `(0, -1, 0)`, 세기 `9.81`의 `GravityState`가 하나 배치돼 있다.
+- `GravityState`는 정규화된 `Direction`, 0 이상 `Strength`, 두 값을 곱한 `Gravity`, 런타임 `SetGravity()`와 `Changed` 이벤트를 제공한다.
+- `GravityPreset`은 `Fixed`, `Periodic`, `ZeroGravity` 모드와 각 모드의 물리 설정을 소유한다.
+- `GravityManager`가 Preset 적용, 단일 Periodic 실행, 예고, `PresentationUp`과 즉시 복원을 소유한다.
 
 ### 4.2 Zone과 게임 진행
 
 - `GravityEventTrigger`는 플레이어가 처음 닿는 `OnTriggerEnter`에서 `Triggered` 이벤트를 한 번 발생시킨다.
 - `GameFlowManager`는 이 이벤트를 받아 `GravityManager.ApplyPreset()`을 호출한 뒤 `GameFlowState`를 갱신한다.
 - 현재 이벤트 타입은 `ShiftGravity`, `Inversion`, `FastDown`, `Slow`, `ZeroGravity`다.
-- 씬에는 `Zone_02_Normal`, `Zone_03_GravityShift`, `Zone_04_Inversion`, `Zone_05_ZeroGravity`와 다섯 종류의 중력 이벤트 트리거가 이미 존재한다.
+- Normal·Shift·Inversion의 기존 고정형 Preset 연결은 유지한다.
+- FastDown·Slow·ZeroGravity Trigger는 비활성·미연결 상태이며, Periodic·Zero Gravity 테스트 Preset도 Trigger에 연결하지 않았다.
 
 ### 4.3 플레이어와 카메라
 
 - `PlayerController`는 Unity 기본 중력을 끄고 `GravityState.Gravity`를 `ForceMode.Acceleration`으로 적용한다.
-- 이동, 점프와 Ground Probe는 현재 중력 방향과 반대 방향을 Up으로 사용한다.
-- 플레이어 정렬은 `Rigidbody.MoveRotation`으로 구현돼 있지만 Player Prefab의 Rigidbody는 현재 X/Z 회전이 고정돼 있다.
-- 이 제약은 90도 방향 전환을 막을 수 있으므로 Phase 1에서 실제 동작을 확인하고, 방향성 정렬을 방해하면 X/Z 회전 고정을 제거한다.
-- `ThirdPersonCameraController`는 현재 yaw 축으로 `Vector3.up`을 사용한다. 방향성 중력에서 카메라가 월드 Up에 남지 않도록 Phase 1에서 현재 중력 Up 기준으로 바꿔야 한다.
-- `PlayerMotionStateMachine`은 `Strength == 0`에서 `ZeroGravity`를 선택하지만 `ZeroGravityMotionState.FixedTick()`은 현재 비어 있다.
+- 이동, 점프, Ground Probe, Player 회전과 Camera orbit은 현재 중력 및 `PresentationUp`을 기준으로 동작한다.
+- 중력 전환 동안 Player와 Camera가 같은 진행률로 정렬되고 입력·물리 잠금은 완료·취소 경로에서 복구된다.
+- `PlayerMotionStateMachine`은 `Strength == 0`에서 `ZeroGravity`를 선택하고 진입 순간 선속도·각속도를 한 번 초기화한다.
 
 ### 4.4 몬스터와 지형
 
-- 현재 지네·거미·지렁이 이동 스크립트는 Rigidbody 힘으로 이동하지 않는다.
-- 지네와 지렁이는 `GravityState.Direction`을 바닥 기준 계산에 사용하고, 거미는 waypoint의 표면 normal을 사용한다.
-- 현재 확인한 지네·거미·공중몹 Prefab에는 Rigidbody가 없다.
-- 지형 바위와 BoxCollider는 정적 충돌체로 유지한다.
-- 중력 연출은 별도 박스·돌·금속 잔해 또는 죽은 몬스터 대체물에만 `GravityBody`를 붙여 만든다.
+- 현재 몬스터 이동 스크립트는 Rigidbody 힘으로 이동하지 않으며 커스텀 몬스터 Prefab에 Rigidbody·`GravityBody`가 없다.
+- 지형 바위와 Collider는 정적 충돌체로 유지한다.
+- 중력 반응이 필요한 두 테스트 Cube에만 `GravityBody`를 연결했다.
 
 ### 4.5 검증 기반
 
-- 현재 프로젝트에는 전용 Gameplay/EditMode 테스트 코드와 테스트 asmdef가 없다.
-- 각 Phase는 Unity 스크립트 재컴파일, Console 오류 검사와 `GamePlayScene_Player` Play Mode 수동 검증을 기본으로 한다.
-- 새로운 테스트 인프라를 만들기보다 각 Phase의 좁은 테스트 배치와 재현 절차를 문서화한다.
+- 전용 Gameplay/EditMode 테스트 asmdef는 추가하지 않았다.
+- Inspector 운영 API를 이용한 자동 Play Mode 계측, Unity Console 검사와 사용자 Play Mode 확인으로 검증했다.
+- 런타임·Editor 어셈블리 빌드는 오류 0건이며 기존 경고 28건만 남았다.
 
 ## 5. 필요한 가정
 
-- 스테이지는 Entry에서 Source로 순서대로 진행하며 플레이어가 활성화한 Zone 하나가 현재 게임플레이 중력을 결정한다.
-- `GravityPreset`은 공간 Zone이 아니라 방향과 세기를 담은 물리 설정이다. 환경 Trigger가 선택한 Preset은 다음 Preset 적용 전까지 유지된다.
+- `GravityPreset`은 공간 Zone이 아니라 중력 동작을 담은 물리 설정이다. 적용된 Preset은 다음 Preset 적용 전까지 유지된다.
+- 기획 Zone별 중력 효과와 Trigger 연결은 레벨 설계 확정 후 별도로 결정한다.
 - MVP에서는 이전 구역으로의 역행과 Zone 건너뛰기를 지원하지 않는다. 문과 진행 차단은 GameFlow·구역 연출이 담당하며 중력 시스템은 통과 순서 인덱스나 진입 면을 별도로 검증하지 않는다.
-- 이전 Trigger를 반대 방향으로 다시 통과하거나 Trigger에서 Exit해도 이전 중력을 복원하지 않는다. 체크포인트 리스폰만 저장된 Zone을 명시적으로 복구한다.
+- 이전 Trigger를 반대 방향으로 다시 통과하거나 Trigger에서 Exit해도 이전 중력을 복원하지 않는다.
 - 이전 Zone과 다음 Zone이 서로 다른 중력을 동시에 유지할 필요는 없다.
 - 문이 닫히는 것만으로 이전 구역의 렌더링·물리 처리가 자동으로 중단된다고 가정하지 않는다. 이전 Zone의 전투나 물리 오브젝트가 새 중력에 반응하면 안 되거나 비용을 줄여야 하는 경우 GameFlow가 해당 Zone 루트나 동적 오브젝트를 비활성화하거나 진행 경계로 격리한다.
-- 첫 구현은 `GamePlayScene_Player`의 기존 Zone Collider와 BoxCollider 지형을 사용한다.
-- Phase 3 방향은 Normal `-Y`, Shift `+X`, Inversion `-X`로 확정한다. Phase 4의 변경 간격과 예고 시간만 Scene View의 실제 Zone 길이와 Play Mode 체감을 확인한 뒤 Inspector 값으로 확정한다.
+- 기존 고정형 방향은 Normal `-Y`, Shift `+X`, Inversion `-X`로 유지한다.
+- Periodic 테스트 값은 `[+X, -X]`, 변경 간격 `4초`, 예고 `1초`이며 운영 Zone 값으로 확정한 것은 아니다.
 - `FastDown`과 `Slow`는 이벤트 타입을 제거하지는 않되 이번 MVP의 중력 Zone으로 구성하지 않는다.
 - 플레이어와 카메라의 방향성 중력 대응은 중력 시스템의 일부다. 둘 중 하나라도 월드 Up에 남으면 Phase 1을 완료하지 않는다.
 - Phase 2.5의 실제 게임 진행 전환은 환경의 중력을 먼저 확정하고, 플레이어만 월드 위치와 속도를 고정한 채 새 Up으로 회전한 뒤 해제한다.
 - 카메라는 현재 시선 전방축을 중심으로 화면 기준 반시계 방향으로 Roll하며, 플레이어에게는 지형이 시계 방향으로 회전하는 느낌을 준다.
 - 전환 중에는 전체 시간이나 `GravityBody`를 멈추지 않는다. 동적 환경 물체는 전환 시작 즉시 새 중력에 반응한다.
-- 각 Phase 구현은 사용자 승인 후 시작하며, 이전 Phase의 완료 기준을 통과하기 전에는 다음 Phase 코드를 추가하지 않는다.
+- 리스폰은 미확정 Zone 매핑 대신 실제 `CurrentPreset`을 즉시 복원한다.
 
 ## 6. 책임 경계와 데이터 흐름
 
@@ -124,7 +123,7 @@ GameFlowManager
         ↓
 GravityManager
   ├─ 이전 주기 동작 중단
-  ├─ 현재 활성 Zone 소유
+  ├─ 현재 GravityPreset 소유
   ├─ 고정·주기·무중력 동작 실행
   ├─ GravityState 물리값 변경
   └─ 전환 상태·PresentationUp·진행률 소유
@@ -157,13 +156,13 @@ GravityState
 
 - 씬의 단일 `GravityState`를 직렬화 참조로 받는다.
 - 현재 적용된 `GravityPreset`을 기억한다.
-- 새 Zone 활성화 전에 이전 Zone의 주기 동작과 예고를 반드시 취소한다.
-- 고정형 Zone은 값을 한 번 적용하고 유지한다.
-- 주기형 Zone은 직렬화된 방향 목록을 지정 간격으로 순환한다.
-- 무중력 Zone은 이전 반복을 중단하고 세기를 정확히 `0`으로 설정한다.
+- 새 Preset 적용 전에 이전 Periodic 실행과 예고를 반드시 취소한다.
+- Fixed Preset은 값을 한 번 적용하고 유지한다.
+- Periodic Preset은 직렬화된 방향 목록을 지정 간격으로 순환한다.
+- ZeroGravity Preset은 이전 반복을 중단하고 세기를 정확히 `0`으로 설정한다.
 - 전환 시작·중간 재요청·완료·취소와 `PresentationUp`의 단일 진행률을 소유한다.
 - 실제 중력은 `GravityState`에 한 번 적용하고, 플레이어와 카메라가 별도 Tween으로 서로 다른 시간에 도착하지 않게 한다.
-- 리스폰 요청에는 체크포인트 Zone의 초기 상태를 즉시 재적용할 수 있어야 한다.
+- 리스폰 요청에는 현재 Preset의 초기 상태를 즉시 재적용한다.
 - 물리 힘을 직접 적용하거나 플레이어·몬스터를 검색하지 않는다.
 
 ### 6.3 `GravityPreset`
@@ -195,7 +194,7 @@ GravityState
 - 기존 트리거 구독과 `GameFlowState` 갱신 책임을 유지한다.
 - 트리거가 가리키는 `GravityPreset`을 `GravityManager`에 전달하는 조정만 추가한다.
 - 구체적인 방향 벡터, 세기, 타이머와 Coroutine을 소유하지 않는다.
-- 사망·리스폰 시 현재 진행 상태에 대응하는 Zone 복구를 요청한다.
+- 사망·리스폰 시 `GravityManager`의 현재 Preset 복구를 먼저 요청하고 복구된 `PresentationUp`을 플레이어 회전에 전달한다.
 
 ## 7. 오브젝트별 중력 반응 계약
 
@@ -652,7 +651,7 @@ Phase 3 구현 범위는 Normal·Shift·고정 Inversion까지다. Zero Gravity�
 - `Trigger_ToFastDown`, `Trigger_ToSlow`, `Trigger_ToZeroGravity`는 Zone 참조를 비워 둔 채 비활성화했다. Phase 3에서 FastDown·Slow·Zero Gravity는 구현하지 않았다.
 - 기존 180도 fallback은 Shift 중력 `+X`에서 Inversion 중력 `-X`로 갈 때 Presentation Up을 월드 `+Y` 축으로 결정적으로 회전시킨다. 별도 Zone별 회전 코드는 추가하지 않았다.
 - 자동 검증: `Assembly-CSharp.csproj`, `Assembly-CSharp-Editor.csproj` 빌드 오류 0건; 씬 재로드·AssetDatabase import 확인; 신규 YAML fileID 중복 0건; `git diff --check` 통과.
-- 사용자 Play Mode 확인 대기: Shift `+X` → Inversion `-X` 180도 회전 방향, Player·Camera 동일 경로, Capsule 관통 여부, 입력 복구, 중복 적용·역행·Exit 동작. 이 확인 전에는 Phase 3의 사람 조작 완료 기준을 충족한 것으로 표시하지 않는다.
+- 사용자 Play Mode 확인 완료: Shift `+X` → Inversion `-X` 전환을 포함한 고정형 중력 전환과 Player·Camera 동기화, 충돌·입력 복구가 정상 동작함을 확인했다.
 
 ### Phase 3 책임 명칭 정리 — 2026-08-25
 
@@ -661,304 +660,164 @@ Phase 3 구현 범위는 Normal·Shift·고정 Inversion까지다. Zero Gravity�
 - 운영 API는 `GravityEventTrigger.Preset` → `GameFlowManager` → `GravityManager.ApplyPreset()`으로 정리하고, 런타임 상태도 `CurrentPreset`·`TargetPreset`으로 표현한다.
 - 기획 구역과 Trigger는 Inspector에서 필요한 Preset을 참조한다. 기획자가 방향을 변경할 때 게임 진행 enum이나 물리 코드를 수정할 필요가 없다.
 
-## 13. Phase 4 — 주기적 Reverse Gravity
+## 13. Phase 4 — 주기형 GravityPreset과 전환 예고
 
 ### 목표
 
-Reverse Gravity Zone이 활성화된 동안 `World +X`와 `World -X`를 일정 시간마다 순환하고, 다른 Zone으로 이동하면 반복과 예고가 즉시 멈추게 한다.
+특정 Zone에 종속되지 않는 주기형 물리 Preset을 만들고, 하나의 실행 루틴이 방향 전환·예고·취소를 일관되게 소유하게 한다.
 
-### 범위
+### 구현 결과 — 2026-08-25
 
-- 주기형 `GravityPreset`
-- 방향 목록, 간격, 첫 적용 시점과 반복 규칙
-- 다음 변경을 알리는 최소 예고 이벤트 또는 디버그 표시
-- 주기 동작 취소와 중복 실행 방지
-- Player·Camera·GravityBody 반복 전환 검증
+- `GravityPresetMode`를 `Fixed`, `Periodic`, `ZeroGravity`로 확장했다.
+- `Periodic`은 방향 배열, 변경 간격과 예고 시간을 데이터로 소유한다. 빈 배열, 유효하지 않은 방향, 0 이하 간격과 간격을 넘는 예고 시간은 적용 전에 거부한다.
+- `GravityManager`가 단일 Coroutine과 실행 ID를 소유한다. 다른 Preset 적용, 컴포넌트 비활성화와 복원 요청 시 이전 실행과 예고 상태를 정리한다.
+- 같은 Periodic Preset을 중복 적용해도 Coroutine과 카운트다운을 재시작하지 않는다.
+- `GravityChangeWarning` 이벤트와 `IsPeriodicRunning`, `IsWarningActive`, `NextPeriodicDirection`, 남은 시간 Inspector 표시를 추가했다.
+- `GravityPreset_TestPeriodicX`를 `[World +X, World -X]`, 간격 `4초`, 예고 `1초`로 구성했다. 이 오브젝트는 Inspector 검증용이며 Trigger나 기획 Zone에는 연결하지 않았다.
 
-### 구현 방향
+### 검증 결과
 
-- `GravityManager`만 현재 주기 실행 핸들을 소유한다.
-- 새 Zone 활성화, 컴포넌트 비활성화와 씬 종료 시 반복을 취소한다.
-- 방향 배열이 비었거나 간격이 0 이하이면 실행하지 않고 명확한 오류를 남긴다.
-- Reverse Gravity의 방향 목록은 `[World +X, World -X]` 순서로 고정한다.
-- Zone 활성화 시 첫 방향 `+X`를 즉시 적용한다. 직전 Shift 상태가 이미 `+X`라면 불필요한 전환을 만들지 않고 타이머만 시작하며, 첫 예고 뒤 `-X`로 전환한다.
-- VFX 자체는 구현하지 않지만 VFX/UI가 구독할 수 있는 `GravityChangeWarning` 성격의 신호를 제공한다.
-- 예고 후 실제 변경까지의 순서를 한 곳에서 실행해 VFX와 물리 시간이 어긋나지 않게 한다.
+- 자동 Play Mode에서 14회의 연속 방향 전환과 각 전환 전 예고를 확인했다.
+- 중복 적용 시 남은 시간이 초기화되지 않았고, Zero Gravity 또는 다른 Preset 적용 후 이전 주기가 다시 실행되지 않았다.
+- Player·Camera·GravityBody가 반복 전환 후에도 같은 중력 기준을 사용했다.
+- 사용자가 Play Mode에서 주기 전환 동작이 정상임을 확인했다.
 
-### 실행 순서
+### 완료 기준 결과
 
-1. `[주기형 Zone 데이터와 유효성 검사 구현]` → verify: `[빈 방향 목록·잘못된 시간 값이 조용히 실행되지 않음]`
-2. `[GravityManager 단일 주기 실행 구현]` → verify: `[동시에 하나의 반복만 존재]`
-3. `[예고 신호와 실제 변경 순서 연결]` → verify: `[방향 변경마다 예고 1회·실제 변경 1회]`
-4. `[Reverse Gravity Zone 설정]` → verify: `[기획된 방향과 시간 순서가 Inspector에서 확인 가능]`
-5. `[다른 Zone 진입 취소 테스트]` → verify: `[Zero·Normal 등 다음 Zone 진입 후 이전 반복이 재발하지 않음]`
+- 주기 실행의 데이터는 `GravityPreset`, 실행·취소·예고 책임은 `GravityManager`에 있다.
+- Reverse Gravity라는 기획 의미나 특정 Zone 매핑을 물리 코드에 고정하지 않았다.
 
-### Play Mode 테스트
-
-- 진입 후 정의된 순서와 간격으로 중력이 바뀐다.
-- 플레이어, 카메라와 GravityBody가 매 변경에 함께 반응한다.
-- 예고 횟수와 실제 변경 횟수가 일치한다.
-- Zone 재진입 또는 중복 Trigger로 Coroutine이 두 배로 실행되지 않는다.
-- 다음 Zone 진입 후 Reverse Gravity가 다시 중력을 덮어쓰지 않는다.
-- 여러 번 전환한 뒤에도 플레이어가 지형을 관통하거나 영구 조작 불능에 빠지지 않는다.
-- 반복 중 Play Mode 종료·컴포넌트 비활성화 시 잔여 callback 오류가 없다.
-
-### 완료 기준
-
-- Reverse Gravity가 독립적인 단일 주기 실행으로 동작한다.
-- 주기 실행의 시작·취소·예고·실제 변경 소유자가 `GravityManager`로 명확하다.
-- 5회 이상 연속 방향 전환 후에도 플레이 가능한 상태가 유지된다.
-
-### 중단 조건
-
-- 타이머 중복을 bool flag로만 덮어 가리게 되면 실행 핸들의 생성·취소 소유권을 다시 정리한다.
-- 전환 간격보다 플레이어·카메라 정렬 시간이 길어 계속 회전 중인 상태가 되면 물리 버그로 숨기지 않고 기획 간격 또는 정렬 속도를 조정한다.
-
-## 14. Phase 5 — 몬스터·연출 오브젝트 반응 경계 통합
+## 14. Phase 5 — 몬스터·동적 오브젝트 반응 경계 확인
 
 ### 목표
 
-Zone별 몬스터가 필요한 중력 방향 정보만 사용하고 물리 중력은 받지 않는다는 계약을 실제 Prefab과 Play Mode에서 확인한다.
+중력 힘을 받는 대상을 `GravityBody` opt-in으로 제한하고 기존 몬스터 이동 구조를 보호한다.
 
-### 범위
+### 확인 결과 — 2026-08-25
 
-- 지네·거미·지렁이의 `GravityState` 참조 확인
-- 몬스터 Prefab의 Rigidbody·GravityBody 비참여 확인
-- 중력 변경 중 몬스터 이동 중단·표면 기준 변경 여부 점검
-- 적 낙하 연출이 필요할 경우 별도 물리 대체물 사용
-- 공중몹 비참여 원칙 확인
+- Player는 전용 상태 머신과 Rigidbody 이동을 사용하므로 `GravityBody`를 추가하지 않는다.
+- 정적 지형과 팀장 Collider에는 Rigidbody나 `GravityBody`를 추가하지 않는다.
+- 현재 커스텀 몬스터 Prefab에 Rigidbody 또는 `GravityBody`가 연결되지 않았음을 확인했다.
+- 몬스터의 NavTarget·표면 normal 기반 이동을 Rigidbody 중력으로 재작성하지 않았다.
+- 기존 두 `GravityBody` 테스트 오브젝트로 고정·주기·무중력 Preset 반응을 확인했다.
+- 몬스터 낙하 연출용 더미나 잔해는 실제 요구가 없어 추가하지 않았다.
 
-### 구현 방향
+### 완료 기준 결과
 
-- 지네는 현재 중력 반대 방향을 바닥 normal로 사용하되 실제 AddForce를 받지 않는다.
-- 거미는 waypoint 표면 normal과 부착 이동을 유지한다.
-- 지렁이는 공격 위치 계산 시 현재 중력 방향을 읽는다.
-- 공중몹이 추가되더라도 기본적으로 중력 힘과 정렬을 구독하지 않는다.
-- 살아 있는 몬스터 낙하는 구현하지 않는다. 대표 연출에는 GravityBody가 붙은 더미나 잔해를 사용한다.
-
-### 실행 순서
-
-1. `[몬스터 Prefab과 런타임 컴포넌트 반응 표 점검]` → verify: `[의도하지 않은 Rigidbody·GravityBody 0건]`
-2. `[지네 바닥 기준 테스트]` → verify: `[필요한 Zone에서 현재 중력 방향을 읽되 물리 낙하하지 않음]`
-3. `[거미 표면 이동 테스트]` → verify: `[중력 변경이 waypoint 부착 이동을 강제로 깨지 않음]`
-4. `[지렁이 출현 방향 테스트]` → verify: `[현재 중력 기준 바닥 후보를 사용]`
-5. `[대표 낙하 연출 대체물 검증]` → verify: `[몬스터 구조 수정 없이 적 또는 시체 대체 오브젝트가 중력 변화 표현]`
-
-### 완료 기준
-
-- 몬스터별 방향 참고와 실제 힘 적용 여부가 표의 계약과 일치한다.
-- 몬스터 이동 구조를 Rigidbody로 재작성하지 않는다.
-- 중력 대표 연출이 플레이어와 동적 잔해만으로 읽히거나, 별도 대체물이 명시적으로 사용된다.
+- Player, 동적 오브젝트, 몬스터와 정적 지형의 중력 책임 경계가 기존 구조를 변경하지 않고 유지됐다.
+- Zone별 몬스터 연출이나 방향 참조는 실제 레벨 기획이 정해질 때 별도 통합한다.
 
 ## 15. Phase 6 — Zero Gravity 진입·복귀 기반
 
 ### 목표
 
-Zero Gravity Zone 진입 시 이전 주기 중력을 종료하고 플레이어와 GravityBody의 중력 힘을 제거하며, 이후 그래플이 속도를 제어할 수 있는 결정적인 상태를 만든다.
+현재 방향과 화면 자세는 유지하면서 중력 세기만 제거하고, 이후 그래플이나 다른 무중력 이동이 Rigidbody 속도를 사용할 수 있는 상태를 만든다.
 
-### 범위
+### 구현 결과 — 2026-08-25
 
-- 세기 `0` 적용
-- 주기 중력 취소
-- 플레이어 `ZeroGravity` 진입 1회 처리
-- 무중력 진입 속도 정책
-- 일반 중력 복귀
-- GravityBody의 무중력 관성 확인
-- 그래플 시스템을 위한 상태 인계
+- `ZeroGravity` Preset은 직전 `GravityState.Direction`과 `PresentationUp`을 유지하고 물리 세기만 `0`으로 적용한다.
+- Zero Gravity 적용 시 진행 중인 Periodic 실행과 예고를 즉시 취소한다.
+- `ZeroGravityMotionState.Enter()`가 `PlayerController.EnterZeroGravity()`를 한 번 호출해 선속도와 각속도를 초기화한다.
+- 진입 후 `FixedUpdate`마다 속도를 다시 0으로 덮어쓰지 않으므로 외부 이동이 관성을 만들 수 있다.
+- 무중력 동안 Grounded 이동·점프·달리기·웅크리기는 실행하지 않는다.
+- `GravityBody`는 중력 가속도만 받지 않고 기존 선속도는 유지한다.
+- `GravityPreset_TestZero`를 Inspector 검증용으로 구성했으며 Trigger나 기획 Zone에는 연결하지 않았다.
 
-### 구현 방향
+### 검증 결과
 
-- Zero Gravity는 작은 임계값이 아니라 `Strength == 0`이라는 명시적 상태로 판단한다.
-- Zero Gravity 진입은 직전 `GravityState.Direction`과 `PresentationUp`을 유지한 채 세기만 `0`으로 만든다. 중력이 사라진다는 이유로 Player와 Camera에 별도 Roll을 발생시키지 않는다.
-- 진입 순간 플레이어의 선속도와 각속도를 한 번 초기화해 이전 낙하가 무중력 구간 끝까지 이어지지 않게 한다.
-- 진입 후 매 FixedUpdate마다 속도를 0으로 덮어쓰지 않는다. 그래플이 이후 Rigidbody 속도를 소유할 수 있어야 한다.
-- 무중력 동안 일반 Grounded 이동·점프·달리기·웅크리기는 활성화하지 않는다.
-- GravityBody는 힘만 0이 되고 기존 관성은 유지한다. 연출상 정지가 필요하면 해당 오브젝트 배치·초기속도로 조정하고 전역 감쇠 규칙은 추가하지 않는다.
-- 일반 중력 복귀 시 새 중력 방향의 Ground Probe 결과에 따라 Grounded 또는 Airborne으로 자연스럽게 전환한다.
+- Periodic에서 Zero Gravity로 전환했을 때 방향과 `PresentationUp`은 유지되고 세기만 `0`이 됐으며 이전 주기가 취소됐다.
+- Normal에서 Zero Gravity로 직접 전환했을 때 불필요한 Player·Camera 회전이 발생하지 않았다.
+- Player가 `ZeroGravity` 상태에 진입해 속도를 한 번 초기화하고, `GravityBody`는 무중력 관성을 유지했다.
+- 일반 중력 복원 후 Player와 `GravityBody`가 다시 현재 중력 방향으로 반응했다.
+- 사용자가 Play Mode에서 무중력 진입·복귀가 정상임을 확인했다.
 
-### 예상 변경 파일
+### 완료 기준 결과
 
-- `Assets/_Scripts/Gravity/GravityManager.cs`
-- `Assets/_Scripts/Player/PlayerController.cs`
-- `Assets/_Scripts/Player/PlayerMotionStateMachine.cs`
-- 필요할 경우 `Assets/_Scripts/Player/PlayerAnimationController.cs`
-- `Assets/_Scenes/GamePlayScene_Player.unity`
+- `ZeroGravityMotionState`가 후속 무중력 이동을 받을 수 있는 상태로 준비됐다.
+- 그래플과 무중력 사격 반작용 자체는 이 계획에서 구현하지 않는다.
 
-### 실행 순서
-
-1. `[Zero Gravity Zone을 현재 방향 유지·명시적 세기 0으로 구성]` → verify: `[이전 주기 취소 후 Direction·PresentationUp 유지, Strength 정확히 0]`
-2. `[Player ZeroGravity 진입 1회 처리 구현]` → verify: `[진입 순간 속도 초기화, 이후 프레임별 강제 정지 없음]`
-3. `[일반 이동 상태 차단 확인]` → verify: `[무중력에서 Jump·Sprint·Crouch가 잘못 실행되지 않음]`
-4. `[GravityBody 무중력 반응 확인]` → verify: `[추가 가속도 0, 기존 관성만 유지]`
-5. `[일반 중력 복귀 테스트]` → verify: `[새 방향 낙하와 Grounded/Airborne 선택 정상]`
-6. `[그래플 인계 계약 기록]` → verify: `[그래플이 Rigidbody 이동을 추가할 지점과 종료 시 속도 소유권이 명확]`
-
-### Play Mode 테스트
-
-- Reverse Gravity 도중 Zero Gravity에 진입하면 이전 주기가 즉시 멈춘다.
-- 진입 직전 방향과 화면 자세가 유지되고 중력 제거만으로 불필요한 Roll이 발생하지 않는다.
-- 플레이어가 진입 직전 낙하 속도로 계속 멀리 날아가지 않는다.
-- 무중력 상태 진입 후 중력 힘과 지상 이동 속도 덮어쓰기가 없다.
-- 사격·카메라 시야는 필요한 범위에서 계속 동작한다.
-- GravityBody에 중력 가속도가 추가되지 않는다.
-- 일반 중력 복귀 시 플레이어가 새 중력 방향으로 다시 낙하한다.
-- Zero Gravity와 일반 중력을 반복해도 상태가 고착되지 않는다.
-
-### 완료 기준
-
-- 무중력 진입과 복귀가 결정적으로 재현된다.
-- `ZeroGravityMotionState`가 그래플 구현을 받을 수 있는 상태로 준비된다.
-- 그래플 자체, 무중력 전투와 공중몹은 구현하지 않는다.
-
-## 16. Phase 7 — 리스폰·Zone 복구와 전체 회귀 검증
+## 16. Phase 7 — 현재 Preset 리스폰 복구와 회귀 검증
 
 ### 목표
 
-플레이어 사망·리스폰과 Zone 연속 진행 중에도 현재 중력 상태가 체크포인트와 일치하고, Entry에서 Zero Gravity까지의 중력 흐름을 반복 재현하게 한다.
+리스폰 시 별도의 `GameFlowState → GravityPreset` 매핑을 만들지 않고 실제로 활성화된 Preset을 결정적으로 복구한다.
 
-### 범위
+### 구현 결과 — 2026-08-25
 
-- 활성 Zone 초기 상태 재적용
-- 리스폰 시 주기 실행 재시작 또는 고정 상태 복원
-- 플레이어 속도·회전·카메라 기준 복구
-- Zone별 몬스터와 GravityBody 상태 점검
-- 전체 진행 Play Mode 회귀 테스트
+- `GravityManager.RestoreCurrentPresetImmediately()`가 현재 Preset을 복원하고, 현재 Preset이 없을 때만 초기 Preset을 사용한다.
+- 고정형은 현재 방향·세기를 즉시 복원하고, Periodic은 첫 방향에서 단일 Coroutine을 다시 시작하며, Zero Gravity는 유지 중인 방향과 `PresentationUp`에 세기 `0`을 다시 적용한다.
+- `GameFlowManager.HandlePlayerDeath()`가 중력을 먼저 복구한 뒤 `GravityManager.PresentationUp`을 `RespawnController`에 전달한다.
+- `RespawnController`는 속도를 초기화하고 리스폰 지점의 전방을 복구된 Up 평면에 투영해 Player 회전을 구성한다.
+- Zone·Trigger별 Preset과 체크포인트 매핑은 기획 구역의 중력 효과가 확정되지 않아 추가하지 않았다.
 
-### 구현 방향
+### 검증 결과
 
-- `RespawnController`는 플레이어 위치·속도 초기화 책임을 유지한다.
-- `GameFlowManager`는 현재 진행 상태에 맞는 체크포인트와 GravityPreset 복구를 조정한다.
-- `GravityManager`는 전달받은 Zone의 초기 중력과 주기 규칙을 다시 활성화한다.
-- 리스폰 Transform의 Up과 복구할 중력 Up이 일치하는지 검증한다.
-- 체크포인트 중력 상태가 모호하면 임의로 Normal을 적용하지 않고 Zone 매핑 누락을 오류로 드러낸다.
-- Source 구역은 기본적으로 Zero Gravity 상태를 유지한다. 엔딩 지형이나 진행 연출이 Normal 복귀를 실제로 요구할 때만 별도 복구 Zone을 추가한다.
+- Periodic 리스폰에서 첫 방향과 새 카운트다운으로 재시작하고 Coroutine이 중복되지 않았다.
+- Zero Gravity 리스폰에서 세기 `0`, 유지 방향과 무중력 상태가 복원됐다.
+- 리스폰 후 Player Up과 `PresentationUp`의 내적이 `1.0`으로 일치했다.
+- 런타임·Editor 어셈블리 빌드는 오류 0건으로 성공했고 기존 경고 28건만 남았다.
+- 최종 새 Play Mode 실행의 Console 오류는 0건이었다.
+- 사용자가 고정형·주기형·무중력·리스폰 동작을 직접 확인하고 전체 구현이 정상임을 확인했다.
 
-### 실행 순서
+### 완료 기준 결과
 
-1. `[GameFlowState와 GravityPreset 복구 매핑 확정]` → verify: `[각 체크포인트에 중력 초기 상태가 하나씩 대응]`
-2. `[리스폰 중력 복구 연결]` → verify: `[위치·속도 초기화 후 중력·회전·카메라 기준 일치]`
-3. `[고정형 Zone 사망 테스트]` → verify: `[Shift 상태 리스폰 후 올바른 벽 기준 유지]`
-4. `[주기형 Zone 사망 테스트]` → verify: `[중복 Coroutine 없이 정의된 초기 순서로 재시작]`
-5. `[무중력 Zone 사망 테스트]` → verify: `[Zero Gravity 상태와 속도 정책 복구]`
-6. `[전체 중력 구간 3회 반복]` → verify: `[진행 불가·상태 고착·Console 오류 없이 완료]`
-7. `[최종 diff와 참조 재로드 확인]` → verify: `[저장·재실행 후 동일, Original·ProjectSettings·환경 Prefab 원본 의도하지 않은 diff 없음]`
+- 중력 프리셋·주기 전환·무중력·리스폰 복구로 구성된 코어 시스템을 완료했다.
+- 실제 Zone 진행 순서와 Trigger 연결은 레벨 설계 확정 후 수행하는 후속 통합 작업이다.
 
-### 전체 Play Mode 검증 기준
+## 17. 실제 변경 범위
 
-- Normal → Shift → Reverse → Zero 순서가 기획대로 재현된다.
-- 모든 Zone 전환 후 Player와 GravityBody의 중력 값이 일치한다.
-- 카메라 yaw·pitch, 조준 Ray와 Player VisualRoot 전방이 현재 중력 기준에서 일치한다.
-- 새 바닥에서 이동·점프·달리기·웅크리기·사격이 필요한 범위에서 동작한다.
-- 정적 지형은 움직이지 않고 동적 잔해만 반응한다.
-- 몬스터는 정의된 방향 정보만 읽고 의도하지 않게 낙하하지 않는다.
-- 주기 실행이 다음 Zone과 리스폰 이후 남아 있지 않는다.
-- 세 번 연속 진행에서 지형 관통, 영구 낙하, 카메라 뒤집힘과 조작 불능이 없다.
-- 컴파일 오류, Missing Script, Missing Reference와 신규 Console 오류가 없다.
+### 변경 파일
 
-### 완료 기준
-
-- 중력 시스템 범위의 모든 Phase 완료 기준을 충족한다.
-- 그래플 구현을 시작해도 중력 상태·속도·Zone 전환 소유권을 다시 뜯어고칠 필요가 없다.
-- 실제 검증 결과와 남은 제한이 문서와 활용 기록에 구분되어 남는다.
-
-## 17. Phase 8 — 선택적 WebGL 재현 검증
-
-이 Phase는 사용자가 실제 WebGL 빌드와 Build Settings 변경을 명시적으로 승인한 경우에만 실행한다.
-
-### 목표
-
-Editor Play Mode에서 확인한 방향성 중력과 무중력 전환이 WebGL 실행 환경에서도 재현되는지 확인한다.
-
-### 범위
-
-- 승인된 출력 경로의 WebGL 빌드
-- 브라우저 입력·물리·카메라 전환 확인
-- 빌드 산출물과 설정 diff 분리 확인
-
-### 검증 기준
-
-- 브라우저에서 별도 Editor 조작 없이 Zone 중력 전환이 발생한다.
-- Player·Camera·GravityBody가 Editor와 같은 순서로 반응한다.
-- 주기 타이밍이 프레임레이트 변화로 중복 실행되지 않는다.
-- 빌드 산출물이 소스 자산과 분리되고 의도하지 않은 ProjectSettings 변경이 없다.
-
-### 완료 기준
-
-- 승인된 WebGL 빌드에서 Normal, Shift, Reverse와 Zero Gravity 전환을 한 번 이상 연속 재현한다.
-- Editor와 다른 동작, 빌드 제한과 설정 diff를 결과에 명시한다.
-
-승인이 없으면 Phase 7의 Play Mode 검증을 중력 시스템 구현 완료선으로 삼고, WebGL은 미검증 상태로 명시한다.
-
-## 18. 예상 파일 변경 범위
-
-### 신규 후보
-
-- `Assets/_Scripts/Gravity/GravityManager.cs`
 - `Assets/_Scripts/Gravity/GravityPreset.cs`
-- `Assets/_Scripts/Gravity/GravityBody.cs`
-- 필요할 경우 `Assets/_Custom/Prefabs/Gravity/GravityTestBody.prefab`
-
-### 수정 후보
-
-- `Assets/_Scripts/Gravity/GravityState.cs`
+- `Assets/_Scripts/Gravity/GravityManager.cs`
+- `Assets/_Scripts/Gravity/Editor/GravityPresetEditor.cs`
 - `Assets/_Scripts/Gravity/Editor/GravityManagerEditor.cs`
-- `Assets/_Scripts/GameFlow/Triggers/GravityEventTrigger.cs`
 - `Assets/_Scripts/GameFlow/GameFlowManager.cs`
 - `Assets/_Scripts/GameFlow/RespawnController.cs`
 - `Assets/_Scripts/Player/PlayerController.cs`
 - `Assets/_Scripts/Player/PlayerMotionStateMachine.cs`
-- `Assets/_Scripts/Player/ThirdPersonCameraController.cs`
-- 필요할 경우 `Assets/_Scripts/Player/PlayerAnimationController.cs`
-- `Assets/_Custom/Prefabs/Player/Player.prefab`
-- 필요할 경우 `Assets/_Custom/Prefabs/Player/ThirdPersonCameraRig.prefab`
 - `Assets/_Scenes/GamePlayScene_Player.unity`
-- 구현·검증 완료 후 `Docs/ksh/Codex_Usage_Records.md`
 
-### 변경하지 않을 파일·영역
+### 변경하지 않은 파일·영역
 
 - `Assets/_Scenes/Original_GamePlayScene.unity`
 - 팀장 지형 Collider와 환경 Prefab 원본
+- 몬스터 Prefab과 이동 코드
 - 외부 에셋 원본
-- 입력 public 계약
-- 전투와 몬스터 체력 public 계약
-- `Packages`, Build Settings와 `ProjectSettings` — 별도 승인된 최종 빌드 검증 제외
+- 입력·전투·체력 public 계약
+- `Packages`, Build Settings와 `ProjectSettings`
 
-## 19. 공통 실패 케이스와 대응 원칙
+## 18. 공통 실패 케이스와 대응 원칙
 
-- **플레이어가 90도 회전하지 않음**: Rigidbody X/Z 제약과 `MoveRotation` 충돌을 먼저 확인한다.
-- **카메라만 월드 Up에 남음**: Player 회전 속도를 바꾸지 말고 카메라 yaw 축과 전방 투영을 수정한다.
-- **카메라가 화면 기준 시계 방향으로 Roll함**: Unity 축의 부호 이름을 믿고 값을 뒤집지 말고 Game View에서 현재 시선 전방축과 화면 반시계 결과를 함께 확인한다.
-- **전환 중 Player 위치가 떨리거나 Collider가 겹침**: 위치 강제 덮어쓰기나 Collider 비활성화로 숨기지 말고 Anchor, Capsule 회전 공간과 물리 이동 소유권을 확인한다.
-- **환경 물체도 Player와 함께 멈춤**: 전체 시간 정지나 공통 GravityState 보간을 제거하고 GravityBody가 전환 시작 시 확정된 실제 중력을 즉시 받는지 확인한다.
-- **전환 종료 후 입력이 돌아오지 않음**: 완료·취소·비활성화 경로가 같은 전환 해제와 입력 복구를 호출하는지 확인한다.
-- **플레이어와 카메라가 서로 다른 전방을 사용함**: VisualRoot, 카메라 중심 Ray와 이동 기준의 데이터 흐름을 함께 확인한다.
-- **중력이 두 배로 적용됨**: Player에 GravityBody가 붙었는지, 동적 오브젝트의 `useGravity`가 켜졌는지 확인한다.
-- **주기 중력이 다음 Zone에서 재발함**: 이전 실행 핸들의 취소와 활성 Zone 소유권을 확인한다.
-- **무중력 진입 후 계속 날아감**: 진입 1회 속도 초기화가 실제 상태 전환 순간에 실행됐는지 확인한다.
-- **Slow가 무중력으로 처리됨**: 임의 임계값을 제거하고 `Strength == 0` 계약을 확인한다.
-- **몬스터가 떨어지거나 Follow 체인이 깨짐**: 해당 Prefab의 Rigidbody·GravityBody 추가 여부를 먼저 확인한다.
-- **정적 바위가 움직임**: 환경 Prefab 원본에 Rigidbody가 추가됐는지 확인하고 동적 대체물을 분리한다.
-- **리스폰 후 카메라가 뒤집힘**: 리스폰 Transform Up, 복구 Zone Up과 카메라 전방 재투영 순서를 확인한다.
-- **새 지형이 필요함**: `Original_GamePlayScene`을 직접 수정하지 않고 Collider 인계와 통합 경계를 다시 확인한다.
+- **주기 중력이 다음 Preset에서 재발함**: 이전 Coroutine의 취소와 실행 ID 무효화를 확인한다.
+- **같은 Periodic Preset 적용 시 시간이 초기화됨**: 활성 Preset·실행 상태의 중복 적용 조기 반환을 확인한다.
+- **예고와 실제 변경이 어긋남**: 예고 대기와 방향 적용을 `GravityManager`의 같은 실행 루틴에서 처리하는지 확인한다.
+- **무중력 진입 후 계속 이전 낙하 속도로 날아감**: `ZeroGravityMotionState.Enter()`의 1회 속도 초기화를 확인한다.
+- **무중력에서 외부 이동이 사라짐**: Zero Gravity 상태가 매 물리 프레임 속도를 덮어쓰지 않는지 확인한다.
+- **몬스터가 떨어지거나 Follow 체인이 깨짐**: 해당 Prefab에 Rigidbody나 `GravityBody`가 추가됐는지 확인한다.
+- **리스폰 후 카메라가 뒤집힘**: 현재 Preset 복원, `PresentationUp`, Player 회전 순서를 확인한다.
+- **중력이 두 배로 적용됨**: Player에 `GravityBody`가 붙었는지, 동적 오브젝트의 `useGravity`가 켜졌는지 확인한다.
 
-## 20. 최종 완료 기준
+## 19. 최종 완료 기준과 결과
 
-- 한 번의 90도 방향 전환에서 동적 잔해는 즉시 새 중력에 반응하고, Player는 위치를 고정한 채 Camera와 함께 화면 반시계 Roll을 완료한 뒤 새 방향으로 낙하한다.
-- Reverse Gravity가 예고와 함께 단일 주기로 반복되고 다음 Zone에서 완전히 취소된다.
-- Zero Gravity 진입·복귀가 결정적이며 그래플이 Rigidbody 이동을 이어받을 수 있다.
-- 중력 영향 대상은 `GravityBody` opt-in 규칙으로 구분되고 정적 지형과 몬스터 이동 구조는 보호된다.
-- 리스폰 후 체크포인트에 맞는 중력·플레이어 회전·카메라 기준이 복구된다.
-- `GamePlayScene_Player`에서 중력 구간을 세 번 연속 통과해도 진행 불가 상태가 발생하지 않는다.
-- 컴파일 오류, Missing Script, Missing Reference와 신규 Console 오류가 없다.
-- `Original_GamePlayScene`, 지형 Collider, 외부 에셋 원본, Package와 ProjectSettings에 의도하지 않은 diff가 없다.
-- 구현 결과, 사람이 확인한 항목, 미검증 WebGL과 남은 제한이 명확히 구분된다.
+- `Fixed`, `Periodic`, `ZeroGravity` Preset이 같은 `GravityManager.ApplyPreset()` 경로로 적용된다. — 완료
+- Periodic은 단일 실행으로 예고·방향 변경·취소되며 중복 적용으로 재시작하지 않는다. — 완료
+- Zero Gravity는 방향과 화면 자세를 유지하고 세기만 제거하며 Player 진입 속도를 한 번 초기화한다. — 완료
+- `GravityBody`는 opt-in 동적 오브젝트에만 적용되고 정적 지형과 몬스터 구조는 보호된다. — 완료
+- 리스폰은 현재 Preset을 복원하고 Player 회전을 `PresentationUp`에 맞춘다. — 완료
+- 컴파일, 자동 Play Mode 회귀 검사와 사용자 Play Mode 확인을 통과한다. — 완료
+- `Original_GamePlayScene`, Collider, 외부 에셋 원본, Packages와 ProjectSettings에 의도하지 않은 변경이 없다. — 완료
 
-## 21. 문서와 작업 상태 관리
+다음 항목은 코어 시스템 완료 조건에서 명시적으로 분리한다.
 
-- Phase 3 세부 계약을 문서로 확정한 것만으로는 `Docs/ksh/Codex_Usage_Records.md`에 새 항목을 추가하지 않는다.
-- 이 문서는 이미 `Docs/ksh/Tasks/02_in-progress`에 있으므로 Phase 3 구현을 시작할 때 위치를 바꾸지 않고 현재 상태만 갱신한다.
-- 각 Phase가 끝날 때 실제 변경 파일, Play Mode 결과, 실패와 조정한 값을 해당 Phase 아래에 기록한다.
-- Phase 7까지 구현·검증이 완료되면 전체 결과를 활용 기록에 하나의 완료 작업 단위로 남긴다.
-- WebGL은 별도 승인이 없으면 미검증으로 기록한다.
-- 모든 승인된 Phase가 완료되면 문서를 `Docs/ksh/Tasks/03_completed`로 이동한다.
-- 실행 중 게임 기획, 책임 경계 또는 중력 영향 대상이 바뀌면 사용자 확인 후 `Player_Gravity_Master_Plan.md`를 갱신한다.
+- 기획 Zone별 `GravityPreset` 확정과 Trigger 연결
+- Entry부터 엔딩까지 실제 레벨 동선의 연속 중력 검증
+- 그래플 이동과 무중력 사격 반작용
+
+## 20. 문서와 작업 상태 관리
+
+- 이 문서는 2026-08-25 사용자 Play Mode 확인을 기준으로 완료 처리한다.
+- 구현·자동 검증·사용자 확인 결과는 `Docs/ksh/Codex_Usage_Records.md`에 하나의 완료 작업 단위로 기록한다.
+- 완료 문서는 `Docs/ksh/Tasks/03_completed/gravity_zone_system_implementation_plan.md`로 이동한다.
+- Zone·Trigger 매핑은 레벨 기획이 확정된 뒤 별도 계획 또는 통합 작업으로 다룬다.
+- 무중력 사격 반작용은 `Docs/ksh/Tasks/01_planned/zero_gravity_weapon_recoil_implementation_plan.md`에서 별도로 계획한다.

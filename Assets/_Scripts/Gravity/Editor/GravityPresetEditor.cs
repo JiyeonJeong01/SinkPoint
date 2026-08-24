@@ -4,19 +4,56 @@ using UnityEngine;
 [CustomEditor(typeof(GravityPreset))]
 public sealed class GravityPresetEditor : Editor
 {
+    private SerializedProperty modeProperty;
     private SerializedProperty directionProperty;
     private SerializedProperty strengthProperty;
+    private SerializedProperty periodicDirectionsProperty;
+    private SerializedProperty changeIntervalProperty;
+    private SerializedProperty warningDurationProperty;
 
     private void OnEnable()
     {
+        modeProperty = serializedObject.FindProperty("mode");
         directionProperty = serializedObject.FindProperty("direction");
         strengthProperty = serializedObject.FindProperty("strength");
+        periodicDirectionsProperty = serializedObject.FindProperty("periodicDirections");
+        changeIntervalProperty = serializedObject.FindProperty("changeInterval");
+        warningDurationProperty = serializedObject.FindProperty("warningDuration");
     }
 
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
 
+        EditorGUILayout.PropertyField(modeProperty);
+        GravityPresetMode mode = (GravityPresetMode)modeProperty.enumValueIndex;
+
+        switch (mode)
+        {
+            case GravityPresetMode.Fixed:
+                DrawFixedFields();
+                break;
+            case GravityPresetMode.Periodic:
+                DrawPeriodicFields();
+                break;
+            case GravityPresetMode.ZeroGravity:
+                EditorGUILayout.HelpBox(
+                    "Zero Gravity keeps the current direction and Presentation Up, and applies Strength 0.",
+                    MessageType.Info);
+                break;
+        }
+
+        serializedObject.ApplyModifiedProperties();
+
+        GravityPreset preset = (GravityPreset)target;
+        if (!preset.TryValidate(out string error))
+        {
+            EditorGUILayout.HelpBox(error, MessageType.Error);
+        }
+    }
+
+    private void DrawFixedFields()
+    {
         EditorGUILayout.PropertyField(directionProperty);
         EditorGUILayout.PropertyField(strengthProperty);
 
@@ -26,9 +63,14 @@ public sealed class GravityPresetEditor : Editor
         DrawPresetRow("World +X", Vector3.right, "World -X", Vector3.left);
         DrawPresetRow("World +Y", Vector3.up, "World -Y", Vector3.down);
         DrawPresetRow("World +Z", Vector3.forward, "World -Z", Vector3.back);
+    }
 
-        DrawValidationMessages();
-        serializedObject.ApplyModifiedProperties();
+    private void DrawPeriodicFields()
+    {
+        EditorGUILayout.PropertyField(strengthProperty);
+        EditorGUILayout.PropertyField(periodicDirectionsProperty, true);
+        EditorGUILayout.PropertyField(changeIntervalProperty);
+        EditorGUILayout.PropertyField(warningDurationProperty);
     }
 
     private void DrawPresetRow(
@@ -49,34 +91,5 @@ public sealed class GravityPresetEditor : Editor
                 directionProperty.vector3Value = rightDirection;
             }
         }
-    }
-
-    private void DrawValidationMessages()
-    {
-        Vector3 direction = directionProperty.vector3Value;
-        if (!IsFinite(direction) || direction.sqrMagnitude < Mathf.Epsilon)
-        {
-            EditorGUILayout.HelpBox(
-                "Direction must be a finite, non-zero vector.",
-                MessageType.Error);
-        }
-
-        float strength = strengthProperty.floatValue;
-        if (float.IsNaN(strength) || float.IsInfinity(strength) || strength < 0f)
-        {
-            EditorGUILayout.HelpBox(
-                "Strength must be a finite value greater than or equal to zero.",
-                MessageType.Error);
-        }
-    }
-
-    private static bool IsFinite(Vector3 value)
-    {
-        return !float.IsNaN(value.x)
-            && !float.IsInfinity(value.x)
-            && !float.IsNaN(value.y)
-            && !float.IsInfinity(value.y)
-            && !float.IsNaN(value.z)
-            && !float.IsInfinity(value.z);
     }
 }

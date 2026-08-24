@@ -47,6 +47,14 @@ public sealed class GravityManagerEditor : Editor
             }
         }
 
+        using (new EditorGUI.DisabledScope(!Application.isPlaying || manager.CurrentPreset == null))
+        {
+            if (GUILayout.Button("Restart Current Preset", GUILayout.Height(28f)))
+            {
+                manager.RestoreCurrentPresetImmediately();
+            }
+        }
+
         if (!Application.isPlaying)
         {
             EditorGUILayout.HelpBox("Preset test buttons are available in Play Mode.", MessageType.Info);
@@ -63,6 +71,12 @@ public sealed class GravityManagerEditor : Editor
                 typeof(GravityPreset),
                 true);
 
+            EditorGUILayout.EnumPopup(
+                "Current Mode",
+                manager.CurrentPreset != null
+                    ? manager.CurrentPreset.Mode
+                    : GravityPresetMode.Fixed);
+
             EditorGUILayout.Vector3Field("Direction", manager.Direction);
             EditorGUILayout.FloatField("Strength", manager.Strength);
             EditorGUILayout.Toggle("Is Transitioning", manager.IsTransitioning);
@@ -73,6 +87,12 @@ public sealed class GravityManagerEditor : Editor
                 true);
             EditorGUILayout.Slider("Progress", manager.TransitionProgress, 0f, 1f);
             EditorGUILayout.Vector3Field("Presentation Up", manager.PresentationUp);
+            EditorGUILayout.Toggle("Periodic Running", manager.IsPeriodicRunning);
+            EditorGUILayout.Toggle("Warning Active", manager.IsWarningActive);
+            EditorGUILayout.Vector3Field("Next Direction", manager.NextPeriodicDirection);
+            EditorGUILayout.FloatField(
+                "Seconds Until Change",
+                manager.SecondsUntilNextGravityChange);
         }
 
         if (Application.isPlaying)

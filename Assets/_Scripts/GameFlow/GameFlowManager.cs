@@ -221,10 +221,25 @@ public class GameFlowManager : MonoBehaviour
     /// </summary>
     public void HandlePlayerDeath()
     {
+        bool gravityRestored = gravityManager != null
+            && gravityManager.RestoreCurrentPresetImmediately();
+
+        if (gravityManager == null)
+        {
+            Debug.LogWarning("[GameFlowManager] GravityManager is not assigned.", this);
+        }
+
         if (respawnController != null)
         {
             Transform respawnPoint = GetRespawnPoint(currentState);
-            respawnController.RespawnPlayer(respawnPoint);
+            if (gravityRestored)
+            {
+                respawnController.RespawnPlayer(respawnPoint, gravityManager.PresentationUp);
+            }
+            else
+            {
+                respawnController.RespawnPlayer(respawnPoint);
+            }
         }
         else
         {
@@ -251,14 +266,16 @@ public class GameFlowManager : MonoBehaviour
 
         if (showDebugLog)
         {
-            Debug.Log("[GameFlowManager] Player death handled. TODO: respawn player, restore HP, reset enemies, restore checkpoint state.", this);
+            Debug.Log(
+                $"[GameFlowManager] Player death handled. Gravity restored: {gravityRestored}.",
+                this);
         }
-        // TODO: GravityManager가 생기면 체크포인트 기준 중력 상태로 복구할지 결정해서 연결할 것.
         // TODO: UI가 생기면 사망/리스폰 피드백과 현재 목표 텍스트를 갱신할 것.
     }
 
     private void ResolveSceneReferences()
     {
+        gravityManager ??= FindFirstObjectByType<GravityManager>();
         monsterManager ??= FindFirstObjectByType<MonsterManager>();
         playerHealth ??= FindFirstObjectByType<PlayerHealth>();
     }

@@ -1,4 +1,4 @@
-# Codex 활용 기록
+﻿# Codex 활용 기록
 
 이 문서는 SinkPoint 플레이어·중력 파트에서 Codex를 어떻게 활용했는지 제출과 팀 공유에 필요한 근거만 간결하게 남긴다.
 
@@ -160,3 +160,19 @@
 - 해결한 문제: 환경 `GravityBody`의 즉시 반응과 Player·Camera의 짧은 표현 전환을 분리하고, 전환 도중 최신 Zone 재요청도 현재 표시 자세에서 연속되게 했다. 직렬화된 테스트 Zone 슬롯과 Zone별 버튼을 제거하고, 선택과 실행 버튼 사이에 런타임 정보가 끼어 다른 팀원이 조작하기 불편한 Inspector 배치도 정리했다.
 - 사람이 직접 결정한 부분: 실제 게임 전환은 화면 기준 반시계 Roll, 기본 전환 시간 `0.5초`, Player 속도 제거 후 새 중력 방향으로 재개하는 정책으로 확정했다. 사용자가 Play Mode 테스트 성공을 확인했고, 선택 조작과 런타임 정보를 별도 영역으로 나누는 최종 Inspector 구성을 제안했다.
 - 검증 결과: 런타임·Editor 어셈블리 빌드는 오류 0건이며 기존 경고 19건만 남았다. Unity MCP에서 Normal↔Shift 5회 반복, 중간 재요청 연속 오차 `0.000000`, Player·Camera·Presentation Up 일치, Rigidbody 제약과 상위 입력 잠금 복구, Console 오류 0건과 씬 dirty 없음이 확인됐다. 사용자가 실제 Play Mode에서도 중력 전환이 성공적이라고 확인했다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 외부 에셋 원본은 변경하지 않았다.
+
+## 2026-08-25 — 최신 Original 레벨 변경 Player 씬 동기화
+
+- Codex 사용처: `origin/develop` 병합 이력과 두 게임플레이 씬의 Unity YAML을 비교해 자동 Git 병합과 실제 씬 통합을 구분하고, 최신 팀 레벨을 기준으로 Player 씬을 재구성·검증하는 데 사용했다.
+- 구현하거나 정리한 기능: 최신 `Original_GamePlayScene`의 MeshCollider 지형, Zone Entry Point, 바리게이트, 몬스터, NPC와 HUD 구성을 `GamePlayScene_Player`에 동기화했다. 기존 Player 씬의 `GravityManager`, Normal·World +X·World -X 프리셋, Shift·Inversion 트리거 연결, 두 `GravityBody` 테스트 오브젝트와 Respawn Player 참조는 새 레벨 위에 보존했다.
+- 해결한 문제: Git 병합 커밋이 `Original`과 `_Player`를 각각 한쪽 부모 버전으로 유지해 최신 레벨과 최신 중력이 서로 다른 씬에 나뉜 상태를 해소했다. 아직 구현 대상이 아닌 FastDown·Slow·ZeroGravity 트리거는 비활성 상태로 유지했고, 테스트 큐브가 삭제된 외부 Material GUID를 참조하던 항목은 기본 Material로 정리했다.
+- 사람이 직접 결정한 부분: 팀 측에서 `_Player` 변경을 `Original`에 수동 통합하지 않는 현재 작업 방식에서는 플레이어·중력 담당자가 최신 팀 씬을 받아 통합하고, `dev` 반영 시점에 최종 Original 반영까지 책임지기로 했다. 이번 단계에서는 `Original`을 직접 수정하지 않고 우리 통합 씬 갱신까지만 수행했다.
+- 검증 결과: Player 씬은 Unity YAML 문서 1,508개에서 중복 ID 0건, 미해결 로컬 참조 0건이며 Original과 동일한 MeshCollider 316개, Zone Entry Trigger 4개, 바리게이트 4개, HUD·NPC 참조를 가진다. Unity Editor가 변경 씬을 실제 임포트·로드했고 최근 로그에 씬 역직렬화 오류·Missing Script·NullReferenceException이 없었다. `Assembly-CSharp-Editor.csproj` 빌드는 기존 경고 28건과 함께 오류 0건으로 성공했다. `Original_GamePlayScene`, 두 씬 meta, ProjectSettings와 Build Settings에는 diff가 없으며 실제 Zone 진행·중력 전환·Entry Point 충돌은 Play Mode 수동 확인이 남아 있다.
+
+## 2026-08-25 — 중력 Preset·주기 전환·무중력·리스폰 코어 시스템 완료
+
+- Codex 사용처: Zone별 중력 효과 확정과 Trigger 연결을 미룬 상태에서 재사용 가능한 중력 코어를 먼저 완성하기 위해, Preset 데이터·단일 주기 실행·무중력 상태·리스폰 복구의 책임을 구현하고 자동 Play Mode 회귀 검증에 사용했다.
+- 구현하거나 정리한 기능: `GravityPreset`을 `Fixed`, `Periodic`, `ZeroGravity` 모드로 확장하고 방향 목록·변경 간격·예고 시간을 데이터화했다. `GravityManager`는 하나의 Periodic 실행과 예고 상태를 소유하며 중복 적용, Preset 변경과 비활성화 시 수명을 정리한다. Player는 무중력 진입 때 선속도·각속도를 한 번 초기화한 뒤 관성을 허용하고, 리스폰은 현재 Preset을 즉시 복원해 Player Up을 `PresentationUp`에 맞춘다. `GamePlayScene_Player`에는 Trigger와 연결하지 않은 Periodic X축·Zero Gravity 테스트 Preset을 추가했다.
+- 해결한 문제: Reverse Gravity를 특정 Zone과 하드코딩하지 않고 모든 주기형 중력에 사용할 수 있는 Preset으로 분리했다. 같은 Periodic Preset 재적용으로 타이머가 초기화되거나 다른 Preset 이후 이전 Coroutine이 재발하는 문제를 막았으며, 무중력에서 매 프레임 속도를 0으로 덮어 후속 이동을 차단하지 않게 했다. 리스폰은 미확정 `GameFlowState → GravityPreset` 매핑 대신 실제 현재 Preset을 복구해 고정형·주기형·무중력을 같은 경로로 처리한다.
+- 사람이 직접 결정한 부분: 각 기획 Zone과 Trigger에 어떤 중력을 연결할지는 레벨 설계가 확정될 때까지 미루고, 코어 시스템의 Inspector 기반 검증을 이번 완료선으로 삼았다. 별도 빌드 검증 단계는 폐기했으며, 사용자가 Play Mode에서 현재 기능이 모두 정상 동작함을 확인했다. 그래플이 없는 무중력 이동 보완은 사격 반작용을 별도 계획으로 작성한 뒤 구현하기로 했다.
+- 검증 결과: 자동 Play Mode에서 Periodic 방향 전환 14회, 예고 상태, 중복 적용 시 카운트다운 유지, 다른 Preset 적용 시 취소, Zero Gravity의 방향·`PresentationUp` 유지와 Player 상태 진입, `GravityBody` 관성·중력 복귀를 확인했다. Periodic·Zero Gravity 리스폰 후 현재 Preset과 Player 회전이 복구됐고 Player Up과 `PresentationUp`의 내적은 `1.0`이었다. 런타임·Editor 어셈블리 빌드는 기존 경고 28건과 함께 오류 0건, 최종 새 Play Mode Console 오류는 0건이었다. 사용자가 실제 Play Mode에서 전체 동작을 확인해 완료로 판단했다.

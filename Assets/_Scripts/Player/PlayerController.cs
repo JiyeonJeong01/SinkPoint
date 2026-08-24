@@ -333,6 +333,20 @@ public sealed class PlayerController : MonoBehaviour
         body.AddForce(gravityState.Gravity, ForceMode.Acceleration);
     }
 
+    internal void EnterZeroGravity()
+    {
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+        ClearBufferedJump();
+        IsSprinting = false;
+        CurrentMoveSpeed = moveSpeed;
+
+        if (IsCrouching && CanUseStandingCapsule(GravityUp))
+        {
+            SetCrouching(false);
+        }
+    }
+
     private void UpdateSprint(bool isGrounded, bool hasGravity, Vector2 moveInput)
     {
         IsSprinting = input.AllowMovement
