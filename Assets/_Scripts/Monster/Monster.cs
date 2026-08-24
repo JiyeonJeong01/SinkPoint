@@ -1,4 +1,5 @@
 using System;
+using DistantLands;
 using UnityEngine;
 
 /// <summary>
@@ -34,6 +35,7 @@ public sealed class Monster : MonoBehaviour
     private bool initialized;
     private TransformPose[] initialPoses;
     private Rigidbody[] rigidbodies;
+    private LegController[] legControllers;
 
     public ZoneId ZoneId => zoneId;
     public bool IsDead => health != null ? health.IsDead : dead;
@@ -83,6 +85,7 @@ public sealed class Monster : MonoBehaviour
 
         RestoreInitialPoses();
         ClearRigidbodyVelocity();
+        SetLegControllersEnabled(true);
 
         if (health != null)
         {
@@ -109,6 +112,7 @@ public sealed class Monster : MonoBehaviour
         ResolveReferences();
         CaptureInitialPoses();
         rigidbodies = GetComponentsInChildren<Rigidbody>(true);
+        legControllers = GetComponentsInChildren<LegController>(true);
 
         if (health != null)
         {
@@ -222,7 +226,37 @@ public sealed class Monster : MonoBehaviour
         }
 
         dead = true;
+        SetLegControllersEnabled(false);
+        NotifyDeathHandlers();
         Died?.Invoke(this);
+    }
+
+    private void SetLegControllersEnabled(bool enabled)
+    {
+        if (legControllers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < legControllers.Length; i++)
+        {
+            if (legControllers[i] != null)
+            {
+                legControllers[i].enabled = enabled;
+            }
+        }
+    }
+
+    private void NotifyDeathHandlers()
+    {
+        MonoBehaviour[] behaviours = GetComponentsInChildren<MonoBehaviour>(true);
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            if (behaviours[i] is IMonsterDeathHandler deathHandler)
+            {
+                deathHandler.OnMonsterDied();
+            }
+        }
     }
 
     private static Transform FindNavTarget(Transform root)
@@ -248,4 +282,12 @@ public sealed class Monster : MonoBehaviour
 public interface IMonsterResettable
 {
     void ResetMonsterRuntime();
+}
+
+/// <summary>
+/// 몬스터가 죽는 순간 이동/공격 외 별도 연출이나 상태 정리가 필요한 컴포넌트가 구현합니다.
+/// </summary>
+public interface IMonsterDeathHandler
+{
+    void OnMonsterDied();
 }

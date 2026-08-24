@@ -6,7 +6,7 @@ using UnityEngine;
 /// 이동은 NavTarget만 조작하고, 공격 중에는 route mover를 잠깐 멈춰 기존 순찰 index를 보존합니다.
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable
+public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMonsterDeathHandler
 {
     private enum AttackDebugStatus
     {
@@ -239,6 +239,14 @@ public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable
         lastSprayHit = false;
         sprayBlockedByObstacle = false;
         attackDebugStatus = AttackDebugStatus.Ready;
+    }
+
+    public void OnMonsterDied()
+    {
+        KillAttackSequence(false);
+        SetRouteMoverPaused(false);
+        SetSprayVfxActive(false);
+        attackDebugStatus = AttackDebugStatus.Cooldown;
     }
 
     /// <summary>
