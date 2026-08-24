@@ -8,6 +8,8 @@ using UnityEngine;
 /// </summary>
 public class GameFlowManager : MonoBehaviour
 {
+    public event System.Action<ZoneId> CurrentZoneChanged;
+
     [System.Serializable]
     private sealed class StateRespawnPoint
     {
@@ -67,6 +69,8 @@ public class GameFlowManager : MonoBehaviour
     [Header("Respawn")]
     [Tooltip("플레이어 위치/속도 리스폰을 담당하는 컨트롤러입니다.")]
     [SerializeField] private RespawnController respawnController;
+    [SerializeField, Tooltip("플레이어 체력입니다. 비워두면 씬에서 자동으로 찾고, 사망 리스폰 때 체력을 회복합니다.")]
+    private PlayerHealth playerHealth;
 
     [Tooltip("Zone별 몬스터 활성화, 리스폰, 전멸 알림을 담당하는 매니저입니다.")]
     [SerializeField] private MonsterManager monsterManager;
@@ -103,12 +107,14 @@ public class GameFlowManager : MonoBehaviour
 
         Instance = this;
         ResolveSceneReferences();
+        RegisterPlayerHealth();
         RegisterGravityTriggers();
         InitializeZones();
     }
 
     private void OnDestroy()
     {
+        UnregisterPlayerHealth();
         UnregisterGravityTriggers();
 
         if (Instance == this)
@@ -234,12 +240,19 @@ public class GameFlowManager : MonoBehaviour
             Debug.LogWarning("[GameFlowManager] MonsterManager is not assigned.", this);
         }
 
+        if (playerHealth != null)
+        {
+            playerHealth.ResetHealth();
+        }
+        else
+        {
+            Debug.LogWarning("[GameFlowManager] PlayerHealth is not assigned.", this);
+        }
+
         if (showDebugLog)
         {
             Debug.Log("[GameFlowManager] Player death handled. TODO: respawn player, restore HP, reset enemies, restore checkpoint state.", this);
         }
-
-        // TODO: PlayerHealth가 생기면 HP를 풀피로 복구하는 함수를 호출할 것.
         // TODO: GravityManager가 생기면 체크포인트 기준 중력 상태로 복구할지 결정해서 연결할 것.
         // TODO: UI가 생기면 사망/리스폰 피드백과 현재 목표 텍스트를 갱신할 것.
     }
@@ -247,6 +260,32 @@ public class GameFlowManager : MonoBehaviour
     private void ResolveSceneReferences()
     {
         monsterManager ??= FindFirstObjectByType<MonsterManager>();
+        playerHealth ??= FindFirstObjectByType<PlayerHealth>();
+    }
+
+    private void RegisterPlayerHealth()
+    {
+        if (playerHealth == null)
+        {
+            Debug.LogWarning("[GameFlowManager] PlayerHealth is not assigned.", this);
+            return;
+        }
+
+        playerHealth.Died -= OnPlayerDied;
+        playerHealth.Died += OnPlayerDied;
+    }
+
+    private void UnregisterPlayerHealth()
+    {
+        if (playerHealth != null)
+        {
+            playerHealth.Died -= OnPlayerDied;
+        }
+    }
+
+    private void OnPlayerDied(PlayerHealth health)
+    {
+        HandlePlayerDeath();
     }
 
     // 현재 진행 상태에 맞는 리스폰 위치를 찾습니다.
@@ -354,6 +393,7 @@ public class GameFlowManager : MonoBehaviour
         SetZoneActive(zone, true);
         zone.entered = true;
         currentZone = zoneId;
+        CurrentZoneChanged?.Invoke(currentZone);
         if (monsterManager != null)
         {
             monsterManager.BeginZone(zoneId);

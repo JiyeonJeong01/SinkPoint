@@ -71,7 +71,22 @@ public abstract class MonsterNavTargetMover : MonoBehaviour, IMonsterResettable
             return navTarget;
         }
 
-        return root.Find("NavTarget");
+        navTarget = root.Find("NavTarget");
+        if (navTarget != null)
+        {
+            return navTarget;
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindNavTarget(root.GetChild(i));
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
