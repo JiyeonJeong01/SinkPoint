@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 961f1486ba5f1004e8eaba56be882380
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 379232
+  packageName: Pee VFX - URP
+  packageVersion: 1.0.1
+  assetPath: Assets/Vefects/Pee VFX URP/VFX/Materials/M_VFX_URP_Pressure_Pee_Stream_01_NR.mat
+  uploadId: 969892

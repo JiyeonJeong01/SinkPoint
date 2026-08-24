@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 334ce3c6f7ad9884a86925f0d143f573
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _Texture: {fileID: 2800000, guid: 0347612d444846f4f880e4e014597df7, type: 3}
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 379232
+  packageName: Pee VFX - URP
+  packageVersion: 1.0.1
+  assetPath: Assets/Vefects/Pee VFX URP/VFX/Shaders/SH_Vefects_VFX_URP_Pee_Mesh_01.shader
+  uploadId: 969892
