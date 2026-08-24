@@ -1,5 +1,8 @@
 using System.Collections;
+using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -20,12 +23,31 @@ public sealed class MainTitleScene : MonoBehaviour
     [SerializeField] private Text loadingPercentText;
     [SerializeField, Min(0f)] private float minimumLoadingPanelTime = 0.2f;
 
+    [Header("Button Feedback")]
+    [SerializeField, Min(1f)] private float hoverScale = 1.08f;
+    [SerializeField, Min(0.01f)] private float pressedScale = 0.94f;
+    [SerializeField, Min(0f)] private float buttonTweenDuration = 0.12f;
+    [SerializeField] private Ease buttonEase = Ease.OutCubic;
+
+    private readonly Dictionary<RectTransform, Vector3> buttonBaseScales = new Dictionary<RectTransform, Vector3>();
     private bool isLoading;
 
     private void Awake()
     {
+        RegisterButtonTweens();
         CloseAllPanels();
         SetLoadingVisible(false);
+    }
+
+    private void OnDestroy()
+    {
+        foreach (RectTransform buttonTransform in buttonBaseScales.Keys)
+        {
+            if (buttonTransform != null)
+            {
+                buttonTransform.DOKill();
+            }
+        }
     }
 
     private void Update()
@@ -159,5 +181,64 @@ public sealed class MainTitleScene : MonoBehaviour
         {
             loadingPercentText.text = $"{Mathf.RoundToInt(progress * 100f)}%";
         }
+    }
+
+    private void RegisterButtonTweens()
+    {
+        Button[] buttons = GetComponentsInChildren<Button>(true);
+        foreach (Button button in buttons)
+        {
+            RectTransform buttonTransform = button.GetComponent<RectTransform>();
+            if (buttonTransform == null || buttonBaseScales.ContainsKey(buttonTransform))
+            {
+                continue;
+            }
+
+            buttonBaseScales.Add(buttonTransform, buttonTransform.localScale);
+
+            EventTrigger eventTrigger = button.GetComponent<EventTrigger>();
+            if (eventTrigger == null)
+            {
+                eventTrigger = button.gameObject.AddComponent<EventTrigger>();
+            }
+
+            AddEventTrigger(eventTrigger, EventTriggerType.PointerEnter, _ => TweenButton(button, buttonTransform, hoverScale));
+            AddEventTrigger(eventTrigger, EventTriggerType.PointerExit, _ => TweenButton(button, buttonTransform, 1f));
+            AddEventTrigger(eventTrigger, EventTriggerType.PointerDown, _ => TweenButton(button, buttonTransform, pressedScale));
+            AddEventTrigger(eventTrigger, EventTriggerType.PointerUp, _ => TweenButton(button, buttonTransform, hoverScale));
+        }
+    }
+
+    private void TweenButton(Button button, RectTransform buttonTransform, float scaleMultiplier)
+    {
+        if (button == null || buttonTransform == null || !button.interactable)
+        {
+            return;
+        }
+
+        if (!buttonBaseScales.TryGetValue(buttonTransform, out Vector3 baseScale))
+        {
+            baseScale = buttonTransform.localScale;
+            buttonBaseScales[buttonTransform] = baseScale;
+        }
+
+        buttonTransform.DOKill();
+        buttonTransform
+            .DOScale(baseScale * scaleMultiplier, buttonTweenDuration)
+            .SetEase(buttonEase)
+            .SetUpdate(true);
+    }
+
+    private static void AddEventTrigger(
+        EventTrigger eventTrigger,
+        EventTriggerType eventType,
+        UnityEngine.Events.UnityAction<BaseEventData> callback)
+    {
+        EventTrigger.Entry entry = new EventTrigger.Entry
+        {
+            eventID = eventType
+        };
+        entry.callback.AddListener(callback);
+        eventTrigger.triggers.Add(entry);
     }
 }
