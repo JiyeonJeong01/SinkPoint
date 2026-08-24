@@ -15,12 +15,9 @@ public sealed class NpcDialogueCanvas : MonoBehaviour
 
     [Header("Typing")]
     [SerializeField, Min(0f)] private float charactersPerSecond = 35f;
-    [SerializeField] private Vector3 questionMarkWorldOffset = new Vector3(0f, 2.4f, 0f);
 
     private readonly WaitForSecondsRealtime typingDelay = new WaitForSecondsRealtime(0.02f);
 
-    private Transform npcAnchor;
-    private Camera worldCamera;
     private PlayerInput lockedInput;
     private Action ended;
     private Coroutine typingRoutine;
@@ -28,13 +25,11 @@ public sealed class NpcDialogueCanvas : MonoBehaviour
     private int lineIndex;
     private bool dialogueActive;
     private bool typing;
-    private bool questionMarkRequested;
     private string currentLine = string.Empty;
 
     private void Awake()
     {
         canvas ??= GetComponent<Canvas>();
-        worldCamera = Camera.main;
         SetQuestionMarkVisible(false);
         SetDialogueVisible(false);
     }
@@ -52,36 +47,12 @@ public sealed class NpcDialogueCanvas : MonoBehaviour
         }
     }
 
-    private void LateUpdate()
-    {
-        if (questionMarkImage == null || !questionMarkRequested || npcAnchor == null)
-        {
-            return;
-        }
-
-        if (worldCamera == null)
-        {
-            worldCamera = Camera.main;
-        }
-
-        if (worldCamera == null)
-        {
-            return;
-        }
-
-        Vector3 screenPosition = worldCamera.WorldToScreenPoint(npcAnchor.position + questionMarkWorldOffset);
-        questionMarkImage.gameObject.SetActive(screenPosition.z > 0f);
-        questionMarkImage.position = screenPosition;
-    }
-
     public void BindNpc(Transform anchor)
     {
-        npcAnchor = anchor;
     }
 
     public void SetQuestionMarkVisible(bool visible)
     {
-        questionMarkRequested = visible;
         if (questionMarkImage != null)
         {
             questionMarkImage.gameObject.SetActive(visible);

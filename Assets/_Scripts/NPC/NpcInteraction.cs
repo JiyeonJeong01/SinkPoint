@@ -22,6 +22,7 @@ public sealed class NpcInteraction : MonoBehaviour
         "어서 가봐. 최하부에 답이 있을 거야."
     };
 
+    [SerializeField] private string playerTag = "Player";
     [SerializeField] private bool showDebugLog;
 
     private NpcDialogueCanvas activeCanvas;
@@ -64,21 +65,12 @@ public sealed class NpcInteraction : MonoBehaviour
 
     public void HandlePlayerEntered(Collider other)
     {
-        PlayerInput playerInput = other != null ? other.GetComponentInParent<PlayerInput>() : null;
-        if (playerInput == null)
-        {
-            return;
-        }
-
-        currentPlayerInput = playerInput;
-        playerInside = true;
-        SetQuestionMarkVisible(!dialogueRunning);
+        HandlePlayerDetected(other);
     }
 
     public void HandlePlayerExited(Collider other)
     {
-        PlayerInput playerInput = other != null ? other.GetComponentInParent<PlayerInput>() : null;
-        if (playerInput == null || playerInput != currentPlayerInput)
+        if (!TryResolvePlayerInput(other, out PlayerInput playerInput) || playerInput != currentPlayerInput)
         {
             return;
         }
@@ -90,6 +82,31 @@ public sealed class NpcInteraction : MonoBehaviour
         {
             SetQuestionMarkVisible(false);
         }
+    }
+
+    public bool HandlePlayerDetected(Collider other)
+    {
+        if (!TryResolvePlayerInput(other, out PlayerInput playerInput))
+        {
+            return false;
+        }
+
+        currentPlayerInput = playerInput;
+        playerInside = true;
+        SetQuestionMarkVisible(!dialogueRunning);
+        return true;
+    }
+
+    public void HandlePlayerDetectionLost()
+    {
+        if (dialogueRunning || !playerInside)
+        {
+            return;
+        }
+
+        playerInside = false;
+        currentPlayerInput = null;
+        SetQuestionMarkVisible(false);
     }
 
     private void BeginDialogue()
@@ -137,6 +154,40 @@ public sealed class NpcInteraction : MonoBehaviour
         {
             activeCanvas.SetQuestionMarkVisible(visible);
         }
+    }
+
+    private bool TryResolvePlayerInput(Collider other, out PlayerInput playerInput)
+    {
+        playerInput = other != null ? other.GetComponentInParent<PlayerInput>() : null;
+        if (playerInput != null)
+        {
+            return true;
+        }
+
+        if (!IsLikelyPlayerCollider(other))
+        {
+            return false;
+        }
+
+        // 플레이어 Collider가 입력 오브젝트와 분리된 테스트 배치를 대비한 MVP fallback입니다.
+        playerInput = FindFirstObjectByType<PlayerInput>();
+        return playerInput != null;
+    }
+
+    private bool IsLikelyPlayerCollider(Collider other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(playerTag) && other.CompareTag(playerTag))
+        {
+            return true;
+        }
+
+        Transform root = other.transform.root;
+        return other.name.Contains("Player") || (root != null && root.name.Contains("Player"));
     }
 
 #if UNITY_EDITOR

@@ -1,4 +1,3 @@
-using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,6 +10,7 @@ public static class SinkPointNpcPrefabBuilder
     private const string UiFolder = RootFolder + "/UI";
     private const string NpcPrefabPath = NpcFolder + "/NPC.prefab";
     private const string NpcCanvasPrefabPath = UiFolder + "/NPC Canvas.prefab";
+    private const string NpcIdleControllerPath = "Assets/Toon_Soldiers/ToonSoldiers_Armies/sample_scene/sample_animator_guard.controller";
 
     [MenuItem("SinkPoint/Generate MVP NPC Prefabs")]
     public static void Generate()
@@ -135,6 +135,7 @@ public static class SinkPointNpcPrefabBuilder
 
         root.name = "NPC";
         RemovePlayerOnlyComponents(root);
+        ConfigureNpcAnimators(root);
 
         Transform anchor = new GameObject("QuestionMarkAnchor").transform;
         anchor.SetParent(root.transform, false);
@@ -148,13 +149,17 @@ public static class SinkPointNpcPrefabBuilder
 
         interaction.EditorConfigure(canvasPrefab, anchor);
 
-        GameObject trigger = new GameObject("MapBoxTrigger", typeof(BoxCollider), typeof(NpcMapBoxTrigger));
+        GameObject trigger = new GameObject("MapBoxTrigger", typeof(BoxCollider), typeof(Rigidbody), typeof(NpcMapBoxTrigger));
         trigger.transform.SetParent(root.transform, false);
         trigger.transform.localScale = Vector3.one * 2f;
 
         BoxCollider triggerCollider = trigger.GetComponent<BoxCollider>();
         triggerCollider.isTrigger = true;
         triggerCollider.size = Vector3.one;
+
+        Rigidbody triggerBody = trigger.GetComponent<Rigidbody>();
+        triggerBody.isKinematic = true;
+        triggerBody.useGravity = false;
 
         trigger.GetComponent<NpcMapBoxTrigger>().EditorConfigure(interaction);
 
@@ -170,6 +175,8 @@ public static class SinkPointNpcPrefabBuilder
         RemoveComponents<PlayerHealth>(root);
         RemoveComponents<PlayerInput>(root);
         RemoveComponents<ThirdPersonCameraController>(root);
+        RemoveRootComponent<CapsuleCollider>(root);
+        RemoveRootComponent<Rigidbody>(root);
     }
 
     private static void RemoveComponents<T>(GameObject root) where T : Component
@@ -178,6 +185,32 @@ public static class SinkPointNpcPrefabBuilder
         foreach (T component in components)
         {
             Object.DestroyImmediate(component, true);
+        }
+    }
+
+    private static void RemoveRootComponent<T>(GameObject root) where T : Component
+    {
+        T component = root.GetComponent<T>();
+        if (component != null)
+        {
+            Object.DestroyImmediate(component, true);
+        }
+    }
+
+    private static void ConfigureNpcAnimators(GameObject root)
+    {
+        RuntimeAnimatorController idleController =
+            AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(NpcIdleControllerPath);
+
+        Animator[] animators = root.GetComponentsInChildren<Animator>(true);
+        foreach (Animator animator in animators)
+        {
+            animator.applyRootMotion = false;
+
+            if (idleController != null)
+            {
+                animator.runtimeAnimatorController = idleController;
+            }
         }
     }
 
