@@ -2240,6 +2240,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 2
   oneShot: 1
+  zone: {fileID: 0}
   directionReference: {fileID: 0}
   requireOppositeSideExit: 1
   sideDeadZone: 0.05
@@ -3541,6 +3542,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 1
   oneShot: 1
+  zone: {fileID: 0}
   directionReference: {fileID: 0}
   requireOppositeSideExit: 1
   sideDeadZone: 0.05
@@ -9455,6 +9457,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 0
   oneShot: 1
+  zone: {fileID: 1274799523}
   directionReference: {fileID: 0}
   requireOppositeSideExit: 1
   sideDeadZone: 0.05
@@ -12047,6 +12050,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 400000, guid: 6fa96494ea144482d9856977f6323e05, type: 3}
   m_PrefabInstance: {fileID: 800555993}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &803852575
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 803852576}
+  - component: {fileID: 803852577}
+  m_Layer: 0
+  m_Name: NormalGravityZone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &803852576
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 803852575}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 924486364}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &803852577
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 803852575}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8457dc7c6fc8e294abbab52e96520ac5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityZone
+  direction: {x: 0, y: -1, z: 0}
+  strength: 9.81
 --- !u!1001 &805710008
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -13766,6 +13815,8 @@ GameObject:
   m_Component:
   - component: {fileID: 924486364}
   - component: {fileID: 924486365}
+  - component: {fileID: 924486366}
+  - component: {fileID: 924486367}
   m_Layer: 0
   m_Name: GravitySystem
   m_TagString: Untagged
@@ -13785,7 +13836,9 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 803852576}
+  - {fileID: 1274799522}
   m_Father: {fileID: 600397478}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &924486365
@@ -13802,6 +13855,35 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GravityState
   gravityDirection: {x: 0, y: -1, z: 0}
   gravityStrength: 9.81
+--- !u!114 &924486366
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 924486363}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30e972a0673ed334f8b4394ce3455489, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityDebugController
+  gravityManager: {fileID: 924486367}
+  controlMode: 0
+  selectedZone: {fileID: 803852577}
+--- !u!114 &924486367
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 924486363}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea084cbcdda2ecf45aee58020343161a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityManager
+  gravityState: {fileID: 924486365}
+  initialZone: {fileID: 803852577}
 --- !u!1001 &926666280
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -18359,6 +18441,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2528871009956509603, guid: 55e37ff9ba9a6ba44ac2396921493626, type: 3}
   m_PrefabInstance: {fileID: 1268700462}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1274799521
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1274799522}
+  - component: {fileID: 1274799523}
+  m_Layer: 0
+  m_Name: ShiftGravityZone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1274799522
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1274799521}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 924486364}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1274799523
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1274799521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8457dc7c6fc8e294abbab52e96520ac5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityZone
+  direction: {x: 1, y: 0, z: 0}
+  strength: 9.81
 --- !u!1001 &1275478664
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -22909,6 +23037,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 3
   oneShot: 1
+  zone: {fileID: 0}
   directionReference: {fileID: 0}
   requireOppositeSideExit: 1
   sideDeadZone: 0.05
@@ -25006,6 +25135,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 4
   oneShot: 1
+  zone: {fileID: 0}
   directionReference: {fileID: 0}
   requireOppositeSideExit: 1
   sideDeadZone: 0.05
@@ -29502,6 +29632,10 @@ PrefabInstance:
       propertyPath: target
       value: 
       objectReference: {fileID: 1440434656}
+    - target: {fileID: 8581743840162177068, guid: 198d8c72947f18444a1515304b77f550, type: 3}
+      propertyPath: gravityState
+      value: 
+      objectReference: {fileID: 924486365}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -29600,6 +29734,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 600397478}
     m_Modifications:
+    - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
+      propertyPath: gravityManager
+      value: 
+      objectReference: {fileID: 924486367}
+    - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
+      propertyPath: gravityEventTriggers.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
+      propertyPath: 'gravityEventTriggers.Array.data[0]'
+      value: 
+      objectReference: {fileID: 585468007}
     - target: {fileID: 2811323174104526671, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
       propertyPath: playerRoot
       value: 
