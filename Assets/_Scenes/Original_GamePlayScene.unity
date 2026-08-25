@@ -2653,11 +2653,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 2
-  oneShot: 1
-  zone: {fileID: 0}
-  directionReference: {fileID: 0}
-  requireOppositeSideExit: 1
-  sideDeadZone: 0.05
+  gravityPreset: {fileID: 0}
   objectiveText: 
   playerTag: Player
   showDebugLog: 1
@@ -4119,11 +4115,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 1
-  oneShot: 1
-  zone: {fileID: 0}
-  directionReference: {fileID: 0}
-  requireOppositeSideExit: 1
-  sideDeadZone: 0.05
+  gravityPreset: {fileID: 1587147514}
   objectiveText: 
   playerTag: Player
   showDebugLog: 1
@@ -6401,7 +6393,11 @@ PrefabInstance:
     - target: {fileID: 8581743840162177068, guid: 198d8c72947f18444a1515304b77f550, type: 3}
       propertyPath: gravityState
       value: 
-      objectReference: {fileID: 924486365}
+      objectReference: {fileID: 1587147516}
+    - target: {fileID: 8581743840162177068, guid: 198d8c72947f18444a1515304b77f550, type: 3}
+      propertyPath: gravityManager
+      value: 
+      objectReference: {fileID: 1587147515}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -7242,6 +7238,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 704655816655209165, guid: 70ace86567e81be43868990f4e60adce, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1259598090}
+    - targetCorrespondingSourceObject: {fileID: 704655816655209165, guid: 70ace86567e81be43868990f4e60adce, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1259598095}
   m_SourcePrefab: {fileID: 100100000, guid: 70ace86567e81be43868990f4e60adce, type: 3}
 --- !u!1 &410044385 stripped
 GameObject:
@@ -10828,11 +10827,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 0
-  oneShot: 1
-  zone: {fileID: 0}
-  directionReference: {fileID: 0}
-  requireOppositeSideExit: 1
-  sideDeadZone: 0.05
+  gravityPreset: {fileID: 1587147511}
   objectiveText: 
   playerTag: Player
   showDebugLog: 1
@@ -11082,10 +11077,10 @@ Transform:
   - {fileID: 1251897279}
   - {fileID: 1011764366}
   - {fileID: 1196252637}
-  - {fileID: 924486364}
   - {fileID: 849413284}
   - {fileID: 304428697}
   - {fileID: 942549391}
+  - {fileID: 1587147510}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &602983262
@@ -16493,52 +16488,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 8191526983046101473, guid: 3aafec2cce1be134ea44e05d77eb7d85, type: 3}
---- !u!1 &924486363
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 924486364}
-  - component: {fileID: 924486365}
-  m_Layer: 0
-  m_Name: GravitySystem
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &924486364
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 924486363}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 600397478}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &924486365
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 924486363}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b83af35a1dcd7114eae5e36f094622d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GravityState
-  gravityDirection: {x: 0, y: -1, z: 0}
-  gravityStrength: 9.81
 --- !u!1001 &926666280
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -17290,6 +17239,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 704655816655209165, guid: 70ace86567e81be43868990f4e60adce, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1066779263}
+    - targetCorrespondingSourceObject: {fileID: 704655816655209165, guid: 70ace86567e81be43868990f4e60adce, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1066779264}
   m_SourcePrefab: {fileID: 100100000, guid: 70ace86567e81be43868990f4e60adce, type: 3}
 --- !u!1001 &971679532
 PrefabInstance:
@@ -19122,6 +19074,26 @@ MonoBehaviour:
   oneShot: 1
   playerTag: Player
   showDebugLog: 1
+--- !u!114 &1066779264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1066779258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38d6b5bf419848a6b991611cab506965, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
+  eventType: 1
+  gravityPreset: {fileID: 1587147513}
+  objectiveText: 
+  playerTag: Player
+  showDebugLog: 1
+  onTriggered:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &1067246234 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8719817701455006580, guid: 5b4c78d956ad0b845b893b5312703922, type: 3}
@@ -22033,6 +22005,26 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2528871009956509603, guid: 70ace86567e81be43868990f4e60adce, type: 3}
   m_PrefabInstance: {fileID: 409331876}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1259598095
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1259598089}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38d6b5bf419848a6b991611cab506965, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
+  eventType: 4
+  gravityPreset: {fileID: 1587147512}
+  objectiveText: Enter Zero Gravity
+  playerTag: Player
+  showDebugLog: 1
+  onTriggered:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1001 &1261052455
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -27159,6 +27151,134 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 4273942303996896646, guid: ff8087f6c31247044b7da6f8b985ae1b, type: 3}
+--- !u!1001 &1587147509
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 600397478}
+    m_Modifications:
+    - target: {fileID: 8093499968496813361, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_Name
+      value: GravitySystem
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+--- !u!4 &1587147510 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 8300566758751857699, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+  m_PrefabInstance: {fileID: 1587147509}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1587147511 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4411366610158951473, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+  m_PrefabInstance: {fileID: 1587147509}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8457dc7c6fc8e294abbab52e96520ac5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityPreset
+--- !u!114 &1587147512 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1656000665539612958, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+  m_PrefabInstance: {fileID: 1587147509}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8457dc7c6fc8e294abbab52e96520ac5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityPreset
+--- !u!114 &1587147513 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5000183428566320135, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+  m_PrefabInstance: {fileID: 1587147509}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8457dc7c6fc8e294abbab52e96520ac5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityPreset
+--- !u!114 &1587147514 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 9162313882989636985, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+  m_PrefabInstance: {fileID: 1587147509}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8457dc7c6fc8e294abbab52e96520ac5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityPreset
+--- !u!114 &1587147515 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2928436851465106446, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+  m_PrefabInstance: {fileID: 1587147509}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea084cbcdda2ecf45aee58020343161a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityManager
+--- !u!114 &1587147516 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6802115584909042725, guid: 8d29bbde91b9c2340975a8f9a2e2d945, type: 3}
+  m_PrefabInstance: {fileID: 1587147509}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b83af35a1dcd7114eae5e36f094622d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityState
 --- !u!1 &1588539314 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 100000, guid: 6fa96494ea144482d9856977f6323e05, type: 3}
@@ -28014,11 +28134,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 3
-  oneShot: 1
-  zone: {fileID: 0}
-  directionReference: {fileID: 0}
-  requireOppositeSideExit: 1
-  sideDeadZone: 0.05
+  gravityPreset: {fileID: 0}
   objectiveText: 
   playerTag: Player
   showDebugLog: 1
@@ -32163,11 +32279,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GravityEventTrigger
   eventType: 4
-  oneShot: 1
-  zone: {fileID: 0}
-  directionReference: {fileID: 0}
-  requireOppositeSideExit: 1
-  sideDeadZone: 0.05
+  gravityPreset: {fileID: 0}
   objectiveText: 
   playerTag: Player
   showDebugLog: 1
@@ -33353,7 +33465,11 @@ PrefabInstance:
     - target: {fileID: 2466251488171704757, guid: 99859a1a5ae055448ac4c2a5f1713a46, type: 3}
       propertyPath: gravityState
       value: 
-      objectReference: {fileID: 924486365}
+      objectReference: {fileID: 1587147516}
+    - target: {fileID: 2466251488171704757, guid: 99859a1a5ae055448ac4c2a5f1713a46, type: 3}
+      propertyPath: gravityManager
+      value: 
+      objectReference: {fileID: 1587147515}
     - target: {fileID: 2466251488171704757, guid: 99859a1a5ae055448ac4c2a5f1713a46, type: 3}
       propertyPath: cameraTransform
       value: 
@@ -39025,7 +39141,7 @@ PrefabInstance:
     - target: {fileID: 2509743938208880488, guid: 810f8a4072b44fd4a9c2ec7de2b5b794, type: 3}
       propertyPath: gravityState
       value: 
-      objectReference: {fileID: 924486365}
+      objectReference: {fileID: 0}
     - target: {fileID: 3565402760600497152, guid: 810f8a4072b44fd4a9c2ec7de2b5b794, type: 3}
       propertyPath: m_Name
       value: Monster_04_SandWorm_v1
@@ -39037,7 +39153,7 @@ PrefabInstance:
     - target: {fileID: 4110329909167601802, guid: 810f8a4072b44fd4a9c2ec7de2b5b794, type: 3}
       propertyPath: gravityState
       value: 
-      objectReference: {fileID: 924486365}
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -39051,6 +39167,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 600397478}
     m_Modifications:
+    - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
+      propertyPath: gravityManager
+      value: 
+      objectReference: {fileID: 1587147515}
     - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
       propertyPath: initialZoneIndex
       value: 0
@@ -39116,6 +39236,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 834368758}
     - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
+      propertyPath: gravityEventTriggers.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
       propertyPath: zones.Array.data[0].nextBarrier
       value: 
       objectReference: {fileID: 304972357}
@@ -39151,6 +39275,18 @@ PrefabInstance:
       propertyPath: zones.Array.data[4].entryTrigger
       value: 
       objectReference: {fileID: 1259598090}
+    - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
+      propertyPath: 'gravityEventTriggers.Array.data[0]'
+      value: 
+      objectReference: {fileID: 585468007}
+    - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
+      propertyPath: 'gravityEventTriggers.Array.data[1]'
+      value: 
+      objectReference: {fileID: 1066779264}
+    - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
+      propertyPath: 'gravityEventTriggers.Array.data[2]'
+      value: 
+      objectReference: {fileID: 1259598095}
     - target: {fileID: 1502234618959521550, guid: b9483e1044f19c94cb6701a9534ae46d, type: 3}
       propertyPath: zones.Array.data[1].previousBarrier
       value: 
