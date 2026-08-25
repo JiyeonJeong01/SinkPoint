@@ -1,0 +1,327 @@
+using UnityEngine;
+
+/// <summary>
+/// Zero Zone의 공중 몬스터처럼 NavTarget을 3D 공간에서 자유롭게 이동시키는 컴포넌트입니다.
+/// 무거운 길찾기 대신 임의 목적지로 날아가며, 전방 Obstacle만 가볍게 검사해 피합니다.
+/// </summary>
+[DisallowMultipleComponent]
+public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, IMonsterDeathHandler
+{
+    private enum FlightDebugStatus
+    {
+        Ready,
+        NoNavTarget,
+        Dead,
+        PickingDestination,
+        Flying,
+        AvoidingObstacle,
+        Arrived
+    }
+
+    [Header("References")]
+    [SerializeField, Tooltip("이 몬스터의 몸이 따라갈 공중 이동 기준점입니다. 비워두면 NavTarget/Nav Target을 찾습니다.")]
+    private Transform navTarget;
+    [SerializeField, Tooltip("비워두면 이 몬스터의 시작 위치를 배회 중심으로 사용합니다.")]
+    private Transform flightCenter;
+    [SerializeField, Tooltip("사망 상태 확인용입니다. 비워두면 같은 몬스터 계층에서 찾습니다.")]
+    private MonsterStateMachine stateMachine;
+    [SerializeField, Tooltip("사망 상태 확인용입니다. 비워두면 같은 몬스터 계층에서 찾습니다.")]
+    private MonsterHealth monsterHealth;
+
+    [Header("Movement")]
+    [SerializeField, Min(0f), Tooltip("공중 이동 속도입니다.")]
+    private float moveSpeed = 5f;
+    [SerializeField, Min(0f), Tooltip("진행 방향을 바라보는 회전 속도입니다.")]
+    private float rotationSpeed = 240f;
+    [SerializeField, Min(0f), Tooltip("배회 중심에서 이 반경 안의 목적지를 고릅니다.")]
+    private float roamRadius = 12f;
+    [SerializeField, Min(0f), Tooltip("목적지에 이 거리만큼 가까워지면 다음 목적지를 고릅니다.")]
+    private float destinationReachDistance = 1f;
+    [SerializeField, Min(0f), Tooltip("목적지에 도착하지 않아도 이 시간이 지나면 새 목적지를 고릅니다.")]
+    private float repickDestinationSeconds = 4f;
+    [SerializeField, Min(0f), Tooltip("목적지 높이 랜덤 범위입니다. 중심 높이 기준 위아래로 적용됩니다.")]
+    private float verticalRoamRange = 5f;
+
+    [Header("Obstacle Avoidance")]
+    [SerializeField, Tooltip("피해야 하는 장애물 레이어입니다. 비워두면 Obstacle 레이어를 자동 사용합니다.")]
+    private LayerMask obstacleMask;
+    [SerializeField, Min(0.01f), Tooltip("전방 장애물 검사에 사용할 가상 구 반지름입니다.")]
+    private float obstacleProbeRadius = 0.7f;
+    [SerializeField, Min(0.01f), Tooltip("앞쪽을 얼마나 미리 검사할지 정합니다.")]
+    private float obstacleProbeDistance = 2.5f;
+    [SerializeField, Min(0f), Tooltip("장애물을 발견했을 때 옆으로 틀어보는 강도입니다.")]
+    private float avoidanceSideStep = 2f;
+
+    [Header("Debug Readout")]
+    [SerializeField, Tooltip("현재 공중 이동 상태입니다.")]
+    private FlightDebugStatus flightDebugStatus = FlightDebugStatus.Ready;
+    [SerializeField, Tooltip("현재 이동 목적지입니다.")]
+    private Vector3 currentDestination;
+    [SerializeField, Tooltip("전방 Obstacle 검사 결과입니다.")]
+    private bool isForwardBlocked;
+    [SerializeField, Tooltip("씬에서 선택했을 때 목적지와 장애물 검사선을 표시합니다.")]
+    private bool drawDebugGizmos = true;
+
+    private Vector3 initialNavTargetPosition;
+    private Quaternion initialNavTargetRotation;
+    private Vector3 initialCenterPosition;
+    private float nextDestinationPickTime;
+    private Vector3 lastProbeOrigin;
+    private Vector3 lastProbeDirection = Vector3.forward;
+
+    private Vector3 CenterPosition => flightCenter != null ? flightCenter.position : initialCenterPosition;
+
+    private void Awake()
+    {
+        ResolveReferences();
+        ResolveDefaultLayers();
+        CaptureInitialPose();
+        PickNewDestination();
+    }
+
+    private void Reset()
+    {
+        ResolveReferences();
+        ResolveDefaultLayers();
+    }
+
+    private void FixedUpdate()
+    {
+        if (IsDead())
+        {
+            flightDebugStatus = FlightDebugStatus.Dead;
+            return;
+        }
+
+        if (navTarget == null)
+        {
+            flightDebugStatus = FlightDebugStatus.NoNavTarget;
+            return;
+        }
+
+        MoveTowardDestination(Time.fixedDeltaTime);
+    }
+
+    /// <summary>
+    /// 리스폰 시 시작 위치로 되돌리고 새 배회 목적지를 다시 고릅니다.
+    /// </summary>
+    public void ResetMonsterRuntime()
+    {
+        ResolveReferences();
+        if (navTarget != null)
+        {
+            navTarget.SetPositionAndRotation(initialNavTargetPosition, initialNavTargetRotation);
+        }
+
+        flightDebugStatus = FlightDebugStatus.Ready;
+        PickNewDestination();
+    }
+
+    public void OnMonsterDied()
+    {
+        flightDebugStatus = FlightDebugStatus.Dead;
+    }
+
+    private void ResolveReferences()
+    {
+        navTarget ??= FindChildRecursive(transform, "NavTarget");
+        navTarget ??= FindChildRecursive(transform, "Nav Target");
+
+        stateMachine ??= GetComponent<MonsterStateMachine>();
+        stateMachine ??= GetComponentInParent<MonsterStateMachine>();
+        stateMachine ??= GetComponentInChildren<MonsterStateMachine>();
+
+        monsterHealth ??= GetComponent<MonsterHealth>();
+        monsterHealth ??= GetComponentInParent<MonsterHealth>();
+        monsterHealth ??= GetComponentInChildren<MonsterHealth>();
+    }
+
+    private void ResolveDefaultLayers()
+    {
+        if (obstacleMask.value == 0)
+        {
+            obstacleMask = LayerMask.GetMask("Obstacle");
+        }
+    }
+
+    private void CaptureInitialPose()
+    {
+        if (navTarget != null)
+        {
+            initialNavTargetPosition = navTarget.position;
+            initialNavTargetRotation = navTarget.rotation;
+        }
+
+        initialCenterPosition = flightCenter != null ? flightCenter.position : transform.position;
+    }
+
+    private void MoveTowardDestination(float deltaTime)
+    {
+        if (Time.time >= nextDestinationPickTime
+            || Vector3.Distance(navTarget.position, currentDestination) <= destinationReachDistance)
+        {
+            flightDebugStatus = FlightDebugStatus.Arrived;
+            PickNewDestination();
+        }
+
+        Vector3 desiredDirection = currentDestination - navTarget.position;
+        if (desiredDirection.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        desiredDirection.Normalize();
+        Vector3 moveDirection = GetObstacleAwareDirection(desiredDirection);
+
+        navTarget.position += moveDirection * moveSpeed * deltaTime;
+        RotateToward(moveDirection, deltaTime);
+        flightDebugStatus = isForwardBlocked ? FlightDebugStatus.AvoidingObstacle : FlightDebugStatus.Flying;
+    }
+
+    /// <summary>
+    /// 전방 SphereCast가 막히면 오른쪽/왼쪽/위쪽 후보를 순서대로 검사해서 가능한 방향으로 틀어줍니다.
+    /// </summary>
+    private Vector3 GetObstacleAwareDirection(Vector3 desiredDirection)
+    {
+        isForwardBlocked = IsBlocked(desiredDirection);
+        if (!isForwardBlocked)
+        {
+            return desiredDirection;
+        }
+
+        Vector3 right = Vector3.Cross(Vector3.up, desiredDirection);
+        if (right.sqrMagnitude < 0.0001f)
+        {
+            right = Vector3.Cross(Vector3.right, desiredDirection);
+        }
+
+        right.Normalize();
+        Vector3[] candidates =
+        {
+            (desiredDirection + right * avoidanceSideStep).normalized,
+            (desiredDirection - right * avoidanceSideStep).normalized,
+            (desiredDirection + Vector3.up * avoidanceSideStep).normalized,
+            (desiredDirection - Vector3.up * avoidanceSideStep).normalized
+        };
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            if (!IsBlocked(candidates[i]))
+            {
+                return candidates[i];
+            }
+        }
+
+        return -desiredDirection;
+    }
+
+    private bool IsBlocked(Vector3 direction)
+    {
+        if (obstacleMask.value == 0 || navTarget == null)
+        {
+            return false;
+        }
+
+        lastProbeOrigin = navTarget.position;
+        lastProbeDirection = direction;
+
+        return Physics.SphereCast(
+            lastProbeOrigin,
+            obstacleProbeRadius,
+            direction,
+            out _,
+            obstacleProbeDistance,
+            obstacleMask,
+            QueryTriggerInteraction.Ignore);
+    }
+
+    private void RotateToward(Vector3 direction, float deltaTime)
+    {
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        navTarget.rotation = Quaternion.RotateTowards(
+            navTarget.rotation,
+            targetRotation,
+            rotationSpeed * deltaTime);
+    }
+
+    private void PickNewDestination()
+    {
+        if (navTarget == null)
+        {
+            return;
+        }
+
+        Vector2 flat = Random.insideUnitCircle * roamRadius;
+        float height = Random.Range(-verticalRoamRange, verticalRoamRange);
+        currentDestination = CenterPosition + new Vector3(flat.x, height, flat.y);
+        nextDestinationPickTime = Time.time + repickDestinationSeconds;
+        flightDebugStatus = FlightDebugStatus.PickingDestination;
+    }
+
+    private bool IsDead()
+    {
+        if (monsterHealth != null && monsterHealth.IsDead)
+        {
+            return true;
+        }
+
+        return stateMachine != null && stateMachine.State == MonsterState.Dead;
+    }
+
+    private static Transform FindChildRecursive(Transform root, string childName)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        if (root.name == childName)
+        {
+            return root;
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindChildRecursive(root.GetChild(i), childName);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (!drawDebugGizmos)
+        {
+            return;
+        }
+
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(currentDestination, 0.35f);
+
+        Gizmos.color = isForwardBlocked ? Color.red : Color.green;
+        Gizmos.DrawWireSphere(lastProbeOrigin, obstacleProbeRadius);
+        Gizmos.DrawLine(lastProbeOrigin, lastProbeOrigin + lastProbeDirection.normalized * obstacleProbeDistance);
+    }
+
+    private void OnValidate()
+    {
+        moveSpeed = Mathf.Max(0f, moveSpeed);
+        rotationSpeed = Mathf.Max(0f, rotationSpeed);
+        roamRadius = Mathf.Max(0f, roamRadius);
+        destinationReachDistance = Mathf.Max(0f, destinationReachDistance);
+        repickDestinationSeconds = Mathf.Max(0f, repickDestinationSeconds);
+        verticalRoamRange = Mathf.Max(0f, verticalRoamRange);
+        obstacleProbeRadius = Mathf.Max(0.01f, obstacleProbeRadius);
+        obstacleProbeDistance = Mathf.Max(0.01f, obstacleProbeDistance);
+        avoidanceSideStep = Mathf.Max(0f, avoidanceSideStep);
+    }
+}
