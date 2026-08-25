@@ -185,6 +185,13 @@
 - 사람이 직접 결정한 부분: 사격 반작용을 그래플 구현 후에도 무중력 보조 이동 수단으로 유지하고 일반 중력 반동·카메라 연출·무기 시스템 변경은 제외했다. 사용자가 Play Mode 테스트 성공을 확인하고 완료 처리를 승인했다.
 - 검증 결과: 런타임 어셈블리는 오류 0건과 기존 경고 28건, Editor 어셈블리는 오류·경고 0건으로 빌드됐다. 최신 `Editor.log` 범위에 컴파일 실패·예외가 없었고, 사용자의 Play Mode 테스트에서 반작용 동작이 성공했으며 무중력 상태가 아닐 때 발동하는 버그는 발견되지 않았다. 이번 반작용 작업에서는 씬·Prefab·Collider·Packages·ProjectSettings·Build Settings를 변경하지 않았다.
 
+## 2026-08-25 — 무중력 진입 관성 유지 및 반작용 최고 속도 조정
+
+- Codex 사용처: 무중력 진입 시 잔류 속도를 제거하는 상태 전이와 반작용 속도 상한 경로를 대조하고, 관성을 보존하는 최소 변경을 적용했다.
+- 구현하거나 정리한 기능: `PlayerController.EnterZeroGravity()`의 선속도·각속도 초기화를 제거했다. `maxZeroGravityRecoilSpeed` 기본값은 `3.0`에서 `4.0`으로 올리고, C# 컴파일 오류를 내던 `4.f` 표기를 `4f`로 정정했다. 발사당 속도 변화 `0.3`, 반작용 방향, 상한 초과 시 감속 방향만 허용하는 기존 계약은 유지했다.
+- 해결한 문제: `GravityManager` 전환 완료 뒤 첫 물리 프레임의 `ZeroGravityMotionState.Enter()`가 `EnterZeroGravity()`를 한 번 호출해 선속도·각속도를 0으로 만드는 경로를 제거했다. 이후 `ZeroGravityMotionState.FixedTick()`은 속도를 덮어쓰지 않으므로 진입 전 이동·낙하 및 사격 반작용 관성이 유지된다.
+- 검증 결과: `Assembly-CSharp.csproj` 빌드는 오류 0건으로 성공했고 기존 경고 28건만 남았다. `git diff --check`도 통과했다. Console을 비운 새 Play Mode 실행·종료에서 신규 Error는 0건이었다. 자동 입력 도구로는 이동·낙하 중 무중력 진입 뒤 관성을 체감할 수 없어, 해당 Inspector·조작 확인은 사용자의 Play Mode 확인이 남아 있다. 씬·Prefab·Collider·Packages·ProjectSettings·Build Settings는 변경하지 않았다.
+
 ## 2026-08-25 — MeshCollider 지형 접지 이동 안정화
 
 - Codex 사용처: MeshCollider 언덕·굴곡·턱에서 발생한 비의도 상승, 걸림과 순간 Airborne 진동을 현재 Rigidbody 이동·SphereCast 접지 코드에 대조하고, 만족할 때 즉시 중단하는 순차 계획으로 원인별 최소 보정을 구현·검증하는 데 사용했다.
@@ -208,3 +215,48 @@
 - 해결한 문제: 중력 구성과 테스트 바디가 같은 씬 루트에 섞인 상태를 분리했고, GameFlow 디버그 중 Preset을 시험하려면 별도 GravitySystem Inspector로 이동해야 하던 흐름을 제거했다. GameFlowManager의 선택 적용은 `GravityManager.ApplyPreset()`만 호출해 Player·Camera·Periodic 처리 경로를 우회하지 않는다.
 - 사람이 직접 결정한 부분: 임의 Preset 적용은 진행 Trigger가 아니므로 `CurrentZone`과 `CurrentState`를 바꾸지 않고, 선택값도 씬/Prefab override가 아닌 Editor session 값으로 유지했다. 실제 Inspector 조작감과 Trigger 통과 뒤 연속 진행은 후속 Play Mode에서 확인한다.
 - 검증 결과: Unity 재컴파일은 `failed=false`, 오류 0건이었다. 새 Play Mode에서 GameFlowManager API로 Periodic Z, Normal, Zero Gravity Preset을 순서대로 적용해 CurrentPreset, Periodic routine 시작·정리와 strength `9.81`/`0`을 확인했다. Periodic 적용 전후 `CurrentZone = Zone01_Entry`, `CurrentState = Entry`가 유지됐고, 새 Console error는 없었다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-25 — 플레이어 발소리 Animation Event 구현·필터 재설계
+
+- Codex 사용처: 외부 원본 애니메이션을 보호하면서 Player 소유 이동 Clip을 추출하고, 발 접지 Animation Event·오디오 구성·이동 의도 필터를 구현한 뒤 오재생과 누락 원인을 반복 진단하는 데 사용했다.
+- 구현하거나 정리한 기능: 네 방향 Locomotion과 Sprint 편집용 Clip에 동기화된 `PlayFootstep(AnimationEvent)` 이벤트를 배치하고 Animator 참조를 교체했다. `PlayerFootsteps`는 `PlayerController.HasMoveIntent`, 이벤트 발신 Clip의 유효 Blend Weight, 짧은 중복 방지 간격을 통과한 호출에만 다섯 발소리 중 직전과 다른 Clip을 골라 재생한다.
+- 해결한 문제: Grounded 단독 조건 때문에 Idle·경사 미끄러짐에서도 소리가 나던 문제, 착지 직후 Grounded 갱신 지연으로 정상 이벤트가 누락되던 문제, 최고 Weight 대표 Clip 하나만 허용해 방향 Blend와 걷기↔Sprint 전환 중 무음이 발생하던 문제를 제거했다. 방향별 이동 Clip의 이벤트 위상을 통일해 Blend 중 리듬 혼합도 줄였다.
+- 사람이 직접 결정한 부분: Rigidbody 속도와 Grounded를 발소리 조건으로 쓰지 않고 플레이어 입력 의도와 실제 재생 중인 애니메이션 이벤트를 기준으로 삼았다. 이동 Clip 전체를 허용하되 Blend Weight `0.01`과 `minimumInterval`을 최종 중복 안전장치로 사용하는 방식을 선택하고, Play Mode에서 정상 동작을 확인해 완료를 승인했다.
+- 검증 결과: Unity 재컴파일은 오류 0건이었고 새 Play Mode Console 오류가 없었으며 `git diff --check`를 통과했다. 이벤트 시점은 방향 이동 `0.1 / 0.5166667`, Sprint `0.0333 / 0.3666667 / 0.7 / 1.0333`으로 확인했다. 사용자가 Play Mode에서 경사 Idle 오재생과 걷기·달리기 중 무음이 사라지고 발소리가 정상 재생됨을 확인했다. 외부 Toon Soldiers 원본, `GamePlayScene_Player`, Collider, Packages, ProjectSettings와 Build Settings는 이번 작업에서 변경하지 않았다.
+
+## 2026-08-25 — 플레이어 SFX Mixer·동굴 리버브·사격음 통합
+
+- Codex 사용처: 기존 Player 발소리 AudioSource와 0.15초 사격 확정 경로, GameFlow Zone 변경 이벤트를 대조하고 Player 전용 SFX 라우팅·동굴 음향 전환·사격음 재생을 통합했다.
+- 구현하거나 정리한 기능: `SinkPointSfx` AudioMixer에 `Master > SFX > Player` 경로와 `Entry`·`Cave` Snapshot, SFX Reverb·Compressor 체인을 추가했다. Player 루트의 발소리·사격 AudioSource를 `Player` 그룹으로 라우팅했고, 사격 소스는 `AutoGun_3p_01.wav`, Volume `0.7`, Play On Awake 해제로 구성했다. `PlayerCombatController`는 실제 `FireShot()` 확정 뒤 기존 직접 재생을 중지하고 새 사격음을 재생한다. `AudioEnvironmentController`는 `CurrentZoneChanged`를 구독해 Entry와 동굴 Zone 02~05 사이의 Snapshot 및 Player 리버브 레벨을 0.4초 동안 전환한다.
+- 해결한 문제: 발소리와 연사음을 한 Source에서 섞어 볼륨·재생을 간섭시키지 않고, 0.92초 사격 Clip이 0.15초 연사에서 직접 중첩되어 커지는 문제를 한 사격 보이스 재시작 방식으로 제한했다. 동굴 구역 전환도 플레이어 전투 코드에 Zone 조건을 넣지 않고 GameFlow 오디오 컨트롤러로 분리했다.
+- 사람이 직접 결정한 부분: Player 효과음만 공통 SFX에 먼저 연결하고, Entry는 건조하게 유지하며 Zone 02~05는 강한 동굴 울림으로 전환하도록 정했다. 초기 사격음은 `AutoGun_3p_01.wav`와 70% 볼륨을 선택했으며, 리버브·컴프레서 세부 청감 수치는 Mixer/Inspector에서 후속 조정한다.
+- 검증 결과: Unity 재컴파일은 오류 0건이었다. 새 Play Mode에서 Entry 리버브 레벨 `-10000`과 Zone 02 전환 뒤 강한 Cave 레벨 `+600`, 반사음 `0`, 감쇠 시간 `2.4초`를 확인했고, 사격 소스가 `AutoGun_3p_01`, Volume `0.7`으로 재생 상태가 되는 것을 확인했다. 새 Console Error는 0건이었다. 실제 연사 청감과 동굴 울림 강도는 사용자의 Play Mode 청감 확인이 남아 있다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-25 — AudioSystem Prefab 기반 환경음 구조 전환
+
+- Codex 사용처: 기존 `GameFlowManager` 부착 환경음 컨트롤러를 재사용 가능한 Prefab으로 분리하고, 공통 Mixer 정책과 씬별 참조의 소유 경계를 구현·검증했다.
+- 구현하거나 정리한 기능: `AudioSystem.prefab`에 Entry/Cave Snapshot, 전환 시간 `0.4`, Entry/Cave Reverb 목표값(`-10000`/`300`)을 가진 `AudioEnvironmentController`와 `AudioSystemSceneBindings`를 추가했다. 바인더는 `Awake`에서 해당 씬의 `GameFlowManager`와 Player `AudioReverbFilter`만 `Configure` API로 전달하고, 컨트롤러는 `Start` 이후 유효한 바인딩 하나에만 구독·초기 Zone 적용을 수행한다.
+- 해결한 문제: Prefab Asset 안에 씬 오브젝트 참조가 저장되는 문제를 막고, 재바인딩·비활성화 때 기존 Zone 이벤트를 정확히 해제해 중복 구독을 방지했다. 누락된 GameFlowManager, Snapshot 또는 Player Filter는 어떤 참조가 비었는지 오류로 남기고 AudioSystem만 비활성화한다.
+- 검증 결과: Unity 재컴파일은 오류 0건이었다. Prefab Asset의 바인더 두 참조가 비어 있고 Player 씬 인스턴스에만 대상 참조가 저장된 것을 확인했다. 새 Play Mode에서 Entry 초기값 `-10000`, `Zone02_Normal` 전환 뒤 `300`, Entry 복귀 뒤 `-10000`을 확인했고 AudioEnvironmentController는 하나뿐이며 새 Console Error는 없었다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings, Build Settings는 변경하지 않았다. 실제 발소리·사격음 청감과 Zone 03~05 실제 트리거 통과는 사용자 Play Mode 확인이 남아 있다.
+
+## 2026-08-25 — 플레이어 단일 탄창·수동 및 자동 리로드 구현
+
+- Codex 사용처: 기존 연사 확정 경로와 Upper Body Animator 구조를 대조해 최소 장탄 상태, 수동·자동 리로드와 자세별 애니메이션을 구현하고 검증하는 데 사용했다.
+- 구현하거나 정리한 기능: 기본 30발 단일 탄창에서 실제 발사마다 한 발을 소비하고, 일부 장탄에서는 `R` 수동 리로드, 0발에서는 자동 리로드를 시작한다. 리로드 중 사격을 차단하고 약 `3.67초` 뒤 30발로 충전한다. Animator에는 `Reload` Trigger와 `Standing Reload`·`Crouch Reload` State를 추가해 현재 자세에 맞는 상체 클립을 재생한다.
+- 해결한 문제: 탄약 아이템과 예비탄 시스템 없이도 재장전 입력과 연출이 실제 발사 상태에 연결되도록 했다. `PlayerCombatController`가 장탄·리로드 상태를 단독 소유하고 `PlayerAnimationController`는 시작 Trigger만 전달해 전투 규칙과 표현 책임을 분리했다.
+- 사람이 직접 결정한 부분: 탄약 아이템·예비 탄약 수량·HUD는 초기 리로드 범위에서 제외하고 예비탄은 무한으로 간주했다. 사용자가 Play Mode에서 장탄 감소, 수동·자동 리로드와 자세별 애니메이션이 정상 동작함을 확인해 완료로 결정했다.
+- 검증 결과: Unity 재컴파일은 오류 0건이었다. 자동 런타임 검증에서 시작 장탄 `30/30`, 마지막 발사 뒤 `0`과 자동 리로드 진입, 완료 뒤 `30` 복구, 서기·웅크리기 Animator 전환과 신규 Console Error 0건을 확인했다. 사용자가 실제 Play Mode 조작에서도 정상 동작을 확인했다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-25 — 플레이어 리로드 SFX 연결
+
+- Codex 사용처: 리로드 상태 소유 경로와 기존 Player SFX Mixer 구성을 대조해 수동·자동 리로드가 공통으로 사용하는 효과음 재생 경로를 추가했다.
+- 구현하거나 정리한 기능: `PlayerCombatController`에 리로드 전용 `AudioSource` 참조와 재생 함수를 추가하고, 실제 `StartReload()`이 성립할 때 `squarebun-m4a1-reload-sound-316890.mp3`를 한 번 재생하도록 연결했다. Player Prefab에는 사격·발소리와 간섭하지 않는 별도 Source를 추가해 `SinkPointSfx`의 Player 그룹으로 라우팅했으며 Play On Awake와 Loop는 끄고 오디오 데이터 사전 로드를 켰다. Controller 비활성화로 리로드가 취소되면 재생도 중지한다.
+- 검증 결과: `Assembly-CSharp.csproj` 빌드와 Unity 재컴파일은 오류 0건으로 통과했다. Unity가 MP3를 `Decompress On Load`로 임포트하고 Prefab 및 실제 Play Mode Player의 `reloadAudioSource` 참조, AudioClip, Player Mixer 그룹을 정상 해석했으며 새 Play Mode Console Error는 0건이었다. 수동·자동 리로드의 실제 애니메이션 대비 음향 타이밍과 볼륨 청감은 사용자 확인이 남아 있다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-25 — 플레이어 Muzzle Flash 및 게임플레이 Tracer 구성
+
+- Codex 사용처: XR Interaction Starter Kit의 Muzzle Flash 후보 구조와 기존 hitscan·LineRenderer 흐름을 대조해 Player Prefab 단일 슬롯, 런타임 재사용과 게임플레이 Tracer 표현을 구현·검증했다.
+- 구현하거나 정리한 기능: Player Prefab의 `Muzzle` 아래에 2배 스케일 `MuzzleVfxAnchor`를 추가하고 기본 `RifleFlash`를 등록했다. `PlayerCombatController`는 VFX를 한 번 생성해 ParticleSystem 5개를 재사용하고 XR 원본의 `DestroyAfterTime`은 런타임 복제본에서만 비활성화한다. 기존 Tracer는 기본 ON 상태와 `#FFB52E` 색으로 통일하고 표시 중 시작점이 현재 Anchor를 따라가게 했다.
+- 해결한 문제: 연사마다 VFX를 생성·파괴하지 않고 실제 발사와 Flash·Tracer를 같은 경로로 연결했다. XR 데모 Prefab의 `0.1초` 자동 파괴와 데모 루트 Transform을 Player 런타임에서 격리했으며, 작은 RifleFlash는 원본 수정 없이 Anchor 스케일로 확대했다.
+- 사람이 직접 결정한 부분: 사용자가 Play Mode에서 기본 발사 연동이 정상임을 확인하고 RifleFlash 2배 크기가 충분하다고 확정했다. 큰 상하 피치의 카메라–총구 근거리 시차는 단순 VFX 조정 범위를 넘어가므로 별도 방향성·Tracer 정책 계획으로 분리한 뒤 기존 계획을 완료 처리하도록 승인했다.
+- 검증 결과: Unity 재컴파일은 오류 0건이었다. 실제 `FireShot()` 호출에서 탄약 감소, Flash와 Tracer 활성화, 주황색 적용과 시간 종료 뒤 재사용 상태를 확인했고 새 Console Error는 없었다. Pistol·Rifle·TerraFormer 후보는 모두 ParticleSystem과 `DestroyAfterTime` 5개 구조로 공통 제어가 가능했다. `Original_GamePlayScene`, Collider, XR 원본 VFX, Packages, ProjectSettings와 Build Settings는 이번 작업에서 수정하지 않았다.

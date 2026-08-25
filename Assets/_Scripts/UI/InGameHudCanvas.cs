@@ -11,6 +11,8 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private Slider hpSlider;
     [SerializeField, Tooltip("현재 Zone에 남은 몬스터 수를 표시할 Text입니다. 비워두면 자식의 Monster Count Text를 찾습니다.")]
     private Text monsterCountText;
+    [SerializeField, Tooltip("현재 장탄 수를 표시할 Text입니다. 비워두면 자식의 Ammo Count Text를 찾습니다.")]
+    private Text ammoCountText;
     [SerializeField, Tooltip("주기 중력 변경 예고를 표시할 Text입니다. 비워두면 자식의 Gravity Warning Text를 찾습니다.")]
     private Text gravityWarningText;
     [SerializeField, Tooltip("비워두면 씬에서 PlayerHealth를 자동으로 찾습니다.")]
@@ -21,6 +23,8 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private MonsterManager monsterManager;
     [SerializeField, Tooltip("비워두면 씬의 GravityManager를 자동으로 찾습니다.")]
     private GravityManager gravityManager;
+    [SerializeField, Tooltip("비워두면 씬에서 PlayerCombatController를 자동으로 찾습니다.")]
+    private PlayerCombatController playerCombatController;
 
     [Header("Runtime Binding")]
     [SerializeField, Tooltip("씬에 따로 배치된 HUD가 플레이어/매니저를 런타임에 자동으로 찾게 합니다.")]
@@ -39,10 +43,13 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private int totalMonsterCount;
 
     private PlayerHealth boundPlayerHealth;
+    private PlayerCombatController boundPlayerCombatController;
     private Coroutine bindRoutine;
     private Tween hpTween;
     private int displayedCurrentHp = -1;
     private int displayedMaxHp = -1;
+    private int displayedCurrentRounds = -1;
+    private int displayedMagazineCapacity = -1;
 
     private void Awake()
     {
@@ -159,6 +166,26 @@ public sealed class InGameHudCanvas : MonoBehaviour
         }
     }
 
+    public void SetAmmoCount(int currentRounds, int magazineCapacity)
+    {
+        if (ammoCountText == null)
+        {
+            return;
+        }
+
+        int safeCapacity = Mathf.Max(1, magazineCapacity);
+        int safeCurrentRounds = Mathf.Clamp(currentRounds, 0, safeCapacity);
+        if (displayedCurrentRounds == safeCurrentRounds
+            && displayedMagazineCapacity == safeCapacity)
+        {
+            return;
+        }
+
+        displayedCurrentRounds = safeCurrentRounds;
+        displayedMagazineCapacity = safeCapacity;
+        ammoCountText.text = $"AMMO {safeCurrentRounds} / {safeCapacity}";
+    }
+
     private void ResolveReferences()
     {
         if (hpSlider == null)
@@ -170,6 +197,11 @@ public sealed class InGameHudCanvas : MonoBehaviour
         if (monsterCountText == null)
         {
             monsterCountText = FindTextByName("Monster Count Text");
+        }
+
+        if (ammoCountText == null)
+        {
+            ammoCountText = FindTextByName("Ammo Count Text");
         }
 
         if (gravityWarningText == null)
@@ -188,8 +220,10 @@ public sealed class InGameHudCanvas : MonoBehaviour
             : FindFirstObjectByType<GameFlowManager>();
         monsterManager ??= FindFirstObjectByType<MonsterManager>();
         gravityManager ??= FindFirstObjectByType<GravityManager>();
+        playerCombatController ??= FindFirstObjectByType<PlayerCombatController>();
 
         BindPlayerHealth(playerHealth);
+        BindPlayerCombatController(playerCombatController);
         BindGameFlowManager(gameFlowManager);
         BindMonsterManager(monsterManager);
         BindGravityManager(gravityManager);
@@ -201,6 +235,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
         while (enabled)
         {
             if (boundPlayerHealth == null
+                || boundPlayerCombatController == null
                 || gameFlowManager == null
                 || monsterManager == null
                 || gravityManager == null)
@@ -211,6 +246,29 @@ public sealed class InGameHudCanvas : MonoBehaviour
             RefreshAll();
             yield return wait;
         }
+    }
+
+    private void BindPlayerCombatController(PlayerCombatController controller)
+    {
+        if (boundPlayerCombatController == controller)
+        {
+            RefreshAmmoCount();
+            return;
+        }
+
+        if (boundPlayerCombatController != null)
+        {
+            boundPlayerCombatController.MagazineChanged -= OnMagazineChanged;
+        }
+
+        boundPlayerCombatController = controller;
+        if (boundPlayerCombatController != null)
+        {
+            boundPlayerCombatController.MagazineChanged -= OnMagazineChanged;
+            boundPlayerCombatController.MagazineChanged += OnMagazineChanged;
+        }
+
+        RefreshAmmoCount();
     }
 
     private void BindGameFlowManager(GameFlowManager manager)
@@ -264,6 +322,19 @@ public sealed class InGameHudCanvas : MonoBehaviour
     {
         RefreshHp();
         RefreshMonsterCount();
+        RefreshAmmoCount();
+    }
+
+    private void RefreshAmmoCount()
+    {
+        if (boundPlayerCombatController == null)
+        {
+            return;
+        }
+
+        SetAmmoCount(
+            boundPlayerCombatController.CurrentRounds,
+            boundPlayerCombatController.MagazineCapacity);
     }
 
     private void Update()
@@ -320,6 +391,12 @@ public sealed class InGameHudCanvas : MonoBehaviour
     {
         UnbindPlayerHealth();
 
+        if (boundPlayerCombatController != null)
+        {
+            boundPlayerCombatController.MagazineChanged -= OnMagazineChanged;
+            boundPlayerCombatController = null;
+        }
+
         if (gameFlowManager != null)
         {
             gameFlowManager.CurrentZoneChanged -= OnCurrentZoneChanged;
@@ -349,6 +426,11 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private void OnPlayerRestored(PlayerHealth playerHealth)
     {
         SetHp(playerHealth.CurrentHealth, playerHealth.MaxHealth, true);
+    }
+
+    private void OnMagazineChanged(int currentRounds, int magazineCapacity)
+    {
+        SetAmmoCount(currentRounds, magazineCapacity);
     }
 
     private void KillHpTween()
@@ -457,19 +539,23 @@ public sealed class InGameHudCanvas : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    public void EditorConfigure(Text hpLabel, Text monsterCountLabel)
+    public void EditorConfigure(Text hpLabel, Text monsterCountLabel, Text ammoLabel = null)
     {
         monsterCountText = monsterCountLabel;
+        ammoCountText = ammoLabel;
         SetHp(3, 3);
         SetRemainingMonsterCount(0);
+        SetAmmoCount(30, 30);
     }
 
-    public void EditorConfigure(Slider slider, Text monsterCountLabel)
+    public void EditorConfigure(Slider slider, Text monsterCountLabel, Text ammoLabel = null)
     {
         hpSlider = slider;
         monsterCountText = monsterCountLabel;
+        ammoCountText = ammoLabel;
         SetHp(3, 3);
         SetRemainingMonsterCount(0);
+        SetAmmoCount(30, 30);
     }
 #endif
 }

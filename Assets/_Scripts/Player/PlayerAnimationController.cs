@@ -14,6 +14,7 @@ public sealed class PlayerAnimationController : MonoBehaviour
     private static readonly int IsSprintingHash = Animator.StringToHash("IsSprinting");
     private static readonly int IsCrouchingHash = Animator.StringToHash("IsCrouching");
     private static readonly int IsFiringHash = Animator.StringToHash("IsFiring");
+    private static readonly int ReloadHash = Animator.StringToHash("Reload");
     private static readonly int AimPitchHash = Animator.StringToHash("AimPitch");
 
     [Header("References")]
@@ -78,6 +79,10 @@ public sealed class PlayerAnimationController : MonoBehaviour
     {
         animator.SetBool(IsFiringHash, combatController.IsFiring);
         animator.SetFloat(AimPitchHash, combatController.AimPitchDegrees);
+        if (combatController.ReloadStartedThisFrame)
+        {
+            animator.SetTrigger(ReloadHash);
+        }
 
         ApplyAimPitch(combatController.AimPitchDegrees);
     }
