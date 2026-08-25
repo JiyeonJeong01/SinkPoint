@@ -839,6 +839,11 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 2806830948798205132, guid: 91462f81fa9fd844f80c3fe4b5b8c01f, type: 3}
   m_PrefabInstance: {fileID: 1970328901}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &40761913 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3856345451946220918, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
+  m_PrefabInstance: {fileID: 1940363096}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &45163999 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 100000, guid: 982743185faa144d99c0f2195d2dcbe1, type: 3}
@@ -14726,7 +14731,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &834368758
 GameObject:
-  m_ObjectHideFlags: 0
+  m_ObjectHideFlags: 8
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
@@ -14743,7 +14748,7 @@ GameObject:
   m_IsActive: 1
 --- !u!4 &834368759
 Transform:
-  m_ObjectHideFlags: 0
+  m_ObjectHideFlags: 8
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
@@ -14799,7 +14804,7 @@ Transform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &834368760
 MonoBehaviour:
-  m_ObjectHideFlags: 0
+  m_ObjectHideFlags: 8
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
@@ -18139,7 +18144,8 @@ MonoBehaviour:
     monsters:
     - {fileID: 304197824}
   - zoneId: 4
-    monsters: []
+    monsters:
+    - {fileID: 1940363105}
   includeUnassignedSceneMonsters: 1
   additionalMonsters:
   - {fileID: 0}
@@ -35507,6 +35513,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Monster_05_Aeropod_v1
       objectReference: {fileID: 0}
+    - target: {fileID: 3856345451946220918, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3856345451946377494, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
       propertyPath: m_LocalScale.x
       value: 0.8
@@ -35569,7 +35579,25 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3856345452346292058, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1184352556}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3856345451946220918, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1940363105}
+    - targetCorrespondingSourceObject: {fileID: 3856345451946220918, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1940363104}
+    - targetCorrespondingSourceObject: {fileID: 3856345451946220918, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1940363103}
+    - targetCorrespondingSourceObject: {fileID: 3856345451946220918, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1940363102}
+    - targetCorrespondingSourceObject: {fileID: 3856345451946220918, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1940363101}
+    - targetCorrespondingSourceObject: {fileID: 3856345451946220918, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1940363100}
   m_SourcePrefab: {fileID: 100100000, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
 --- !u!4 &1940363097 stripped
 Transform:
@@ -35581,6 +35609,144 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3856345452346292058, guid: 9e57038cf53657842a4dec97916f6d38, type: 3}
   m_PrefabInstance: {fileID: 1940363096}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1940363100
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 40761913}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a091d0239252364b9ee6d005a6a3832, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AerialProjectileAttack
+  firePoint: {fileID: 1940363098}
+  projectilePrefab: {fileID: 2529823556683536439, guid: 698683b70fdbfe4459a200422127ac13, type: 3}
+  targetSensor: {fileID: 1940363103}
+  stateMachine: {fileID: 1940363102}
+  monsterHealth: {fileID: 1940363104}
+  ownerRoot: {fileID: 1940363097}
+  attackInterval: 2.5
+  faceTargetDuration: 0.15
+  lineShotInterval: 0.12
+  fanAngle: 14
+  alternatePatterns: 1
+  projectileSpeed: 12
+  projectileLifetime: 6
+  projectileDamage: 1
+  targetAimHeight: 0.8
+  attackDebugStatus: 0
+  cooldownRemaining: 0
+  lastPattern: 0
+--- !u!114 &1940363101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 40761913}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abda4366194979c44bb36339e523f658, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AerialFreeFlightMover
+  navTarget: {fileID: 1940363098}
+  flightCenter: {fileID: 0}
+  stateMachine: {fileID: 1940363102}
+  monsterHealth: {fileID: 1940363104}
+  moveSpeed: 5
+  rotationSpeed: 360
+  maxTurnSpeed: 90
+  roamRadius: 12
+  minimumDestinationDistance: 6
+  forwardDestinationBias: 8
+  destinationReachDistance: 1
+  repickDestinationSeconds: 4
+  verticalRoamRange: 5
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 2048
+  obstacleProbeRadius: 0.7
+  obstacleProbeDistance: 2.5
+  avoidanceSideStep: 2
+  flightDebugStatus: 0
+  currentDestination: {x: 0, y: 0, z: 0}
+  isForwardBlocked: 0
+  drawDebugGizmos: 1
+--- !u!114 &1940363102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 40761913}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 139842ef3ec34ec4da650a87bdacb950, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterStateMachine
+  distanceOrigin: {fileID: 1940363098}
+  attackRange: 1.5
+  initialState: 1
+  logStateChanges: 0
+  currentState: 0
+  targetDistance: -1
+  isTargetInAttackRange: 0
+  debugDistanceTarget: {fileID: 0}
+--- !u!114 &1940363103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 40761913}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10b3010ad754bcf4da476153d81dfb6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterTargetSensor
+  sensingOrigin: {fileID: 1940363098}
+  explicitTarget: {fileID: 0}
+  detectionRadius: 12
+  loseRadius: 16
+  playerTag: Player
+  aggroOnDamaged: 1
+  damagedAggroSeconds: 1.5
+--- !u!114 &1940363104
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 40761913}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70b34ed5df3948748b26c0d5eb91372d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterHealth
+  maxHealth: 3
+  destroyOnDeath: 0
+  currentHealth: 0
+  dead: 0
+--- !u!114 &1940363105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 40761913}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7d189d3fcc462f438ea6b15b18c6cce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Monster
+  zoneId: 4
+  health: {fileID: 1940363104}
+  resetTransforms:
+  - {fileID: 1940363097}
+  - {fileID: 1940363098}
+  dead: 0
 --- !u!1 &1940696224 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5262089558922964036, guid: 0830ae84a91344e429a572f577412652, type: 3}

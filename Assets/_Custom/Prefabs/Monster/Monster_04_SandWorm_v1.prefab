@@ -1414,6 +1414,8 @@ MonoBehaviour:
   navTarget: {fileID: 1291143802675521835}
   targetSensor: {fileID: 9201385391996888922}
   gravityState: {fileID: 0}
+  stateMachine: {fileID: 0}
+  monsterHealth: {fileID: 0}
   movementBehaviours:
   - {fileID: 4110329909167601802}
   attackInterval: 4
@@ -1429,6 +1431,7 @@ MonoBehaviour:
   emergeStartDepth: 1.8
   minimumFullBodyEmergeDepth: 6
   emergeSurfaceOffset: 0.35
+  minimumEmergeSurfaceOffset: 1.2
   emergeSideOffset: 0.8
   groundMask:
     serializedVersion: 2
@@ -3400,7 +3403,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 180
+      value: 302.87
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_SizeDelta.y
@@ -3440,7 +3443,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 4.08
+      value: 2.5
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x

@@ -32,9 +32,17 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
     [SerializeField, Min(0f), Tooltip("공중 이동 속도입니다.")]
     private float moveSpeed = 5f;
     [SerializeField, Min(0f), Tooltip("진행 방향을 바라보는 회전 속도입니다.")]
-    private float rotationSpeed = 240f;
+    private float rotationSpeed = 70f;
+    [SerializeField, Min(0f), Tooltip("Inspector 회전 속도가 높아도 실제 꺾임이 이 값보다 빠르지 않게 제한합니다.")]
+    private float maxTurnSpeed = 70f;
+    [SerializeField, Min(0f), Tooltip("실제 이동 방향이 새 목적지 방향으로 초당 얼마나 꺾일 수 있는지 제한합니다.")]
+    private float movementTurnSpeed = 55f;
     [SerializeField, Min(0f), Tooltip("배회 중심에서 이 반경 안의 목적지를 고릅니다.")]
     private float roamRadius = 12f;
+    [SerializeField, Min(0f), Tooltip("새 목적지를 현재 위치에서 최소 이 거리 이상 떨어지게 잡아 잦은 꺾임을 줄입니다.")]
+    private float minimumDestinationDistance = 6f;
+    [SerializeField, Min(0f), Tooltip("새 목적지를 현재 전방 쪽으로 밀어주는 거리입니다. 클수록 가오리가 부드럽게 직진합니다.")]
+    private float forwardDestinationBias = 8f;
     [SerializeField, Min(0f), Tooltip("목적지에 이 거리만큼 가까워지면 다음 목적지를 고릅니다.")]
     private float destinationReachDistance = 1f;
     [SerializeField, Min(0f), Tooltip("목적지에 도착하지 않아도 이 시간이 지나면 새 목적지를 고릅니다.")]
@@ -68,6 +76,7 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
     private float nextDestinationPickTime;
     private Vector3 lastProbeOrigin;
     private Vector3 lastProbeDirection = Vector3.forward;
+    private Vector3 currentMoveDirection = Vector3.forward;
 
     private Vector3 CenterPosition => flightCenter != null ? flightCenter.position : initialCenterPosition;
 
@@ -111,6 +120,7 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         if (navTarget != null)
         {
             navTarget.SetPositionAndRotation(initialNavTargetPosition, initialNavTargetRotation);
+            currentMoveDirection = navTarget.forward;
         }
 
         flightDebugStatus = FlightDebugStatus.Ready;
@@ -150,6 +160,7 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         {
             initialNavTargetPosition = navTarget.position;
             initialNavTargetRotation = navTarget.rotation;
+            currentMoveDirection = navTarget.forward;
         }
 
         initialCenterPosition = flightCenter != null ? flightCenter.position : transform.position;
@@ -171,7 +182,8 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         }
 
         desiredDirection.Normalize();
-        Vector3 moveDirection = GetObstacleAwareDirection(desiredDirection);
+        Vector3 steerDirection = GetSmoothedMoveDirection(desiredDirection, deltaTime);
+        Vector3 moveDirection = GetObstacleAwareDirection(steerDirection, deltaTime);
 
         navTarget.position += moveDirection * moveSpeed * deltaTime;
         RotateToward(moveDirection, deltaTime);
@@ -181,11 +193,27 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
     /// <summary>
     /// 전방 SphereCast가 막히면 오른쪽/왼쪽/위쪽 후보를 순서대로 검사해서 가능한 방향으로 틀어줍니다.
     /// </summary>
-    private Vector3 GetObstacleAwareDirection(Vector3 desiredDirection)
+    private Vector3 GetSmoothedMoveDirection(Vector3 desiredDirection, float deltaTime)
+    {
+        if (currentMoveDirection.sqrMagnitude < 0.0001f)
+        {
+            currentMoveDirection = navTarget != null ? navTarget.forward : desiredDirection;
+        }
+
+        currentMoveDirection = Vector3.RotateTowards(
+            currentMoveDirection.normalized,
+            desiredDirection,
+            movementTurnSpeed * Mathf.Deg2Rad * deltaTime,
+            0f).normalized;
+        return currentMoveDirection;
+    }
+
+    private Vector3 GetObstacleAwareDirection(Vector3 desiredDirection, float deltaTime)
     {
         isForwardBlocked = IsBlocked(desiredDirection);
         if (!isForwardBlocked)
         {
+            currentMoveDirection = desiredDirection;
             return desiredDirection;
         }
 
@@ -208,11 +236,21 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         {
             if (!IsBlocked(candidates[i]))
             {
-                return candidates[i];
+                currentMoveDirection = Vector3.RotateTowards(
+                    currentMoveDirection.normalized,
+                    candidates[i],
+                    movementTurnSpeed * Mathf.Deg2Rad * deltaTime,
+                    0f).normalized;
+                return currentMoveDirection;
             }
         }
 
-        return -desiredDirection;
+        currentMoveDirection = Vector3.RotateTowards(
+            currentMoveDirection.normalized,
+            -desiredDirection,
+            movementTurnSpeed * Mathf.Deg2Rad * deltaTime,
+            0f).normalized;
+        return currentMoveDirection;
     }
 
     private bool IsBlocked(Vector3 direction)
@@ -246,7 +284,7 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         navTarget.rotation = Quaternion.RotateTowards(
             navTarget.rotation,
             targetRotation,
-            rotationSpeed * deltaTime);
+            GetEffectiveTurnSpeed() * deltaTime);
     }
 
     private void PickNewDestination()
@@ -256,11 +294,31 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
             return;
         }
 
+        Vector3 forward = navTarget.forward.sqrMagnitude > 0.0001f ? navTarget.forward.normalized : transform.forward;
         Vector2 flat = Random.insideUnitCircle * roamRadius;
         float height = Random.Range(-verticalRoamRange, verticalRoamRange);
-        currentDestination = CenterPosition + new Vector3(flat.x, height, flat.y);
+        currentDestination = CenterPosition
+            + forward * forwardDestinationBias
+            + new Vector3(flat.x, height, flat.y);
+
+        Vector3 toDestination = currentDestination - navTarget.position;
+        if (toDestination.magnitude < minimumDestinationDistance && toDestination.sqrMagnitude > 0.0001f)
+        {
+            currentDestination = navTarget.position + toDestination.normalized * minimumDestinationDistance;
+        }
+
         nextDestinationPickTime = Time.time + repickDestinationSeconds;
         flightDebugStatus = FlightDebugStatus.PickingDestination;
+    }
+
+    private float GetEffectiveTurnSpeed()
+    {
+        if (maxTurnSpeed <= 0f)
+        {
+            return rotationSpeed;
+        }
+
+        return Mathf.Min(rotationSpeed, maxTurnSpeed);
     }
 
     private bool IsDead()
@@ -316,7 +374,11 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
     {
         moveSpeed = Mathf.Max(0f, moveSpeed);
         rotationSpeed = Mathf.Max(0f, rotationSpeed);
+        maxTurnSpeed = Mathf.Max(0f, maxTurnSpeed);
+        movementTurnSpeed = Mathf.Max(0f, movementTurnSpeed);
         roamRadius = Mathf.Max(0f, roamRadius);
+        minimumDestinationDistance = Mathf.Max(0f, minimumDestinationDistance);
+        forwardDestinationBias = Mathf.Max(0f, forwardDestinationBias);
         destinationReachDistance = Mathf.Max(0f, destinationReachDistance);
         repickDestinationSeconds = Mathf.Max(0f, repickDestinationSeconds);
         verticalRoamRange = Mathf.Max(0f, verticalRoamRange);
