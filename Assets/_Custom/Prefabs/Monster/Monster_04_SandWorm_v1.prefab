@@ -3858,7 +3858,7 @@ PrefabInstance:
     - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: followTarget
       value: 
-      objectReference: {fileID: 1291143802675521835}
+      objectReference: {fileID: 6229789638664147642}
     - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: worldOffset.y
       value: 2.5

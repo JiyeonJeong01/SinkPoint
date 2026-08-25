@@ -350,18 +350,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 1987638941038348810}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 7611854087589987575}
   totalLegs:
@@ -373,10 +373,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &1672351343231365766
 GameObject:
@@ -619,18 +619,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 7658586898950625620}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 3745307482084040826}
   totalLegs:
@@ -642,10 +642,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &2115497037815441416
 GameObject:
@@ -1185,7 +1185,7 @@ MonoBehaviour:
   sprayDuration: 0.2
   sprayNearRoutePauseEnd: 1
   sprayBeforeRouteResumeSeconds: 0.3
-  sprayHitChance: 0.33
+  sprayHitChance: 0.7
   sprayDamage: 1
   faceTargetDuration: 0.08
   scaleStreamZ: 1
@@ -2075,18 +2075,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 4914006925675118378}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 3521655141802630881}
   totalLegs:
@@ -2098,10 +2098,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &4446706015448724238
 GameObject:
@@ -2515,18 +2515,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 2521217065581385482}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 1489465120462683149}
   totalLegs:
@@ -2538,10 +2538,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &5561165096230392416
 GameObject:
@@ -2633,6 +2633,7 @@ Transform:
   - {fileID: 7993279100484756251}
   - {fileID: 7201313690263599547}
   - {fileID: 7514217818436487696}
+  - {fileID: 7032290560675596783}
   m_Father: {fileID: 5365594068688003661}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &199010686094320415
@@ -2736,12 +2737,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5791455944168183228}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.64, z: -5.77}
-  m_LocalScale: {x: 6.2739253, y: 5.6914544, z: 8.1841}
+  m_LocalRotation: {x: 0.000000075497894, y: -1, z: -0.000000037748958, w: 0.000000075497894}
+  m_LocalPosition: {x: 0, y: 0.63999903, z: 1.7700027}
+  m_LocalScale: {x: 6.273923, y: 5.691452, z: 8.184097}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7652034834805705567}
+  m_Father: {fileID: 6473314296490056777}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &8284458962275396904
 BoxCollider:
@@ -2832,18 +2833,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 6219144637088719386}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 6135518194110728331}
   totalLegs:
@@ -2855,10 +2856,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &6113686166584165304
 GameObject:
@@ -2987,7 +2988,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8432794431491316702}
-  - {fileID: 7032290560675596783}
   m_Father: {fileID: 7988672357365409555}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!135 &3311673760947572882
@@ -3219,18 +3219,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 6779549687711734154}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 9212896780929322471}
   totalLegs:
@@ -3242,10 +3242,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &7343748950122978835
 GameObject:
@@ -3471,18 +3471,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 3483129911142830410}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 3127
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 5673931140947645962}
   totalLegs:
@@ -3494,10 +3494,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &8082481518579952745
 GameObject:
@@ -3598,18 +3598,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 5108304003553363681}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 239362930076011505}
   totalLegs:
@@ -3621,10 +3621,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &8332399033802849441
 GameObject:
@@ -3771,7 +3771,7 @@ PrefabInstance:
     - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: followTarget
       value: 
-      objectReference: {fileID: 7652034834805705567}
+      objectReference: {fileID: 6473314296490056777}
     - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: worldOffset.y
       value: 3

@@ -222,7 +222,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameFlowManager
   gravityEventTriggers: []
+  gravityManager: {fileID: 0}
   respawnController: {fileID: 2811323174104526671}
+  playerHealth: {fileID: 0}
+  playerInput: {fileID: 0}
+  inGameHudCanvas: {fileID: 0}
+  monsterManager: {fileID: 0}
+  zoneRespawnPoints:
+  - zoneId: 0
+    respawnPoint: {fileID: 376091717753018899}
+  - zoneId: 1
+    respawnPoint: {fileID: 4695240532907634775}
+  - zoneId: 2
+    respawnPoint: {fileID: 841233675553655736}
+  - zoneId: 3
+    respawnPoint: {fileID: 4535262793543664662}
+  - zoneId: 4
+    respawnPoint: {fileID: 4724274536600438138}
   stateRespawnPoints:
   - state: 0
     respawnPoint: {fileID: 376091717753018899}
@@ -234,7 +250,13 @@ MonoBehaviour:
     respawnPoint: {fileID: 4535262793543664662}
   - state: 6
     respawnPoint: {fileID: 4724274536600438138}
+  deathFadeInSeconds: 1
+  respawnBlackHoldSeconds: 1
+  deathFadeOutSeconds: 1
+  initialZone: 0
+  zones: []
   currentState: 0
+  currentZone: 0
   showDebugLog: 1
 --- !u!1 &8480616524795642793
 GameObject:

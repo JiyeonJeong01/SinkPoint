@@ -94,7 +94,7 @@ public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMo
     [SerializeField, Min(0f), Tooltip("RoutePause 종료 몇 초 전부터 독 분사를 허용할지 정합니다. 값이 작을수록 더 늦게 쏩니다.")]
     private float sprayBeforeRouteResumeSeconds = 0.3f;
     [SerializeField, Range(0f, 1f), Tooltip("독 분사가 실제 피해를 줄 확률입니다.")]
-    private float sprayHitChance = 0.33f;
+    private float sprayHitChance = 0.7f;
     [SerializeField, Min(0)] private int sprayDamage = 1;
     [SerializeField, Min(0f), Tooltip("독 분사 시작 전 플레이어를 바라보는 준비 시간입니다.")]
     private float faceTargetDuration = 0.08f;

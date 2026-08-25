@@ -17,6 +17,8 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private Text gravityWarningText;
     [SerializeField, Tooltip("플레이어 피격 시 짧게 표시할 Image입니다. 비워두면 자식의 Hurt를 찾습니다.")]
     private Image hurtImage;
+    [SerializeField, Tooltip("사망/리스폰 전환 때 화면을 덮을 검은 Fade Image입니다. 비워두면 자식의 Fade를 찾습니다.")]
+    private Image fadeImage;
     [SerializeField, Tooltip("비워두면 씬에서 PlayerHealth를 자동으로 찾습니다.")]
     private PlayerHealth playerHealth;
     [SerializeField, Tooltip("비워두면 씬의 GameFlowManager를 자동으로 찾습니다.")]
@@ -55,6 +57,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private Coroutine bindRoutine;
     private Tween hpTween;
     private Tween hurtTween;
+    private Tween fadeTween;
     private int displayedCurrentHp = -1;
     private int displayedMaxHp = -1;
     private int displayedCurrentRounds = -1;
@@ -64,6 +67,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
     {
         ResolveReferences();
         SetHurtAlpha(0f);
+        SetFadeAlpha(0f);
     }
 
     private void OnEnable()
@@ -89,6 +93,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
         UnbindRuntimeReferences();
         KillHpTween();
         KillHurtTween();
+        KillFadeTween();
         SetHurtAlpha(0f);
         SetGravityWarningVisible(false);
     }
@@ -195,7 +200,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         displayedCurrentRounds = safeCurrentRounds;
         displayedMagazineCapacity = safeCapacity;
-        ammoCountText.text = $"AMMO {safeCurrentRounds} / {safeCapacity}";
+        ammoCountText.text = $"{safeCurrentRounds} / {safeCapacity}";
     }
 
     private void ResolveReferences()
@@ -224,6 +229,11 @@ public sealed class InGameHudCanvas : MonoBehaviour
         if (hurtImage == null)
         {
             hurtImage = FindImageByName("Hurt");
+        }
+
+        if (fadeImage == null)
+        {
+            fadeImage = FindImageByName("Fade");
         }
     }
 
@@ -520,6 +530,67 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         hurtTween.Kill();
         hurtTween = null;
+    }
+
+    /// <summary>
+    /// 플레이어 사망 리스폰 중 화면을 지정한 알파까지 페이드합니다.
+    /// Time.timeScale 변경 중에도 동작하도록 unscaled time으로 재생합니다.
+    /// </summary>
+    public IEnumerator FadeScreenRoutine(float targetAlpha, float duration)
+    {
+        ResolveReferences();
+        if (fadeImage == null)
+        {
+            yield break;
+        }
+
+        KillFadeTween();
+        fadeImage.gameObject.SetActive(true);
+
+        if (duration <= 0f)
+        {
+            SetFadeAlpha(targetAlpha);
+            yield break;
+        }
+
+        fadeTween = fadeImage
+            .DOFade(Mathf.Clamp01(targetAlpha), duration)
+            .SetEase(Ease.InOutSine)
+            .SetUpdate(true)
+            .SetTarget(this);
+
+        yield return fadeTween.WaitForCompletion();
+        fadeTween = null;
+
+        if (targetAlpha <= 0f)
+        {
+            SetFadeAlpha(0f);
+        }
+    }
+
+    public void SetFadeAlpha(float alpha)
+    {
+        ResolveReferences();
+        if (fadeImage == null)
+        {
+            return;
+        }
+
+        Color color = fadeImage.color;
+        color.a = Mathf.Clamp01(alpha);
+        fadeImage.color = color;
+        fadeImage.gameObject.SetActive(color.a > 0f);
+    }
+
+    private void KillFadeTween()
+    {
+        if (fadeTween == null)
+        {
+            return;
+        }
+
+        fadeTween.Kill();
+        fadeTween = null;
     }
 
     private void OnCurrentZoneChanged(ZoneId zoneId)

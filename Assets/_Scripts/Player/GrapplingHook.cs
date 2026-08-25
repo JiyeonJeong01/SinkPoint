@@ -40,6 +40,10 @@ public sealed class GrapplingHook : MonoBehaviour
     [SerializeField, Min(0f)] private float maxPullDuration = 3f;
     [SerializeField] private LayerMask grappleSurfaceMask;
 
+    [Header("Debug")]
+    [SerializeField] private bool logGrappleFailures = true;
+    [SerializeField, TextArea] private string lastGrappleDebug;
+
     [Header("Runtime State")]
     [SerializeField] private GrappleState grappleState;
     [SerializeField] private bool lastLaunchHadValidAnchor;
@@ -52,9 +56,11 @@ public sealed class GrapplingHook : MonoBehaviour
     [SerializeField] private GrappleEndReason lastEndReason;
 
     private readonly RaycastHit[] raycastHits = new RaycastHit[16];
+    private const float MuzzlePathEndpointTolerance = 0.05f;
     private Vector3 launchOrigin;
     private Vector3 launchEndpoint;
     private double launchStartedAt;
+    private string launchTargetDebug;
 
     internal bool IsBusy => grappleState != GrappleState.Idle;
 
@@ -115,18 +121,21 @@ public sealed class GrapplingHook : MonoBehaviour
 
         if (!input.GrappleHeld)
         {
+            launchTargetDebug = "Right mouse button is no longer held.";
             EndGrapple(input.AllowGrapple ? GrappleEndReason.Release : GrappleEndReason.InputBlocked);
             return;
         }
 
         if (playerHealth.IsDead)
         {
+            launchTargetDebug = "PlayerHealth reports dead.";
             EndGrapple(GrappleEndReason.Died);
             return;
         }
 
         if (playerController.IsGravityTransitioning)
         {
+            launchTargetDebug = "PlayerController is in gravity transition.";
             EndGrapple(GrappleEndReason.GravityTransition);
             return;
         }
@@ -175,12 +184,14 @@ public sealed class GrapplingHook : MonoBehaviour
 
         if (targetCollider == null || !targetCollider.gameObject.activeInHierarchy)
         {
+            launchTargetDebug = $"Stored target became invalid before pull. target={FormatCollider(targetCollider)}";
             EndGrapple(GrappleEndReason.TargetInvalid);
             return;
         }
 
         if (!playerController.TryBeginGrapplePull(anchorPoint, surfaceNormal))
         {
+            launchTargetDebug = $"PlayerController rejected pull. anchor={anchorPoint}, normal={surfaceNormal}";
             EndGrapple(GrappleEndReason.GravityTransition);
             return;
         }
@@ -193,6 +204,7 @@ public sealed class GrapplingHook : MonoBehaviour
     {
         if (targetCollider == null || !targetCollider.gameObject.activeInHierarchy)
         {
+            launchTargetDebug = $"Stored target became invalid during pull. target={FormatCollider(targetCollider)}";
             EndGrapple(GrappleEndReason.TargetInvalid);
             return;
         }
@@ -201,6 +213,7 @@ public sealed class GrapplingHook : MonoBehaviour
         SetLinePositions(muzzle.position, anchorPoint);
         if (pullElapsed >= maxPullDuration)
         {
+            launchTargetDebug = $"Pull exceeded max duration. elapsed={pullElapsed:0.###}, max={maxPullDuration:0.###}";
             EndGrapple(GrappleEndReason.Timeout);
             return;
         }
@@ -221,9 +234,12 @@ public sealed class GrapplingHook : MonoBehaviour
     {
         Ray centerRay = aimCamera.CreateCenterRay();
         Vector3 aimPoint = centerRay.origin + centerRay.direction * maxGrappleRange;
-        if (TryGetNearestNonPlayerHit(centerRay.origin, centerRay.direction, maxGrappleRange, out RaycastHit centerHit))
+        string centerHitDebug = "centerRayHit=None";
+        bool hasCenterHit = TryGetNearestNonPlayerHit(centerRay.origin, centerRay.direction, maxGrappleRange, out RaycastHit centerHit);
+        if (hasCenterHit)
         {
             aimPoint = centerHit.point;
+            centerHitDebug = $"centerRayHit={FormatHit(centerHit)}";
         }
 
         Vector3 toAimPoint = aimPoint - origin;
@@ -234,9 +250,28 @@ public sealed class GrapplingHook : MonoBehaviour
         hitPoint = endpoint;
         hitNormal = Vector3.zero;
         isValidAnchor = false;
+        launchTargetDebug =
+            $"{centerHitDebug}, muzzleOrigin={origin}, muzzleDirection={direction}, muzzleDistance={distance:0.###}";
+
+        if (hasCenterHit && IsValidAnchor(centerHit.collider))
+        {
+            if (IsMuzzlePathClearToCenterHit(origin, centerHit, out RaycastHit blockingHit))
+            {
+                endpoint = centerHit.point;
+                hitCollider = centerHit.collider;
+                hitPoint = centerHit.point;
+                hitNormal = centerHit.normal;
+                isValidAnchor = true;
+                launchTargetDebug += ", cameraAnchorAccepted=True";
+                return;
+            }
+
+            launchTargetDebug += $", cameraAnchorBlockedBy={FormatHit(blockingHit)}";
+        }
 
         if (!TryGetNearestNonPlayerHit(origin, direction, distance, out RaycastHit muzzleHit))
         {
+            launchTargetDebug += ", muzzleRayHit=None";
             return;
         }
 
@@ -245,6 +280,39 @@ public sealed class GrapplingHook : MonoBehaviour
         hitPoint = muzzleHit.point;
         hitNormal = muzzleHit.normal;
         isValidAnchor = IsValidAnchor(muzzleHit.collider);
+        launchTargetDebug +=
+            $", muzzleRayHit={FormatHit(muzzleHit)}, validAnchor={isValidAnchor}, invalidReason={GetInvalidAnchorReason(muzzleHit.collider)}";
+    }
+
+    /// <summary>
+    /// 카메라 조준점은 유효하되 손/총구에서 그 지점까지 다른 벽이 끼어 있는지만 확인합니다.
+    /// Muzzle Ray가 같은 표면을 정확히 다시 맞추지 못해도, 중간 차단물이 없으면 그래플을 허용합니다.
+    /// </summary>
+    private bool IsMuzzlePathClearToCenterHit(Vector3 origin, RaycastHit centerHit, out RaycastHit blockingHit)
+    {
+        Vector3 toAnchor = centerHit.point - origin;
+        float distance = toAnchor.magnitude;
+        if (distance <= Mathf.Epsilon)
+        {
+            blockingHit = default;
+            return true;
+        }
+
+        if (!TryGetNearestNonPlayerHit(origin, toAnchor / distance, distance, out RaycastHit muzzleHit))
+        {
+            blockingHit = default;
+            return true;
+        }
+
+        if (muzzleHit.collider == centerHit.collider
+            || Mathf.Abs(muzzleHit.distance - distance) <= MuzzlePathEndpointTolerance)
+        {
+            blockingHit = default;
+            return true;
+        }
+
+        blockingHit = muzzleHit;
+        return false;
     }
 
     private bool TryGetNearestNonPlayerHit(Vector3 origin, Vector3 direction, float distance, out RaycastHit nearestHit)
@@ -281,6 +349,70 @@ public sealed class GrapplingHook : MonoBehaviour
             && (grappleSurfaceMask.value & (1 << hitCollider.gameObject.layer)) != 0;
     }
 
+    private string GetInvalidAnchorReason(Collider hitCollider)
+    {
+        if (hitCollider == null)
+        {
+            return "No collider";
+        }
+
+        if (hitCollider.attachedRigidbody != null)
+        {
+            return $"Collider has attached Rigidbody '{hitCollider.attachedRigidbody.name}'";
+        }
+
+        int layerBit = 1 << hitCollider.gameObject.layer;
+        if ((grappleSurfaceMask.value & layerBit) == 0)
+        {
+            return $"Layer '{LayerMask.LayerToName(hitCollider.gameObject.layer)}'({hitCollider.gameObject.layer}) is not in grappleSurfaceMask({grappleSurfaceMask.value})";
+        }
+
+        return "None";
+    }
+
+    private string FormatHit(RaycastHit hit)
+    {
+        return $"{FormatCollider(hit.collider)}, point={hit.point}, normal={hit.normal}, distance={hit.distance:0.###}";
+    }
+
+    private string FormatCollider(Collider hitCollider)
+    {
+        if (hitCollider == null)
+        {
+            return "None";
+        }
+
+        string layerName = LayerMask.LayerToName(hitCollider.gameObject.layer);
+        if (string.IsNullOrEmpty(layerName))
+        {
+            layerName = hitCollider.gameObject.layer.ToString();
+        }
+
+        string rigidbodyName = hitCollider.attachedRigidbody != null
+            ? hitCollider.attachedRigidbody.name
+            : "None";
+
+        return $"'{hitCollider.name}' path='{GetTransformPath(hitCollider.transform)}' layer='{layerName}'({hitCollider.gameObject.layer}) attachedRb='{rigidbodyName}'";
+    }
+
+    private static string GetTransformPath(Transform target)
+    {
+        if (target == null)
+        {
+            return "None";
+        }
+
+        string path = target.name;
+        Transform current = target.parent;
+        while (current != null)
+        {
+            path = $"{current.name}/{path}";
+            current = current.parent;
+        }
+
+        return path;
+    }
+
     private Transform FindChildTransform(string childName)
     {
         Transform[] transforms = GetComponentsInChildren<Transform>(true);
@@ -308,6 +440,7 @@ public sealed class GrapplingHook : MonoBehaviour
 
     private void EndGrapple(GrappleEndReason reason)
     {
+        float endedPullElapsed = pullElapsed;
         playerController?.CancelGrapplePull();
         if (grappleLine != null)
         {
@@ -317,5 +450,15 @@ public sealed class GrapplingHook : MonoBehaviour
         grappleState = GrappleState.Idle;
         pullElapsed = 0f;
         lastEndReason = reason;
+
+        lastGrappleDebug =
+            $"reason={reason}, validAnchor={lastLaunchHadValidAnchor}, target={FormatCollider(targetCollider)}, " +
+            $"anchor={anchorPoint}, normal={surfaceNormal}, launchDistance={launchDistance:0.###}, " +
+            $"launchProgress={launchProgress:0.###}, pullElapsed={endedPullElapsed:0.###}, detail={launchTargetDebug}";
+
+        if (logGrappleFailures && reason != GrappleEndReason.Arrived && reason != GrappleEndReason.Disabled)
+        {
+            Debug.LogWarning($"[GrapplingHook] Ended: {lastGrappleDebug}", this);
+        }
     }
 }
