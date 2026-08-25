@@ -7,25 +7,38 @@ public sealed class MonsterHealthCanvas : MonoBehaviour, IMonsterResettable
 {
     [SerializeField] private Slider hpSlider;
     [SerializeField] private bool faceMainCamera = true;
+    [SerializeField, Tooltip("HP 바가 따라갈 기준 Transform입니다. NavTarget이나 머리 위 빈 오브젝트를 연결하세요.")]
+    private Transform followTarget;
+    [SerializeField, Tooltip("켜면 시작 시 현재 캔버스 위치와 Follow Target 사이의 월드 오프셋을 유지합니다.")]
+    private bool keepInitialWorldOffset = true;
+    [SerializeField, Tooltip("Keep Initial World Offset을 끄면 이 월드 오프셋만큼 Follow Target에서 띄웁니다.")]
+    private Vector3 worldOffset = Vector3.up * 1.5f;
+    [SerializeField, Tooltip("캔버스가 몬스터 자식이 아닐 때 인스펙터에서 직접 연결합니다.")]
+    private MonsterHealth monsterHealth;
     [SerializeField, Min(0f), Tooltip("피격 후 HP 슬라이더가 깎이는 연출 시간입니다.")]
     private float hpTweenDuration = 0.18f;
     [SerializeField, Tooltip("죽었을 때 빈 HP 바를 바로 숨길지 정합니다.")]
     private bool hideOnDeath = true;
 
     private Camera mainCamera;
-    private MonsterHealth monsterHealth;
     private CanvasGroup canvasGroup;
     private Tween hpTween;
 
     private void Awake()
     {
+        ResolveReferences();
+
         canvasGroup = GetComponent<CanvasGroup>();
         if (canvasGroup == null)
         {
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
         }
 
-        monsterHealth = GetComponentInParent<MonsterHealth>();
+        if (followTarget != null && keepInitialWorldOffset)
+        {
+            worldOffset = transform.position - followTarget.position;
+        }
+
         mainCamera = Camera.main;
         RefreshImmediate();
         SetVisible(false);
@@ -39,6 +52,11 @@ public sealed class MonsterHealthCanvas : MonoBehaviour, IMonsterResettable
 
     private void LateUpdate()
     {
+        if (followTarget != null)
+        {
+            transform.position = followTarget.position + worldOffset;
+        }
+
         if (!faceMainCamera)
         {
             return;
@@ -51,7 +69,7 @@ public sealed class MonsterHealthCanvas : MonoBehaviour, IMonsterResettable
 
         if (mainCamera != null)
         {
-            transform.rotation = Quaternion.LookRotation(transform.position - mainCamera.transform.position);
+            transform.rotation = mainCamera.transform.rotation;
         }
     }
 
@@ -117,6 +135,14 @@ public sealed class MonsterHealthCanvas : MonoBehaviour, IMonsterResettable
             .SetTarget(this);
 
         return hpTween;
+    }
+
+    private void ResolveReferences()
+    {
+        if (monsterHealth == null)
+        {
+            monsterHealth = GetComponentInParent<MonsterHealth>();
+        }
     }
 
     private void SetVisible(bool visible)

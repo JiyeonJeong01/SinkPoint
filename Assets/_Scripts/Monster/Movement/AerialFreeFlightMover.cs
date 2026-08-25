@@ -1,8 +1,9 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// Zero Zone의 공중 몬스터처럼 NavTarget을 3D 공간에서 자유롭게 이동시키는 컴포넌트입니다.
-/// 무거운 길찾기 대신 임의 목적지로 날아가며, 전방 Obstacle만 가볍게 검사해 피합니다.
+/// 무거운 길찾기 대신 임의 목적지로 날아가며, 전방의 실제 충돌체를 가볍게 검사해 피합니다.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, IMonsterDeathHandler
@@ -27,6 +28,8 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
     private MonsterStateMachine stateMachine;
     [SerializeField, Tooltip("사망 상태 확인용입니다. 비워두면 같은 몬스터 계층에서 찾습니다.")]
     private MonsterHealth monsterHealth;
+    [SerializeField, Tooltip("충돌 회피 검사를 시작할 기준점입니다. 비워두면 렌더러 바운드 중심을 사용합니다.")]
+    private Transform collisionProbeOrigin;
 
     [Header("Movement")]
     [SerializeField, Min(0f), Tooltip("공중 이동 속도입니다.")]
@@ -50,22 +53,24 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
     [SerializeField, Min(0f), Tooltip("목적지 높이 랜덤 범위입니다. 중심 높이 기준 위아래로 적용됩니다.")]
     private float verticalRoamRange = 5f;
 
-    [Header("Obstacle Avoidance")]
-    [SerializeField, Tooltip("피해야 하는 장애물 레이어입니다. 비워두면 Obstacle 레이어를 자동 사용합니다.")]
-    private LayerMask obstacleMask;
+    [Header("Collision Avoidance")]
+    [SerializeField, FormerlySerializedAs("obstacleMask"), Tooltip("비행 중 부딪히면 안 되는 실제 콜라이더 레이어입니다. 트리거와 자기 몸 콜라이더는 코드에서 무시합니다.")]
+    private LayerMask collisionAvoidanceMask;
     [SerializeField, Min(0.01f), Tooltip("전방 장애물 검사에 사용할 가상 구 반지름입니다.")]
     private float obstacleProbeRadius = 0.7f;
     [SerializeField, Min(0.01f), Tooltip("앞쪽을 얼마나 미리 검사할지 정합니다.")]
     private float obstacleProbeDistance = 2.5f;
     [SerializeField, Min(0f), Tooltip("장애물을 발견했을 때 옆으로 틀어보는 강도입니다.")]
     private float avoidanceSideStep = 2f;
+    [SerializeField, Min(0f), Tooltip("충돌체 바로 앞에서 멈추기 위해 남기는 여유 거리입니다.")]
+    private float collisionStopPadding = 0.2f;
 
     [Header("Debug Readout")]
     [SerializeField, Tooltip("현재 공중 이동 상태입니다.")]
     private FlightDebugStatus flightDebugStatus = FlightDebugStatus.Ready;
     [SerializeField, Tooltip("현재 이동 목적지입니다.")]
     private Vector3 currentDestination;
-    [SerializeField, Tooltip("전방 Obstacle 검사 결과입니다.")]
+    [SerializeField, Tooltip("전방 충돌체 검사 결과입니다.")]
     private bool isForwardBlocked;
     [SerializeField, Tooltip("씬에서 선택했을 때 목적지와 장애물 검사선을 표시합니다.")]
     private bool drawDebugGizmos = true;
@@ -77,6 +82,7 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
     private Vector3 lastProbeOrigin;
     private Vector3 lastProbeDirection = Vector3.forward;
     private Vector3 currentMoveDirection = Vector3.forward;
+    private Renderer[] bodyRenderers;
 
     private Vector3 CenterPosition => flightCenter != null ? flightCenter.position : initialCenterPosition;
 
@@ -144,14 +150,19 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         monsterHealth ??= GetComponent<MonsterHealth>();
         monsterHealth ??= GetComponentInParent<MonsterHealth>();
         monsterHealth ??= GetComponentInChildren<MonsterHealth>();
+
+        bodyRenderers ??= GetComponentsInChildren<Renderer>(true);
     }
 
     private void ResolveDefaultLayers()
     {
-        if (obstacleMask.value == 0)
+        int oldObstacleOnlyMask = LayerMask.GetMask("Obstacle");
+        if (collisionAvoidanceMask.value == 0 || collisionAvoidanceMask.value == oldObstacleOnlyMask)
         {
-            obstacleMask = LayerMask.GetMask("Obstacle");
+            collisionAvoidanceMask = BuildDefaultCollisionAvoidanceMask();
         }
+
+        collisionAvoidanceMask = IncludeLayerIfExists(collisionAvoidanceMask.value, "Default");
     }
 
     private void CaptureInitialPose()
@@ -184,8 +195,9 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         desiredDirection.Normalize();
         Vector3 steerDirection = GetSmoothedMoveDirection(desiredDirection, deltaTime);
         Vector3 moveDirection = GetObstacleAwareDirection(steerDirection, deltaTime);
+        float moveDistance = GetSafeMoveDistance(moveDirection, moveSpeed * deltaTime);
 
-        navTarget.position += moveDirection * moveSpeed * deltaTime;
+        navTarget.position += moveDirection * moveDistance;
         RotateToward(moveDirection, deltaTime);
         flightDebugStatus = isForwardBlocked ? FlightDebugStatus.AvoidingObstacle : FlightDebugStatus.Flying;
     }
@@ -255,22 +267,103 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
 
     private bool IsBlocked(Vector3 direction)
     {
-        if (obstacleMask.value == 0 || navTarget == null)
+        if (collisionAvoidanceMask.value == 0 || navTarget == null)
         {
             return false;
         }
 
-        lastProbeOrigin = navTarget.position;
-        lastProbeDirection = direction;
+        return TryFindBlockingHit(direction, obstacleProbeDistance, out _);
+    }
 
-        return Physics.SphereCast(
+    private float GetSafeMoveDistance(Vector3 direction, float requestedDistance)
+    {
+        if (requestedDistance <= 0f)
+        {
+            return 0f;
+        }
+
+        float probeDistance = requestedDistance + collisionStopPadding;
+        if (!TryFindBlockingHit(direction, probeDistance, out RaycastHit hit))
+        {
+            return requestedDistance;
+        }
+
+        isForwardBlocked = true;
+        PickNewDestination();
+        return Mathf.Max(0f, hit.distance - collisionStopPadding);
+    }
+
+    private bool TryFindBlockingHit(Vector3 direction, float distance, out RaycastHit nearestHit)
+    {
+        nearestHit = default;
+        if (collisionAvoidanceMask.value == 0 || navTarget == null || direction.sqrMagnitude < 0.0001f)
+        {
+            return false;
+        }
+
+        lastProbeOrigin = GetProbeOrigin();
+        lastProbeDirection = direction.normalized;
+
+        Collider[] overlaps = Physics.OverlapSphere(
             lastProbeOrigin,
             obstacleProbeRadius,
-            direction,
-            out _,
-            obstacleProbeDistance,
-            obstacleMask,
+            collisionAvoidanceMask,
             QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider overlapCollider = overlaps[i];
+            if (overlapCollider == null || overlapCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            Vector3 closestPoint = overlapCollider.ClosestPoint(lastProbeOrigin);
+            Vector3 awayFromCollider = lastProbeOrigin - closestPoint;
+            if (awayFromCollider.sqrMagnitude < 0.0001f)
+            {
+                return true;
+            }
+
+            if (Vector3.Dot(lastProbeDirection, awayFromCollider.normalized) < 0f)
+            {
+                return true;
+            }
+        }
+
+        RaycastHit[] hits = Physics.SphereCastAll(
+            lastProbeOrigin,
+            obstacleProbeRadius,
+            lastProbeDirection,
+            distance,
+            collisionAvoidanceMask,
+            QueryTriggerInteraction.Ignore);
+
+        bool foundHit = false;
+        float nearestDistance = float.PositiveInfinity;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider hitCollider = hits[i].collider;
+            if (hitCollider == null)
+            {
+                continue;
+            }
+
+            // 가오리 자신의 몸/자식 콜라이더를 장애물로 오해하면 제자리에서 튀기 때문에 제외합니다.
+            if (hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (hits[i].distance < nearestDistance)
+            {
+                nearestDistance = hits[i].distance;
+                nearestHit = hits[i];
+                foundHit = true;
+            }
+        }
+
+        return foundHit;
     }
 
     private void RotateToward(Vector3 direction, float deltaTime)
@@ -331,6 +424,74 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         return stateMachine != null && stateMachine.State == MonsterState.Dead;
     }
 
+    private Vector3 GetProbeOrigin()
+    {
+        if (collisionProbeOrigin != null)
+        {
+            return collisionProbeOrigin.position;
+        }
+
+        return TryGetBodyBounds(out Bounds bounds) ? bounds.center : navTarget.position;
+    }
+
+    private bool TryGetBodyBounds(out Bounds bounds)
+    {
+        bounds = default;
+        if (bodyRenderers == null || bodyRenderers.Length == 0)
+        {
+            return false;
+        }
+
+        bool hasBounds = false;
+        for (int i = 0; i < bodyRenderers.Length; i++)
+        {
+            Renderer bodyRenderer = bodyRenderers[i];
+            if (!IsBodyRenderer(bodyRenderer))
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                bounds = bodyRenderer.bounds;
+                hasBounds = true;
+                continue;
+            }
+
+            bounds.Encapsulate(bodyRenderer.bounds);
+        }
+
+        return hasBounds;
+    }
+
+    private static bool IsBodyRenderer(Renderer bodyRenderer)
+    {
+        return bodyRenderer != null
+            && bodyRenderer.enabled
+            && (bodyRenderer is MeshRenderer || bodyRenderer is SkinnedMeshRenderer);
+    }
+
+    private static LayerMask BuildDefaultCollisionAvoidanceMask()
+    {
+        int mask = Physics.DefaultRaycastLayers;
+        mask = ExcludeLayerIfExists(mask, "Monster");
+        mask = ExcludeLayerIfExists(mask, "MonsterAttack");
+        mask = ExcludeLayerIfExists(mask, "Player");
+        return mask;
+    }
+
+    private static int ExcludeLayerIfExists(int mask, string layerName)
+    {
+        int layer = LayerMask.NameToLayer(layerName);
+        return layer >= 0 ? mask & ~(1 << layer) : mask;
+    }
+
+    private static int IncludeLayerIfExists(int mask, string layerName)
+    {
+        int layer = LayerMask.NameToLayer(layerName);
+        return layer >= 0 ? mask | (1 << layer) : mask;
+    }
+
     private static Transform FindChildRecursive(Transform root, string childName)
     {
         if (root == null)
@@ -385,5 +546,6 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         obstacleProbeRadius = Mathf.Max(0.01f, obstacleProbeRadius);
         obstacleProbeDistance = Mathf.Max(0.01f, obstacleProbeDistance);
         avoidanceSideStep = Mathf.Max(0f, avoidanceSideStep);
+        collisionStopPadding = Mathf.Max(0f, collisionStopPadding);
     }
 }

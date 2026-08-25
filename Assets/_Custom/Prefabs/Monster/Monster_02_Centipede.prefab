@@ -782,6 +782,8 @@ MonoBehaviour:
   - {fileID: 2103985508859191642}
   - {fileID: 1797876410322604734}
   legUpdateImportance: []
+  limitGroundProbes: 1
+  maxGroundProbeLegsPerFrame: 4
 --- !u!114 &6390253593833217334
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4958,6 +4960,8 @@ MonoBehaviour:
   speed: 4
   angularSpeed: 0
   stoppingDistance: 3
+  alignUpToTarget: 0
+  matchTargetRotation: 0
   paused: 0
 --- !u!114 &2900710704870953925
 MonoBehaviour:
@@ -5086,6 +5090,7 @@ GameObject:
   - component: {fileID: 5907961543151969674}
   - component: {fileID: 1184613889912533629}
   - component: {fileID: 4873411882600987138}
+  - component: {fileID: 8975631643906399667}
   m_Layer: 0
   m_Name: Monster_02_Centipede
   m_TagString: Untagged
@@ -5148,6 +5153,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealth
   maxHealth: 3
   destroyOnDeath: 0
+  currentHealth: 0
+  dead: 0
 --- !u!114 &5032219126189237491
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5160,10 +5167,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 10b3010ad754bcf4da476153d81dfb6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterTargetSensor
+  sensingOrigin: {fileID: 0}
   explicitTarget: {fileID: 0}
   detectionRadius: 12
   loseRadius: 16
   playerTag: Player
+  aggroOnDamaged: 1
+  damagedAggroSeconds: 1.5
 --- !u!114 &301846206165554030
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5183,6 +5193,7 @@ MonoBehaviour:
   currentState: 0
   targetDistance: -1
   isTargetInAttackRange: 0
+  debugDistanceTarget: {fileID: 0}
 --- !u!114 &5907961543151969674
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5298,6 +5309,27 @@ MonoBehaviour:
   cooldownRemaining: 0
   lastLungePosition: {x: 0, y: 0, z: 0}
   lastRecoverPosition: {x: 0, y: 0, z: 0}
+--- !u!114 &8975631643906399667
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8029496965554963682}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06d8f15749fb088468c2813774397d7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterDissolveOnDeath
+  dissolveMaterialTemplate: {fileID: 2100000, guid: 3e7101ee60b046b418bc7a05d385162b, type: 2}
+  noiseTexture: {fileID: 0}
+  dissolveDuration: 1.1
+  disableRenderersOnComplete: 1
+  deactivateMonsterOnComplete: 1
+  renderers:
+  - {fileID: 3052003016031107557}
+  includeInactiveRenderers: 1
+  showDebugLog: 1
 --- !u!1 &8203982792514030353
 GameObject:
   m_ObjectHideFlags: 0
@@ -6090,9 +6122,17 @@ SphereCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9147418070931688851}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 1
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Radius: 3
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &8059381767440159136
@@ -6105,7 +6145,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0840c47eb0a39b34b9aed9453dbe3d47, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterDamageOnContact
   damage: 1
   cooldown: 1
