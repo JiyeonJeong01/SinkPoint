@@ -95,6 +95,29 @@ public class GameFlowManager : MonoBehaviour
 
     public GameFlowState CurrentState => currentState;
     public ZoneId CurrentZone => currentZone;
+    public GravityManager GravityManager => gravityManager;
+    public GravityPreset CurrentGravityPreset => gravityManager != null ? gravityManager.CurrentPreset : null;
+
+    /// <summary>
+    /// Inspector 디버그에서만 임의 Preset을 운영 중력 경로로 적용합니다.
+    /// 게임 진행 Zone과 State는 변경하지 않습니다.
+    /// </summary>
+    public bool DebugApplyGravityPreset(GravityPreset preset)
+    {
+        if (gravityManager == null)
+        {
+            Debug.LogWarning("[GameFlowManager] Cannot apply GravityPreset because GravityManager is not assigned.", this);
+            return false;
+        }
+
+        if (preset == null)
+        {
+            Debug.LogWarning("[GameFlowManager] Cannot apply a null GravityPreset.", this);
+            return false;
+        }
+
+        return gravityManager.ApplyPreset(preset);
+    }
 
     private void Awake()
     {

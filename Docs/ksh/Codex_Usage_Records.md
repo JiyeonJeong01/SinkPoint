@@ -176,3 +176,35 @@
 - 해결한 문제: Reverse Gravity를 특정 Zone과 하드코딩하지 않고 모든 주기형 중력에 사용할 수 있는 Preset으로 분리했다. 같은 Periodic Preset 재적용으로 타이머가 초기화되거나 다른 Preset 이후 이전 Coroutine이 재발하는 문제를 막았으며, 무중력에서 매 프레임 속도를 0으로 덮어 후속 이동을 차단하지 않게 했다. 리스폰은 미확정 `GameFlowState → GravityPreset` 매핑 대신 실제 현재 Preset을 복구해 고정형·주기형·무중력을 같은 경로로 처리한다.
 - 사람이 직접 결정한 부분: 각 기획 Zone과 Trigger에 어떤 중력을 연결할지는 레벨 설계가 확정될 때까지 미루고, 코어 시스템의 Inspector 기반 검증을 이번 완료선으로 삼았다. 별도 빌드 검증 단계는 폐기했으며, 사용자가 Play Mode에서 현재 기능이 모두 정상 동작함을 확인했다. 그래플이 없는 무중력 이동 보완은 사격 반작용을 별도 계획으로 작성한 뒤 구현하기로 했다.
 - 검증 결과: 자동 Play Mode에서 Periodic 방향 전환 14회, 예고 상태, 중복 적용 시 카운트다운 유지, 다른 Preset 적용 시 취소, Zero Gravity의 방향·`PresentationUp` 유지와 Player 상태 진입, `GravityBody` 관성·중력 복귀를 확인했다. Periodic·Zero Gravity 리스폰 후 현재 Preset과 Player 회전이 복구됐고 Player Up과 `PresentationUp`의 내적은 `1.0`이었다. 런타임·Editor 어셈블리 빌드는 기존 경고 28건과 함께 오류 0건, 최종 새 Play Mode Console 오류는 0건이었다. 사용자가 실제 Play Mode에서 전체 동작을 확인해 완료로 판단했다.
+
+## 2026-08-25 — 무중력 무기 발사 반작용 구현
+
+- Codex 사용처: 무중력 코어와 기존 사격 흐름을 대조해 발사 반작용의 책임 경계·속도 상한 규칙을 구현하고 컴파일·로그 검증과 완료 문서화를 수행했다.
+- 구현하거나 정리한 기능: 실제 발사마다 최종 발사 방향 반대로 `ForceMode.VelocityChange` 반작용을 요청한다. `PlayerController`는 ZeroGravity 상태와 중력 전환 여부를 판정하고, 기본 발사당 속도 변화 `0.3`, 전체 속력 상한 `3.0`, 상한 초과 상태의 추가 가속 차단·감속 허용을 소유한다. 설정과 마지막 적용 여부·현재 속력·상한 도달 상태를 Inspector에서 확인할 수 있게 했다.
+- 해결한 문제: 그래플이 없는 무중력 구간에서도 사격으로 이동·조향·제동할 수 있게 하면서 연사 무한 가속을 막았다. 명중·피해·피격 Rigidbody 밀기와 플레이어 반작용을 분리하고, 일반 중력이나 중력 전환 중에는 반작용을 거부하도록 했다.
+- 사람이 직접 결정한 부분: 사격 반작용을 그래플 구현 후에도 무중력 보조 이동 수단으로 유지하고 일반 중력 반동·카메라 연출·무기 시스템 변경은 제외했다. 사용자가 Play Mode 테스트 성공을 확인하고 완료 처리를 승인했다.
+- 검증 결과: 런타임 어셈블리는 오류 0건과 기존 경고 28건, Editor 어셈블리는 오류·경고 0건으로 빌드됐다. 최신 `Editor.log` 범위에 컴파일 실패·예외가 없었고, 사용자의 Play Mode 테스트에서 반작용 동작이 성공했으며 무중력 상태가 아닐 때 발동하는 버그는 발견되지 않았다. 이번 반작용 작업에서는 씬·Prefab·Collider·Packages·ProjectSettings·Build Settings를 변경하지 않았다.
+
+## 2026-08-25 — MeshCollider 지형 접지 이동 안정화
+
+- Codex 사용처: MeshCollider 언덕·굴곡·턱에서 발생한 비의도 상승, 걸림과 순간 Airborne 진동을 현재 Rigidbody 이동·SphereCast 접지 코드에 대조하고, 만족할 때 즉시 중단하는 순차 계획으로 원인별 최소 보정을 구현·검증하는 데 사용했다.
+- 구현하거나 정리한 기능: Grounded 이동이 이전 충돌에서 남은 중력축 속도를 다시 합치지 않게 하면서 지면 접선 이동은 유지했다. 접지 쿼리는 캡슐 하단 기준 지면 거리를 반환하도록 확장하고, 기본 Probe `0.15`를 놓친 경우 직전 상태가 Grounded이며 위쪽 속도가 `0.5` 이하일 때만 거리 `0.3`, 최대 속도 `5`의 중력 방향 Ground Snap을 적용했다. 접지·지면 각도·거리·보정 전 수직 속도·점프·Snap 작동 여부를 Inspector 런타임 값으로 추가했다.
+- 해결한 문제: 경사로와 턱에서 점프 입력 없이 튀거나 걸리는 현상을 Grounded 속도 계약 수정으로 약 90% 억제하고, 울퉁불퉁한 지형에서 접지가 짧게 끊겨 낙하와 재충돌을 반복하던 떨림은 제한적 Ground Snap으로 보완했다. 실제 점프 프레임, 무중력과 중력 전환 중에는 Snap이 개입하지 않도록 기존 상태 책임을 유지했다.
+- 사람이 직접 결정한 부분: 순번 1 결과를 유지하고 마찰성 걸림이 거의 사라져 Physics Material 조정은 건너뛰었다. 순번 3 적용 후 현재 지형 이동이 만족할 만하다고 직접 확인해 노멀 안정화, Step Assist와 충돌 메시 개선 요청은 미실행 상태로 남기고 작업 완료를 승인했다.
+- 검증 결과: Unity `6000.3.20f1` 재컴파일은 오류 0건으로 완료됐고, 새 Play Mode에서 Ground Snap 설정과 런타임 지면 관찰값 갱신, 신규 Console Error 0건을 확인했다. 사용자가 실제 지형 이동을 다시 테스트해 최종 조작감이 만족 기준을 충족한다고 판정했다. 이번 작업에서는 `PlayerController.cs`와 계획·기록 문서만 변경했으며 `Original_GamePlayScene`, 지형 Collider, Prefab, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-25 — TPS 카메라 구도 프리셋·숄더 뷰 구현
+
+- Codex 사용처: 기존 3인칭 카메라의 중앙 구도를 보존하면서 Inspector에서 비교 가능한 숄더 뷰 프리셋과 충돌 경로를 구현·검증하는 데 사용했다.
+- 구현하거나 정리한 기능: `ThirdPersonCameraController`에 `Centered`와 `ShoulderGameplay` 구도 프리셋을 추가했다. 각 프리셋은 Pivot 높이, 카메라 로컬 오프셋, 기본 거리, FOV를 소유하고, 기본 `ShoulderGameplay`는 오른쪽 `0.35m` 오프셋을 사용한다. 카메라 충돌 검사는 Pivot에서 최종 숄더 희망 위치까지 SphereCast하며, 프리팹에는 사용자 줌 범위 `0.6 ~ 2.5`를 저장했다.
+- 해결한 문제: 기존 중심축 뒤쪽만 검사하던 충돌 경로를 실제 숄더 카메라 경로와 일치시켜, 구도 프리셋과 충돌 회피가 서로 다른 위치를 기준으로 동작하지 않게 했다.
+- 사람이 직접 결정한 부분: 사용자가 Play Mode에서 최대 거리를 `2.5`로 조정하고 현재 구도가 적절하다고 확인했다. 좌우 어깨 전환, 자동 전환, 피치 연동 오프셋과 플레이어 디더 페이드는 후속 항목으로 남겼다.
+- 검증 결과: Unity 재컴파일은 오류 0건으로 완료됐고, 새 Play Mode 시작 뒤 Console error 0건을 확인했다. 사용자가 실제 Play Mode에서 작업 성공을 확인했다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 이번 작업에서 수정하지 않았다.
+
+## 2026-08-25 — GravitySystem 프리팹화 및 GameFlow Preset 디버그
+
+- Codex 사용처: 중력 운영 구성의 재사용 경계를 정리하고, 기존 GravityManager의 Preset 선택 경로를 GameFlowManager Inspector에서도 같은 런타임 API로 사용할 수 있게 구현·검증했다.
+- 구현하거나 정리한 기능: `/GamePlay/GravitySystem`에서 두 `GravityTestBody`를 제거하고 `GravityState`, `GravityManager`, 운영 Preset 자식을 포함한 `GravitySystem.prefab`을 생성했다. `GravityPresetSceneSelector` Editor helper로 두 Inspector의 hierarchy-path Preset 목록과 session-only 선택을 공유하고, Odin GameFlowManager Inspector 맨 아래에 Play Mode용 Preset 선택·적용·현재 Preset 표시를 추가했다.
+- 해결한 문제: 중력 구성과 테스트 바디가 같은 씬 루트에 섞인 상태를 분리했고, GameFlow 디버그 중 Preset을 시험하려면 별도 GravitySystem Inspector로 이동해야 하던 흐름을 제거했다. GameFlowManager의 선택 적용은 `GravityManager.ApplyPreset()`만 호출해 Player·Camera·Periodic 처리 경로를 우회하지 않는다.
+- 사람이 직접 결정한 부분: 임의 Preset 적용은 진행 Trigger가 아니므로 `CurrentZone`과 `CurrentState`를 바꾸지 않고, 선택값도 씬/Prefab override가 아닌 Editor session 값으로 유지했다. 실제 Inspector 조작감과 Trigger 통과 뒤 연속 진행은 후속 Play Mode에서 확인한다.
+- 검증 결과: Unity 재컴파일은 `failed=false`, 오류 0건이었다. 새 Play Mode에서 GameFlowManager API로 Periodic Z, Normal, Zero Gravity Preset을 순서대로 적용해 CurrentPreset, Periodic routine 시작·정리와 strength `9.81`/`0`을 확인했다. Periodic 적용 전후 `CurrentZone = Zone01_Entry`, `CurrentState = Entry`가 유지됐고, 새 Console error는 없었다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
