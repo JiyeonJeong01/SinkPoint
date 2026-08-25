@@ -260,3 +260,27 @@
 - 해결한 문제: 연사마다 VFX를 생성·파괴하지 않고 실제 발사와 Flash·Tracer를 같은 경로로 연결했다. XR 데모 Prefab의 `0.1초` 자동 파괴와 데모 루트 Transform을 Player 런타임에서 격리했으며, 작은 RifleFlash는 원본 수정 없이 Anchor 스케일로 확대했다.
 - 사람이 직접 결정한 부분: 사용자가 Play Mode에서 기본 발사 연동이 정상임을 확인하고 RifleFlash 2배 크기가 충분하다고 확정했다. 큰 상하 피치의 카메라–총구 근거리 시차는 단순 VFX 조정 범위를 넘어가므로 별도 방향성·Tracer 정책 계획으로 분리한 뒤 기존 계획을 완료 처리하도록 승인했다.
 - 검증 결과: Unity 재컴파일은 오류 0건이었다. 실제 `FireShot()` 호출에서 탄약 감소, Flash와 Tracer 활성화, 주황색 적용과 시간 종료 뒤 재사용 상태를 확인했고 새 Console Error는 없었다. Pistol·Rifle·TerraFormer 후보는 모두 ParticleSystem과 `DestroyAfterTime` 5개 구조로 공통 제어가 가능했다. `Original_GamePlayScene`, Collider, XR 원본 VFX, Packages, ProjectSettings와 Build Settings는 이번 작업에서 수정하지 않았다.
+
+## 2026-08-26 — 최신 Original 기준 Player 씬 재동기화
+
+- Codex 사용처: 최신 Original과 Player 씬의 Unity YAML·Git 이력·Prefab 인스턴스 참조를 비교하고, Original을 최종 환경 정본으로 삼아 Player 씬을 Unity Editor Save As Copy 방식으로 재구성한 뒤 정적·컴파일·Play Mode 검증을 수행했다.
+- 구현하거나 정리한 기능: `GamePlayScene_Player`에 최신 Fog와 Ambient 설정, Global Volume, Entry 포인트 라이트 3개, 암석·Waypoints, Zone05·Aeropod와 최신 중력 트리거 배치·활성 상태를 모두 반영했다. 두 씬의 유일한 의도적 차이는 Player 씬의 `RespawnController.playerRoot`가 `/GamePlay/Player`를 참조하는 것이다.
+- 해결한 문제: 공유 Material·Camera Prefab 변경과 씬 로컬 렌더링·배치 변경을 구분하고, 과거 Player 씬의 중복·오래된 override를 다시 이식하지 않아 Original과의 불필요한 차이를 제거했다. Original 씬과 두 씬 meta GUID는 보존했다.
+- 사람이 직접 결정한 부분: Original을 환경·배치·진행 연결의 최종 기준으로 사용하고, Player 씬 고유 차이는 실행에 필요한 리스폰 참조만 허용하도록 결정했다. Collider는 Original 값을 그대로 동기화하되 별도 제작·튜닝하지 않았고 WebGL 빌드는 실행하지 않았다.
+- 검증 결과: 두 씬은 각각 YAML 문서 1,529개, 중복 ID 0개, 미해결 로컬 참조 0개이며 객체 단위 차이는 GameFlowManager Prefab instance의 `playerRoot` 한 줄뿐이다. Unity에서 Player·Camera·Gravity·Audio·Respawn 참조, Global Volume과 조명 3개, Zone05·Aeropod를 재조회했다. `Assembly-CSharp-Editor.csproj` 빌드는 오류 0개와 기존 경고 43개로 통과했고, 새 Play Mode에서 정상 화면과 초기 중력 `(0, -1, 0) × 9.81`, GameFlow·Audio·Respawn 연결, Console Error 0건을 확인했다. 실제 이동·발사·리스폰, 구역 순회와 Shift/Inversion/Periodic/Zero Gravity 체감 검증은 사용자 Play Mode 확인이 남아 있다.
+
+## 2026-08-26 — NPC·Player Transform 동기화 분리
+
+- Codex 사용처: 두 씬의 NPC·Player 계층, Prefab Variant 상속과 Git 이력을 대조해 동일 입력으로 위치·회전이 함께 갱신되는 원인을 진단하고, NPC 프리팹을 독립 구조로 복구·검증했다.
+- 구현하거나 정리한 기능: `NPC.prefab`의 Player Prefab Variant 연결을 끊고 기존 GUID와 루트 식별자, 씬 배치, 대사·감지 트리거를 보존했다. 외형은 `TS-Armies_Recon_B` connected Prefab과 guard idle Animator로 유지하고, 생성·복구 Editor 도구도 Player가 아닌 공용 외형에서 독립 NPC를 만들도록 수정했다.
+- 해결한 문제: NPC에 다시 상속된 `PlayerInput`, `PlayerController`, `PlayerHealth`, Rigidbody·Collider, 플레이어 오디오·그래플 구성 때문에 Player와 NPC가 같은 입력으로 이동·회전하던 결합을 제거했다. 제거 순서는 `RequireComponent` 의존성을 고려하고 복구 명령은 재실행해도 결과가 바뀌지 않게 구성했다.
+- 사람이 직접 결정한 부분: 현재 컴포넌트만 제거하는 임시 대응 대신 NPC를 Player 프리팹에서 완전히 분리해 이후 플레이어 기능 추가가 NPC로 전파되지 않도록 선택했다. NPC 이동 AI나 신규 애니메이션 상태는 추가하지 않았다.
+- 검증 결과: `Assembly-CSharp-Editor.csproj` 빌드는 오류 0개와 기존 경고 43개로 통과했다. Original과 Player 씬의 NPC 배치 `(-4.564, -0.04, -4.951)`와 Y 회전 `144.235°`, NPC GUID·루트 식별자가 유지됐고 두 씬 Play Mode에서 NPC가 `Transform`, `NpcInteraction`, guard idle Animator와 대화 Canvas만 사용하는 것을 확인했다. 새 Play Mode 구간의 Console Error는 0건이었다. 실제 이동·회전 독립성과 접근 후 `I`·`Space` 대화 조작은 사용자 Play Mode 확인이 남아 있다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-26 — 그래플링 훅 이동 시스템 구현
+
+- Codex 사용처: 기존 입력·사격·Rigidbody 이동·중력 전환 경로를 대조해 우클릭 홀드 그래플의 상태, 정적 앵커 판정, 시각 선과 당김 물리를 구현하고 Prefab·Player 씬 참조를 구성했다.
+- 구현하거나 정리한 기능: `GrapplingHook`은 카메라 중심→총구 2단계 Raycast, `Idle / Launching / Pulling` 상태와 별도 `GrappleRope`를 소유한다. `PlayerController`는 당김 가속·최대 속도·안전 거리와 도착 시 표면 안쪽 속도 제거를 소유하며, 중력 전환·사망·입력 해제에서 그래플을 정리한다. 그래플은 새 좌클릭 사격을 차단하고 종료 뒤 새 클릭에서만 사격을 재개한다.
+- 해결한 문제: 기존 이동 상태가 매 물리 프레임 속도를 재구성하는 구조에서 외부 힘만 더하면 당김이 사라지는 문제를 PlayerController 내부 속도 오버레이로 해결했다. 동적 Rigidbody·몬스터·Trigger를 앵커에서 제외하고, Shot Tracer와 그래플 선을 분리해 기존 전투 표현과 간섭하지 않게 했다.
+- 사람이 직접 결정한 부분: 일반·방향성 중력에서는 보조 상승 이동, 무중력에서는 핵심 이동으로 사용하며 로프 물리·스윙·동적 앵커·그래플 중 사격은 범위에서 제외했다. 사용자가 실제 Play Mode와 Inspector 설정을 확인한 뒤 완료 처리를 승인했다.
+- 검증 결과: 새 스크립트를 포함한 Runtime·Editor 어셈블리 컴파일은 오류 0건으로 통과했고 `git diff --check`, Meta GUID·Prefab `GrapplingHook`/`GrappleRope` 단일 구성과 Player 씬 카메라 참조를 확인했다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
