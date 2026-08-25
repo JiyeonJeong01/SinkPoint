@@ -260,3 +260,11 @@
 - 해결한 문제: 연사마다 VFX를 생성·파괴하지 않고 실제 발사와 Flash·Tracer를 같은 경로로 연결했다. XR 데모 Prefab의 `0.1초` 자동 파괴와 데모 루트 Transform을 Player 런타임에서 격리했으며, 작은 RifleFlash는 원본 수정 없이 Anchor 스케일로 확대했다.
 - 사람이 직접 결정한 부분: 사용자가 Play Mode에서 기본 발사 연동이 정상임을 확인하고 RifleFlash 2배 크기가 충분하다고 확정했다. 큰 상하 피치의 카메라–총구 근거리 시차는 단순 VFX 조정 범위를 넘어가므로 별도 방향성·Tracer 정책 계획으로 분리한 뒤 기존 계획을 완료 처리하도록 승인했다.
 - 검증 결과: Unity 재컴파일은 오류 0건이었다. 실제 `FireShot()` 호출에서 탄약 감소, Flash와 Tracer 활성화, 주황색 적용과 시간 종료 뒤 재사용 상태를 확인했고 새 Console Error는 없었다. Pistol·Rifle·TerraFormer 후보는 모두 ParticleSystem과 `DestroyAfterTime` 5개 구조로 공통 제어가 가능했다. `Original_GamePlayScene`, Collider, XR 원본 VFX, Packages, ProjectSettings와 Build Settings는 이번 작업에서 수정하지 않았다.
+
+## 2026-08-26 — 최신 Original 기준 Player 씬 재동기화
+
+- Codex 사용처: 최신 Original과 Player 씬의 Unity YAML·Git 이력·Prefab 인스턴스 참조를 비교하고, Original을 최종 환경 정본으로 삼아 Player 씬을 Unity Editor Save As Copy 방식으로 재구성한 뒤 정적·컴파일·Play Mode 검증을 수행했다.
+- 구현하거나 정리한 기능: `GamePlayScene_Player`에 최신 Fog와 Ambient 설정, Global Volume, Entry 포인트 라이트 3개, 암석·Waypoints, Zone05·Aeropod와 최신 중력 트리거 배치·활성 상태를 모두 반영했다. 두 씬의 유일한 의도적 차이는 Player 씬의 `RespawnController.playerRoot`가 `/GamePlay/Player`를 참조하는 것이다.
+- 해결한 문제: 공유 Material·Camera Prefab 변경과 씬 로컬 렌더링·배치 변경을 구분하고, 과거 Player 씬의 중복·오래된 override를 다시 이식하지 않아 Original과의 불필요한 차이를 제거했다. Original 씬과 두 씬 meta GUID는 보존했다.
+- 사람이 직접 결정한 부분: Original을 환경·배치·진행 연결의 최종 기준으로 사용하고, Player 씬 고유 차이는 실행에 필요한 리스폰 참조만 허용하도록 결정했다. Collider는 Original 값을 그대로 동기화하되 별도 제작·튜닝하지 않았고 WebGL 빌드는 실행하지 않았다.
+- 검증 결과: 두 씬은 각각 YAML 문서 1,529개, 중복 ID 0개, 미해결 로컬 참조 0개이며 객체 단위 차이는 GameFlowManager Prefab instance의 `playerRoot` 한 줄뿐이다. Unity에서 Player·Camera·Gravity·Audio·Respawn 참조, Global Volume과 조명 3개, Zone05·Aeropod를 재조회했다. `Assembly-CSharp-Editor.csproj` 빌드는 오류 0개와 기존 경고 43개로 통과했고, 새 Play Mode에서 정상 화면과 초기 중력 `(0, -1, 0) × 9.81`, GameFlow·Audio·Respawn 연결, Console Error 0건을 확인했다. 실제 이동·발사·리스폰, 구역 순회와 Shift/Inversion/Periodic/Zero Gravity 체감 검증은 사용자 Play Mode 확인이 남아 있다.
