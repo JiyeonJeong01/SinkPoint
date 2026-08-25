@@ -703,7 +703,7 @@ MonoBehaviour:
   aimCamera: {fileID: 0}
   muzzle: {fileID: 4026860882140793300}
   grappleLine: {fileID: 6221087593812447003}
-  maxGrappleRange: 30
+  maxGrappleRange: 45
   hookLaunchSpeed: 40
   maxPullDuration: 3
   grappleSurfaceMask:

@@ -2,7 +2,7 @@
 
 문서 작성일: 2026-08-25
 
-현재 상태: 구현 진행 중 — 입력·그래플 상태·Rigidbody 당김·Prefab/Scene 연결 구현 착수
+현재 상태: 완료 — 사용자 Play Mode 확인 및 Inspector 설정 확인 완료
 
 계획 프로필: `deep`
 

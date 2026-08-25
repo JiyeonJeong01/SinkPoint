@@ -276,3 +276,11 @@
 - 해결한 문제: NPC에 다시 상속된 `PlayerInput`, `PlayerController`, `PlayerHealth`, Rigidbody·Collider, 플레이어 오디오·그래플 구성 때문에 Player와 NPC가 같은 입력으로 이동·회전하던 결합을 제거했다. 제거 순서는 `RequireComponent` 의존성을 고려하고 복구 명령은 재실행해도 결과가 바뀌지 않게 구성했다.
 - 사람이 직접 결정한 부분: 현재 컴포넌트만 제거하는 임시 대응 대신 NPC를 Player 프리팹에서 완전히 분리해 이후 플레이어 기능 추가가 NPC로 전파되지 않도록 선택했다. NPC 이동 AI나 신규 애니메이션 상태는 추가하지 않았다.
 - 검증 결과: `Assembly-CSharp-Editor.csproj` 빌드는 오류 0개와 기존 경고 43개로 통과했다. Original과 Player 씬의 NPC 배치 `(-4.564, -0.04, -4.951)`와 Y 회전 `144.235°`, NPC GUID·루트 식별자가 유지됐고 두 씬 Play Mode에서 NPC가 `Transform`, `NpcInteraction`, guard idle Animator와 대화 Canvas만 사용하는 것을 확인했다. 새 Play Mode 구간의 Console Error는 0건이었다. 실제 이동·회전 독립성과 접근 후 `I`·`Space` 대화 조작은 사용자 Play Mode 확인이 남아 있다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-26 — 그래플링 훅 이동 시스템 구현
+
+- Codex 사용처: 기존 입력·사격·Rigidbody 이동·중력 전환 경로를 대조해 우클릭 홀드 그래플의 상태, 정적 앵커 판정, 시각 선과 당김 물리를 구현하고 Prefab·Player 씬 참조를 구성했다.
+- 구현하거나 정리한 기능: `GrapplingHook`은 카메라 중심→총구 2단계 Raycast, `Idle / Launching / Pulling` 상태와 별도 `GrappleRope`를 소유한다. `PlayerController`는 당김 가속·최대 속도·안전 거리와 도착 시 표면 안쪽 속도 제거를 소유하며, 중력 전환·사망·입력 해제에서 그래플을 정리한다. 그래플은 새 좌클릭 사격을 차단하고 종료 뒤 새 클릭에서만 사격을 재개한다.
+- 해결한 문제: 기존 이동 상태가 매 물리 프레임 속도를 재구성하는 구조에서 외부 힘만 더하면 당김이 사라지는 문제를 PlayerController 내부 속도 오버레이로 해결했다. 동적 Rigidbody·몬스터·Trigger를 앵커에서 제외하고, Shot Tracer와 그래플 선을 분리해 기존 전투 표현과 간섭하지 않게 했다.
+- 사람이 직접 결정한 부분: 일반·방향성 중력에서는 보조 상승 이동, 무중력에서는 핵심 이동으로 사용하며 로프 물리·스윙·동적 앵커·그래플 중 사격은 범위에서 제외했다. 사용자가 실제 Play Mode와 Inspector 설정을 확인한 뒤 완료 처리를 승인했다.
+- 검증 결과: 새 스크립트를 포함한 Runtime·Editor 어셈블리 컴파일은 오류 0건으로 통과했고 `git diff --check`, Meta GUID·Prefab `GrapplingHook`/`GrappleRope` 단일 구성과 Player 씬 카메라 참조를 확인했다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
