@@ -930,7 +930,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &7988672357365409555
 Transform:
   m_ObjectHideFlags: 0
@@ -1513,8 +1513,8 @@ MonoBehaviour:
   randomAliveVolumeMultiplier: 1
   randomIntervalMin: 5
   randomIntervalMax: 9
-  spatialBlend: 1
-  maxDistance: 22
+  spatialBlend: 0.75
+  maxDistance: 40
   isMovementLoopPlaying: 0
   lastMoveSpeed: 0
   randomSoundRemaining: 0
@@ -2711,7 +2711,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0.64, z: -5.77}
-  m_LocalScale: {x: 3.927094, y: 3.5291464, z: 8.1841}
+  m_LocalScale: {x: 6.2739253, y: 5.6914544, z: 8.1841}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7652034834805705567}

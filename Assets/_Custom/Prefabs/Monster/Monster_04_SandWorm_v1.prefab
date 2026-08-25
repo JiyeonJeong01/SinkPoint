@@ -1312,9 +1312,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70b34ed5df3948748b26c0d5eb91372d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealth
-  maxHealth: 25
+  maxHealth: 40
   destroyOnDeath: 0
-  currentHealth: 25
+  currentHealth: 40
   dead: 0
 --- !u!114 &9201385391996888922
 MonoBehaviour:

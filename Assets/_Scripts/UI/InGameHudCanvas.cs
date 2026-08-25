@@ -15,6 +15,8 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private Text ammoCountText;
     [SerializeField, Tooltip("주기 중력 변경 예고를 표시할 Text입니다. 비워두면 자식의 Gravity Warning Text를 찾습니다.")]
     private Text gravityWarningText;
+    [SerializeField, Tooltip("플레이어 피격 시 짧게 표시할 Image입니다. 비워두면 자식의 Hurt를 찾습니다.")]
+    private Image hurtImage;
     [SerializeField, Tooltip("비워두면 씬에서 PlayerHealth를 자동으로 찾습니다.")]
     private PlayerHealth playerHealth;
     [SerializeField, Tooltip("비워두면 씬의 GameFlowManager를 자동으로 찾습니다.")]
@@ -33,6 +35,12 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private float retryBindInterval = 0.5f;
     [SerializeField, Min(0f), Tooltip("플레이어 HP 슬라이더가 목표 체력으로 따라가는 시간입니다.")]
     private float hpTweenDuration = 0.18f;
+    [SerializeField, Range(0, 255), Tooltip("피격 이미지의 최대 알파값입니다. 24면 아주 옅은 붉은 플래시입니다.")]
+    private int hurtMaxAlpha = 24;
+    [SerializeField, Min(0f), Tooltip("피격 이미지가 밝아지는 시간입니다.")]
+    private float hurtFadeInDuration = 0.06f;
+    [SerializeField, Min(0f), Tooltip("피격 이미지가 다시 사라지는 시간입니다.")]
+    private float hurtFadeOutDuration = 0.2f;
 
     [Header("Debug Readout")]
     [SerializeField, Tooltip("HUD가 현재 카운트를 읽고 있는 Zone입니다.")]
@@ -46,6 +54,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private PlayerCombatController boundPlayerCombatController;
     private Coroutine bindRoutine;
     private Tween hpTween;
+    private Tween hurtTween;
     private int displayedCurrentHp = -1;
     private int displayedMaxHp = -1;
     private int displayedCurrentRounds = -1;
@@ -54,6 +63,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private void Awake()
     {
         ResolveReferences();
+        SetHurtAlpha(0f);
     }
 
     private void OnEnable()
@@ -78,6 +88,8 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         UnbindRuntimeReferences();
         KillHpTween();
+        KillHurtTween();
+        SetHurtAlpha(0f);
         SetGravityWarningVisible(false);
     }
 
@@ -207,6 +219,11 @@ public sealed class InGameHudCanvas : MonoBehaviour
         if (gravityWarningText == null)
         {
             gravityWarningText = FindTextByName("Gravity Warning Text");
+        }
+
+        if (hurtImage == null)
+        {
+            hurtImage = FindImageByName("Hurt");
         }
     }
 
@@ -416,6 +433,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private void OnPlayerDamaged(PlayerHealth playerHealth, int amount)
     {
         SetHp(playerHealth.CurrentHealth, playerHealth.MaxHealth, true);
+        PlayHurtFlash();
     }
 
     private void OnPlayerDied(PlayerHealth playerHealth)
@@ -442,6 +460,66 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         hpTween.Kill();
         hpTween = null;
+    }
+
+    public void PlayHurtFlash()
+    {
+        ResolveReferences();
+        if (hurtImage == null)
+        {
+            return;
+        }
+
+        KillHurtTween();
+        float targetAlpha = Mathf.Clamp01(hurtMaxAlpha / 255f);
+        SetHurtAlpha(0f);
+
+        Sequence sequence = DOTween.Sequence()
+            .SetTarget(this)
+            .SetUpdate(true);
+
+        if (hurtFadeInDuration <= 0f)
+        {
+            sequence.AppendCallback(() => SetHurtAlpha(targetAlpha));
+        }
+        else
+        {
+            sequence.Append(hurtImage.DOFade(targetAlpha, hurtFadeInDuration));
+        }
+
+        if (hurtFadeOutDuration <= 0f)
+        {
+            sequence.AppendCallback(() => SetHurtAlpha(0f));
+        }
+        else
+        {
+            sequence.Append(hurtImage.DOFade(0f, hurtFadeOutDuration));
+        }
+
+        hurtTween = sequence;
+    }
+
+    private void SetHurtAlpha(float alpha)
+    {
+        if (hurtImage == null)
+        {
+            return;
+        }
+
+        Color color = hurtImage.color;
+        color.a = Mathf.Clamp01(alpha);
+        hurtImage.color = color;
+    }
+
+    private void KillHurtTween()
+    {
+        if (hurtTween == null)
+        {
+            return;
+        }
+
+        hurtTween.Kill();
+        hurtTween = null;
     }
 
     private void OnCurrentZoneChanged(ZoneId zoneId)
@@ -532,6 +610,20 @@ public sealed class InGameHudCanvas : MonoBehaviour
             if (texts[i] != null && texts[i].name == objectName)
             {
                 return texts[i];
+            }
+        }
+
+        return null;
+    }
+
+    private Image FindImageByName(string objectName)
+    {
+        Image[] images = GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+        {
+            if (images[i] != null && images[i].name == objectName)
+            {
+                return images[i];
             }
         }
 

@@ -871,9 +871,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70b34ed5df3948748b26c0d5eb91372d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealth
-  maxHealth: 40
+  maxHealth: 50
   destroyOnDeath: 0
-  currentHealth: 40
+  currentHealth: 50
   dead: 0
 --- !u!114 &6534101805943846480
 MonoBehaviour:
@@ -927,31 +927,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AerialFreeFlightMover
   navTarget: {fileID: 281179026607061767}
-  flightCenter: {fileID: 0}
+  route: {fileID: 0}
   stateMachine: {fileID: 5061775527647053746}
   monsterHealth: {fileID: 5879265480448693654}
-  collisionProbeOrigin: {fileID: 0}
   moveSpeed: 5
   rotationSpeed: 360
-  maxTurnSpeed: 90
-  movementTurnSpeed: 55
-  roamRadius: 12
-  minimumDestinationDistance: 6
-  forwardDestinationBias: 8
-  destinationReachDistance: 1
-  repickDestinationSeconds: 4
-  verticalRoamRange: 5
-  collisionAvoidanceMask:
-    serializedVersion: 2
-    m_Bits: 2048
-  obstacleProbeRadius: 0.7
-  obstacleProbeDistance: 2.5
-  avoidanceSideStep: 2
-  collisionStopPadding: 0.2
-  overlapEscapeDistance: 0.03
+  waypointReachDistance: 2.2
+  pauseAtWaypointSeconds: 0
+  loop: 1
   flightDebugStatus: 0
-  currentDestination: {x: 0, y: 0, z: 0}
-  isForwardBlocked: 0
+  currentWaypointIndex: 0
+  currentWaypoint: {fileID: 0}
+  currentWaypointName: 
+  distanceToWaypoint: -1
   drawDebugGizmos: 1
 --- !u!114 &3352207888459885477
 MonoBehaviour:
@@ -1237,7 +1225,7 @@ MonoBehaviour:
   randomIntervalMin: 5
   randomIntervalMax: 9
   spatialBlend: 1
-  maxDistance: 22
+  maxDistance: 40
   isMovementLoopPlaying: 0
   lastMoveSpeed: 0
   randomSoundRemaining: 0
