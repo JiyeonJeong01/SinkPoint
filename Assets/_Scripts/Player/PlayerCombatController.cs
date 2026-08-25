@@ -49,19 +49,20 @@ public sealed class PlayerCombatController : MonoBehaviour
     [Header("Shot Tracer")]
     [SerializeField] private bool showShotTracer = true;
     [SerializeField] private LineRenderer shotTracer;
-    [SerializeField, Min(0f)] private float shotTracerDuration = 0.05f;
     [SerializeField] private Color hitTracerColor = new(1f, 0.70980394f, 0.18039216f, 1f);
     [SerializeField] private Color missTracerColor = new(1f, 0.70980394f, 0.18039216f, 1f);
-    [SerializeField, Min(0f)] private float minTracerVisualDistance = 2f;
-    [SerializeField, Range(0f, 180f)] private float maxTracerCameraAngle = 20f;
+    [SerializeField, Min(0.01f)] private float visualTracerBoltSpeed = 70f;
+    [SerializeField, Min(0f)] private float visualTracerBoltLength = 0.35f;
+    [SerializeField, Min(0f)] private float minTracerBoltTravelDuration = 0.04f;
+    [SerializeField, Min(0f)] private float tracerBoltImpactHoldDuration = 0.02f;
 
-    [Header("Tracer Parallax Debug")]
-    [Tooltip("마지막 발사에서 VFX Anchor부터 실제 명중점까지의 Tracer 거리입니다.")]
-    [SerializeField] private float lastTracerVisualDistance;
-    [Tooltip("마지막 발사에서 카메라 중앙 Ray와 실제 Muzzle Ray 사이의 각도입니다.")]
-    [SerializeField] private float lastTracerCameraAngle;
-    [Tooltip("마지막 발사 Tracer가 근거리 또는 큰 카메라 시차로 숨겨졌는지 표시합니다.")]
-    [SerializeField] private bool lastTracerSuppressedByParallax;
+    [Header("Tracer Bolt Debug")]
+    [Tooltip("마지막 발사에서 Bolt가 이동할 전체 거리입니다.")]
+    [SerializeField] private float lastTracerBoltDistance;
+    [Tooltip("마지막 발사에서 Bolt가 끝점까지 이동하는 시각 시간입니다.")]
+    [SerializeField] private float lastTracerBoltTravelDuration;
+    [Tooltip("현재 표시 중인 Bolt의 이동 진행률입니다.")]
+    [SerializeField, Range(0f, 1f)] private float tracerBoltProgress;
 
     private readonly RaycastHit[] cameraHits = new RaycastHit[16];
     private readonly RaycastHit[] muzzleHits = new RaycastHit[16];
@@ -72,7 +73,13 @@ public sealed class PlayerCombatController : MonoBehaviour
     private bool didWarnAboutMuzzleBuffer;
     private double nextShotTime;
     private double reloadEndsAt;
-    private double tracerVisibleUntil;
+    private Vector3 tracerBoltOrigin;
+    private Vector3 tracerBoltEnd;
+    private Vector3 tracerBoltDirection;
+    private double tracerBoltStartedAt;
+    private double tracerBoltTravelEndsAt;
+    private double tracerBoltImpactHoldEndsAt;
+    private bool tracerBoltActive;
     private GameObject muzzleFlashInstance;
     private ParticleSystem[] muzzleFlashParticles = Array.Empty<ParticleSystem>();
     private double muzzleFlashVisibleUntil;
@@ -95,8 +102,10 @@ public sealed class PlayerCombatController : MonoBehaviour
         currentRounds = Mathf.Clamp(currentRounds, 0, magazineCapacity);
         reloadDuration = Mathf.Max(0.01f, reloadDuration);
         muzzleFlashVisibleDuration = Mathf.Max(0f, muzzleFlashVisibleDuration);
-        minTracerVisualDistance = Mathf.Max(0f, minTracerVisualDistance);
-        maxTracerCameraAngle = Mathf.Clamp(maxTracerCameraAngle, 0f, 180f);
+        visualTracerBoltSpeed = Mathf.Max(0.01f, visualTracerBoltSpeed);
+        visualTracerBoltLength = Mathf.Max(0f, visualTracerBoltLength);
+        minTracerBoltTravelDuration = Mathf.Max(0f, minTracerBoltTravelDuration);
+        tracerBoltImpactHoldDuration = Mathf.Max(0f, tracerBoltImpactHoldDuration);
     }
 
     private void Awake()
@@ -317,21 +326,14 @@ public sealed class PlayerCombatController : MonoBehaviour
         Vector3 tracerOrigin = muzzleFlashAnchor != null
             ? muzzleFlashAnchor.position
             : muzzle.position;
-        lastTracerVisualDistance = Vector3.Distance(tracerOrigin, shotEnd);
-        lastTracerCameraAngle = Vector3.Angle(aimRay.direction, shotDirection);
-        lastTracerSuppressedByParallax = lastTracerVisualDistance < minTracerVisualDistance
-            || lastTracerCameraAngle > maxTracerCameraAngle;
-
-        if (showShotTracer && shotTracer != null && !lastTracerSuppressedByParallax)
+        if (showShotTracer && shotTracer != null)
         {
             Color tracerColor = hasShotHit ? hitTracerColor : missTracerColor;
             shotTracer.positionCount = 2;
-            shotTracer.SetPosition(0, tracerOrigin);
-            shotTracer.SetPosition(1, shotEnd);
             shotTracer.startColor = tracerColor;
             shotTracer.endColor = tracerColor;
             shotTracer.enabled = true;
-            tracerVisibleUntil = now + shotTracerDuration;
+            StartTracerBolt(tracerOrigin, shotEnd, shotDirection, now);
         }
         else if (shotTracer != null)
         {
@@ -364,29 +366,72 @@ public sealed class PlayerCombatController : MonoBehaviour
             return;
         }
 
-        if (!showShotTracer || now >= tracerVisibleUntil)
+        if (!showShotTracer || !tracerBoltActive)
         {
-            shotTracer.enabled = false;
+            HideShotTracer();
             return;
         }
 
-        if (shotTracer.enabled)
+        if (now < tracerBoltTravelEndsAt)
         {
-            Transform tracerOrigin = muzzleFlashAnchor != null ? muzzleFlashAnchor : muzzle;
-            if (tracerOrigin != null)
-            {
-                shotTracer.SetPosition(0, tracerOrigin.position);
-            }
+            float elapsed = (float)(now - tracerBoltStartedAt);
+            tracerBoltProgress = Mathf.Clamp01(elapsed / lastTracerBoltTravelDuration);
+            float headDistance = lastTracerBoltDistance * tracerBoltProgress;
+            SetTracerBoltPositions(
+                tracerBoltOrigin + tracerBoltDirection * Mathf.Max(0f, headDistance - visualTracerBoltLength),
+                tracerBoltOrigin + tracerBoltDirection * headDistance);
+            return;
         }
+
+        tracerBoltProgress = 1f;
+        if (now < tracerBoltImpactHoldEndsAt)
+        {
+            SetTracerBoltPositions(
+                tracerBoltEnd - tracerBoltDirection * Mathf.Min(visualTracerBoltLength, lastTracerBoltDistance),
+                tracerBoltEnd);
+            return;
+        }
+
+        HideShotTracer();
     }
 
     private void HideShotTracer()
     {
-        tracerVisibleUntil = 0d;
+        tracerBoltActive = false;
+        tracerBoltProgress = 0f;
+        tracerBoltStartedAt = 0d;
+        tracerBoltTravelEndsAt = 0d;
+        tracerBoltImpactHoldEndsAt = 0d;
         if (shotTracer != null)
         {
             shotTracer.enabled = false;
         }
+    }
+
+    private void StartTracerBolt(Vector3 origin, Vector3 end, Vector3 fallbackDirection, double now)
+    {
+        tracerBoltOrigin = origin;
+        tracerBoltEnd = end;
+        Vector3 offset = end - origin;
+        lastTracerBoltDistance = offset.magnitude;
+        tracerBoltDirection = lastTracerBoltDistance > Mathf.Epsilon
+            ? offset / lastTracerBoltDistance
+            : fallbackDirection.normalized;
+        lastTracerBoltTravelDuration = Mathf.Max(
+            minTracerBoltTravelDuration,
+            lastTracerBoltDistance / visualTracerBoltSpeed);
+        tracerBoltStartedAt = now;
+        tracerBoltTravelEndsAt = now + lastTracerBoltTravelDuration;
+        tracerBoltImpactHoldEndsAt = tracerBoltTravelEndsAt + tracerBoltImpactHoldDuration;
+        tracerBoltActive = true;
+        tracerBoltProgress = 0f;
+        SetTracerBoltPositions(origin, origin);
+    }
+
+    private void SetTracerBoltPositions(Vector3 tail, Vector3 head)
+    {
+        shotTracer.SetPosition(0, tail);
+        shotTracer.SetPosition(1, head);
     }
 
     private void InitializeMuzzleFlash()
