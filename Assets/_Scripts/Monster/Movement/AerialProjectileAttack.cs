@@ -38,6 +38,8 @@ public sealed class AerialProjectileAttack : MonoBehaviour, IMonsterResettable, 
     private MonsterHealth monsterHealth;
     [SerializeField, Tooltip("투사체가 자기 몸 콜라이더를 무시할 때 기준이 되는 루트입니다. 비워두면 이 Transform을 사용합니다.")]
     private Transform ownerRoot;
+    [SerializeField, Tooltip("공격/이동/사망 사운드를 재생합니다. 비워두면 같은 몬스터 계층에서 찾습니다.")]
+    private MonsterAudioFeedback audioFeedback;
 
     [Header("Attack")]
     [SerializeField, Min(0f), Tooltip("한 번 공격한 뒤 다음 공격까지 기다리는 시간입니다.")]
@@ -158,6 +160,10 @@ public sealed class AerialProjectileAttack : MonoBehaviour, IMonsterResettable, 
         monsterHealth ??= GetComponentInParent<MonsterHealth>();
         monsterHealth ??= GetComponentInChildren<MonsterHealth>();
 
+        audioFeedback ??= GetComponent<MonsterAudioFeedback>();
+        audioFeedback ??= GetComponentInParent<MonsterAudioFeedback>();
+        audioFeedback ??= GetComponentInChildren<MonsterAudioFeedback>();
+
         ownerRoot ??= transform;
     }
 
@@ -183,6 +189,7 @@ public sealed class AerialProjectileAttack : MonoBehaviour, IMonsterResettable, 
         Vector3 aimDirection = GetAimDirection(target);
         AttackPattern pattern = PickPattern();
         lastPattern = pattern;
+        audioFeedback?.PlayRangedAttack();
 
         if (pattern == AttackPattern.FanThree)
         {

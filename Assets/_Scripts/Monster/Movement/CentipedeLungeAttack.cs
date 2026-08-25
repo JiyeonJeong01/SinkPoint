@@ -24,6 +24,8 @@ public sealed class CentipedeLungeAttack : MonoBehaviour, IMonsterResettable, IM
     [SerializeField] private Transform navTarget;
     [SerializeField] private GravityState gravityState;
     [SerializeField] private MonsterStateMachine stateMachine;
+    [SerializeField, Tooltip("공격/이동/사망 사운드를 재생합니다. 비워두면 같은 몬스터 계층에서 찾습니다.")]
+    private MonsterAudioFeedback audioFeedback;
 
     [Header("Timing")]
     [SerializeField, Min(0f), Tooltip("공격이 한 번 끝난 뒤 다음 공격까지 기다리는 시간입니다.")]
@@ -112,6 +114,10 @@ public sealed class CentipedeLungeAttack : MonoBehaviour, IMonsterResettable, IM
         stateMachine ??= GetComponentInParent<MonsterStateMachine>();
         stateMachine ??= GetComponentInChildren<MonsterStateMachine>();
 
+        audioFeedback ??= GetComponent<MonsterAudioFeedback>();
+        audioFeedback ??= GetComponentInParent<MonsterAudioFeedback>();
+        audioFeedback ??= GetComponentInChildren<MonsterAudioFeedback>();
+
         if (gravityState == null)
         {
             gravityState = FindGravityState();
@@ -195,7 +201,11 @@ public sealed class CentipedeLungeAttack : MonoBehaviour, IMonsterResettable, IM
             .SetTarget(this)
             .AppendCallback(() => attackDebugStatus = AttackDebugStatus.Windup)
             .Append(navTarget.DOMove(windupPosition, windupDuration).SetEase(Ease.OutBack))
-            .AppendCallback(() => attackDebugStatus = AttackDebugStatus.Lunge)
+            .AppendCallback(() =>
+            {
+                attackDebugStatus = AttackDebugStatus.Lunge;
+                audioFeedback?.PlayBodySlam();
+            })
             .Append(navTarget.DOMove(lungePosition, lungeDuration).SetEase(Ease.InQuad))
             .AppendCallback(() => attackDebugStatus = AttackDebugStatus.Recover)
             .Append(navTarget.DOMove(recoverPosition, recoverDuration).SetEase(Ease.OutQuad))

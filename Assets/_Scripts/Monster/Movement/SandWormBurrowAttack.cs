@@ -37,6 +37,8 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
     private MonsterHealth monsterHealth;
     [SerializeField, Tooltip("잠복 중 멈출 이동 컴포넌트입니다. 비워두면 같은 오브젝트의 CentipedeFloorMover를 자동으로 사용합니다.")]
     private Behaviour[] movementBehaviours;
+    [SerializeField, Tooltip("공격/이동/사망 사운드를 재생합니다. 비워두면 같은 몬스터 계층에서 찾습니다.")]
+    private MonsterAudioFeedback audioFeedback;
     [Header("Timing")]
     [SerializeField, Min(0f), Tooltip("잠복 공격이 한 번 끝난 뒤 다음 공격까지 기다리는 시간입니다.")]
     private float attackInterval = 4f;
@@ -188,6 +190,10 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
         targetSensor ??= GetComponentInParent<MonsterTargetSensor>();
         targetSensor ??= GetComponentInChildren<MonsterTargetSensor>();
 
+        audioFeedback ??= GetComponent<MonsterAudioFeedback>();
+        audioFeedback ??= GetComponentInParent<MonsterAudioFeedback>();
+        audioFeedback ??= GetComponentInChildren<MonsterAudioFeedback>();
+
         if (gravityState == null)
         {
             GameObject gravitySystem = GameObject.Find("GravitySystem");
@@ -279,6 +285,7 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
 
         KillBurrowSequence(false);
         SetMovementEnabled(false);
+        audioFeedback?.PlayChaseStart();
 
         burrowSequence = DOTween.Sequence()
             .SetTarget(this)
@@ -286,6 +293,7 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
             {
                 burrowDebugStatus = BurrowDebugStatus.Burrowing;
                 AlignNavTargetToGravity(initialGravityDirection);
+                audioFeedback?.PlayBurrow();
             })
             .Append(navTarget.DOMove(burrowPosition, burrowDuration).SetEase(Ease.InCubic))
             .AppendInterval(bodyFollowUndergroundDelay)
@@ -297,6 +305,7 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
             {
                 burrowDebugStatus = BurrowDebugStatus.Emerging;
                 FaceTargetOnSurface(target != null ? target.position : capturedTargetPosition, emergeGravityDirection);
+                audioFeedback?.PlayEmergeAttack();
             })
             .Append(DOVirtual.Float(0f, 1f, emergeDuration, MoveTowardEmergeEnd).SetEase(Ease.OutBack))
             .AppendCallback(() => TryApplyEmergeDamage(target))

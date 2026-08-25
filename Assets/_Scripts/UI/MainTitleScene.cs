@@ -24,6 +24,12 @@ public sealed class MainTitleScene : MonoBehaviour
     [SerializeField, Min(0f)] private float minimumLoadingPanelTime = 0.2f;
 
     [Header("Button Feedback")]
+    [SerializeField, Tooltip("타이틀 UI 버튼 클릭 시 재생할 사운드입니다.")]
+    private AudioClip buttonClickSound;
+    [SerializeField, Tooltip("비워두면 같은 오브젝트의 AudioSource를 자동으로 사용합니다.")]
+    private AudioSource buttonAudioSource;
+    [SerializeField, Range(0f, 1f)]
+    private float buttonClickVolume = 0.8f;
     [SerializeField, Min(1f)] private float hoverScale = 1.08f;
     [SerializeField, Min(0.01f)] private float pressedScale = 0.94f;
     [SerializeField, Min(0f)] private float buttonTweenDuration = 0.12f;
@@ -34,6 +40,7 @@ public sealed class MainTitleScene : MonoBehaviour
 
     private void Awake()
     {
+        ResolveAudioReferences();
         RegisterButtonTweens();
         CloseAllPanels();
         SetLoadingVisible(false);
@@ -206,6 +213,7 @@ public sealed class MainTitleScene : MonoBehaviour
             AddEventTrigger(eventTrigger, EventTriggerType.PointerExit, _ => TweenButton(button, buttonTransform, 1f));
             AddEventTrigger(eventTrigger, EventTriggerType.PointerDown, _ => TweenButton(button, buttonTransform, pressedScale));
             AddEventTrigger(eventTrigger, EventTriggerType.PointerUp, _ => TweenButton(button, buttonTransform, hoverScale));
+            button.onClick.AddListener(PlayButtonClickSound);
         }
     }
 
@@ -240,5 +248,36 @@ public sealed class MainTitleScene : MonoBehaviour
         };
         entry.callback.AddListener(callback);
         eventTrigger.triggers.Add(entry);
+    }
+
+    private void ResolveAudioReferences()
+    {
+        buttonAudioSource ??= GetComponent<AudioSource>();
+        if (buttonAudioSource == null)
+        {
+            buttonAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        buttonAudioSource.playOnAwake = false;
+        buttonAudioSource.spatialBlend = 0f;
+    }
+
+    private void PlayButtonClickSound()
+    {
+        if (buttonClickSound != null && buttonAudioSource != null)
+        {
+            buttonAudioSource.PlayOneShot(buttonClickSound, buttonClickVolume);
+        }
+    }
+
+    private void OnValidate()
+    {
+#if UNITY_EDITOR
+        if (buttonClickSound == null)
+        {
+            buttonClickSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/Audios/Menu/Menu_Buttons_1.wav");
+        }
+#endif
     }
 }

@@ -64,6 +64,8 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
     private float avoidanceSideStep = 2f;
     [SerializeField, Min(0f), Tooltip("충돌체 바로 앞에서 멈추기 위해 남기는 여유 거리입니다.")]
     private float collisionStopPadding = 0.2f;
+    [SerializeField, Min(0f), Tooltip("이미 콜라이더와 살짝 겹친 0거리 판정을 무시해 벽에서 빠져나올 수 있게 합니다.")]
+    private float overlapEscapeDistance = 0.03f;
 
     [Header("Debug Readout")]
     [SerializeField, Tooltip("현재 공중 이동 상태입니다.")]
@@ -322,7 +324,7 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
             Vector3 awayFromCollider = lastProbeOrigin - closestPoint;
             if (awayFromCollider.sqrMagnitude < 0.0001f)
             {
-                return true;
+                continue;
             }
 
             if (Vector3.Dot(lastProbeDirection, awayFromCollider.normalized) < 0f)
@@ -351,6 +353,12 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
 
             // 가오리 자신의 몸/자식 콜라이더를 장애물로 오해하면 제자리에서 튀기 때문에 제외합니다.
             if (hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            // 이미 겹친 상태의 0거리 히트까지 막으면 벽에 박힌 뒤 빠져나오지 못합니다.
+            if (hits[i].distance <= overlapEscapeDistance)
             {
                 continue;
             }
@@ -547,5 +555,6 @@ public sealed class AerialFreeFlightMover : MonoBehaviour, IMonsterResettable, I
         obstacleProbeDistance = Mathf.Max(0.01f, obstacleProbeDistance);
         avoidanceSideStep = Mathf.Max(0f, avoidanceSideStep);
         collisionStopPadding = Mathf.Max(0f, collisionStopPadding);
+        overlapEscapeDistance = Mathf.Max(0f, overlapEscapeDistance);
     }
 }
