@@ -268,3 +268,11 @@
 - 해결한 문제: 공유 Material·Camera Prefab 변경과 씬 로컬 렌더링·배치 변경을 구분하고, 과거 Player 씬의 중복·오래된 override를 다시 이식하지 않아 Original과의 불필요한 차이를 제거했다. Original 씬과 두 씬 meta GUID는 보존했다.
 - 사람이 직접 결정한 부분: Original을 환경·배치·진행 연결의 최종 기준으로 사용하고, Player 씬 고유 차이는 실행에 필요한 리스폰 참조만 허용하도록 결정했다. Collider는 Original 값을 그대로 동기화하되 별도 제작·튜닝하지 않았고 WebGL 빌드는 실행하지 않았다.
 - 검증 결과: 두 씬은 각각 YAML 문서 1,529개, 중복 ID 0개, 미해결 로컬 참조 0개이며 객체 단위 차이는 GameFlowManager Prefab instance의 `playerRoot` 한 줄뿐이다. Unity에서 Player·Camera·Gravity·Audio·Respawn 참조, Global Volume과 조명 3개, Zone05·Aeropod를 재조회했다. `Assembly-CSharp-Editor.csproj` 빌드는 오류 0개와 기존 경고 43개로 통과했고, 새 Play Mode에서 정상 화면과 초기 중력 `(0, -1, 0) × 9.81`, GameFlow·Audio·Respawn 연결, Console Error 0건을 확인했다. 실제 이동·발사·리스폰, 구역 순회와 Shift/Inversion/Periodic/Zero Gravity 체감 검증은 사용자 Play Mode 확인이 남아 있다.
+
+## 2026-08-26 — NPC·Player Transform 동기화 분리
+
+- Codex 사용처: 두 씬의 NPC·Player 계층, Prefab Variant 상속과 Git 이력을 대조해 동일 입력으로 위치·회전이 함께 갱신되는 원인을 진단하고, NPC 프리팹을 독립 구조로 복구·검증했다.
+- 구현하거나 정리한 기능: `NPC.prefab`의 Player Prefab Variant 연결을 끊고 기존 GUID와 루트 식별자, 씬 배치, 대사·감지 트리거를 보존했다. 외형은 `TS-Armies_Recon_B` connected Prefab과 guard idle Animator로 유지하고, 생성·복구 Editor 도구도 Player가 아닌 공용 외형에서 독립 NPC를 만들도록 수정했다.
+- 해결한 문제: NPC에 다시 상속된 `PlayerInput`, `PlayerController`, `PlayerHealth`, Rigidbody·Collider, 플레이어 오디오·그래플 구성 때문에 Player와 NPC가 같은 입력으로 이동·회전하던 결합을 제거했다. 제거 순서는 `RequireComponent` 의존성을 고려하고 복구 명령은 재실행해도 결과가 바뀌지 않게 구성했다.
+- 사람이 직접 결정한 부분: 현재 컴포넌트만 제거하는 임시 대응 대신 NPC를 Player 프리팹에서 완전히 분리해 이후 플레이어 기능 추가가 NPC로 전파되지 않도록 선택했다. NPC 이동 AI나 신규 애니메이션 상태는 추가하지 않았다.
+- 검증 결과: `Assembly-CSharp-Editor.csproj` 빌드는 오류 0개와 기존 경고 43개로 통과했다. Original과 Player 씬의 NPC 배치 `(-4.564, -0.04, -4.951)`와 Y 회전 `144.235°`, NPC GUID·루트 식별자가 유지됐고 두 씬 Play Mode에서 NPC가 `Transform`, `NpcInteraction`, guard idle Animator와 대화 Canvas만 사용하는 것을 확인했다. 새 Play Mode 구간의 Console Error는 0건이었다. 실제 이동·회전 독립성과 접근 후 `I`·`Space` 대화 조작은 사용자 Play Mode 확인이 남아 있다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.

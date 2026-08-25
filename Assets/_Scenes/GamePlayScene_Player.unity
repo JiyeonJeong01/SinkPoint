@@ -34330,6 +34330,10 @@ PrefabInstance:
       propertyPath: cameraTransform
       value: 
       objectReference: {fileID: 354253455}
+    - target: {fileID: 6221087593812447001, guid: 99859a1a5ae055448ac4c2a5f1713a46, type: 3}
+      propertyPath: aimCamera
+      value: 
+      objectReference: {fileID: 1029900826}
     - target: {fileID: 7138164389181206742, guid: 99859a1a5ae055448ac4c2a5f1713a46, type: 3}
       propertyPath: maxHealth
       value: 1000
@@ -40117,6 +40121,14 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3318639978420163574, guid: ecd2219e05959ca4d86f1a0d0f76ac4a, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7079371671644040189, guid: ecd2219e05959ca4d86f1a0d0f76ac4a, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7079371671644040189, guid: ecd2219e05959ca4d86f1a0d0f76ac4a, type: 3}
+      propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7921066140255376876, guid: ecd2219e05959ca4d86f1a0d0f76ac4a, type: 3}

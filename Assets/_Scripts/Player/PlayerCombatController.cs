@@ -10,6 +10,7 @@ public sealed class PlayerCombatController : MonoBehaviour
     [SerializeField] private PlayerInput input;
     [SerializeField] private ThirdPersonCameraController aimCamera;
     [SerializeField] private Transform muzzle;
+    private GrapplingHook grapplingHook;
 
     [Header("Muzzle Flash")]
     [SerializeField] private GameObject muzzleFlashPrefab;
@@ -112,6 +113,7 @@ public sealed class PlayerCombatController : MonoBehaviour
     {
         input ??= GetComponent<PlayerInput>();
         playerController = GetComponent<PlayerController>();
+        grapplingHook = GetComponent<GrapplingHook>();
         magazineCapacity = Mathf.Max(1, magazineCapacity);
         reloadDuration = Mathf.Max(0.01f, reloadDuration);
         currentRounds = magazineCapacity;
@@ -201,6 +203,12 @@ public sealed class PlayerCombatController : MonoBehaviour
         if (currentRounds <= 0)
         {
             StartReload(now);
+            return;
+        }
+
+        if (input.GrappleHeld || (grapplingHook != null && grapplingHook.IsBusy))
+        {
+            StopFiring();
             return;
         }
 
