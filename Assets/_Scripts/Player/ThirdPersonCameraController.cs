@@ -4,6 +4,34 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class ThirdPersonCameraController : MonoBehaviour
 {
+    private enum CameraCompositionPreset
+    {
+        Centered,
+        ShoulderGameplay,
+    }
+
+    [System.Serializable]
+    private struct CameraCompositionSettings
+    {
+        [SerializeField] public float pivotHeight;
+        [SerializeField] public Vector2 cameraLocalOffset;
+        [SerializeField, Min(0f)] public float defaultDistance;
+        [SerializeField, Min(1f)] public float fieldOfView;
+
+        public float PivotHeight => pivotHeight;
+        public Vector2 CameraLocalOffset => cameraLocalOffset;
+        public float DefaultDistance => defaultDistance;
+        public float FieldOfView => fieldOfView;
+
+        public bool Matches(CameraCompositionSettings other)
+        {
+            return Mathf.Approximately(pivotHeight, other.pivotHeight)
+                && cameraLocalOffset == other.cameraLocalOffset
+                && Mathf.Approximately(defaultDistance, other.defaultDistance)
+                && Mathf.Approximately(fieldOfView, other.fieldOfView);
+        }
+    }
+
     [Header("References")]
     [SerializeField] private PlayerInput input;
     [SerializeField] private Transform target;
@@ -12,13 +40,29 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
     [SerializeField] private GravityState gravityState;
     [SerializeField] private GravityManager gravityManager;
 
+    [Header("Composition")]
+    [SerializeField] private CameraCompositionPreset compositionPreset = CameraCompositionPreset.ShoulderGameplay;
+    [SerializeField] private CameraCompositionSettings centeredComposition = new CameraCompositionSettings
+    {
+        pivotHeight = 1.03f,
+        cameraLocalOffset = Vector2.zero,
+        defaultDistance = 1.605f,
+        fieldOfView = 60f,
+    };
+    [SerializeField] private CameraCompositionSettings shoulderGameplayComposition = new CameraCompositionSettings
+    {
+        pivotHeight = 1.03f,
+        cameraLocalOffset = new Vector2(0.35f, 0f),
+        defaultDistance = 1.605f,
+        fieldOfView = 60f,
+    };
+
     [Header("Look")]
     [SerializeField, Min(0f)] private float mouseSensitivity = 2f;
-    [SerializeField] private float minPitch = -40f;
-    [SerializeField] private float maxPitch = 70f;
+    [SerializeField] private float minPitch = -85f;
+    [SerializeField] private float maxPitch = 85f;
 
     [Header("Distance")]
-    [SerializeField, Min(0f)] private float defaultDistance = 1.605f;
     [SerializeField, Min(0f)] private float minDistance = 0.6f;
     [SerializeField, Min(0f)] private float maxDistance = 3f;
     [SerializeField, Min(0f)] private float zoomStep = 0.25f;
@@ -39,6 +83,9 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
     private float pitch;
     private float userDistance;
     private float displayedDistance;
+    private CameraCompositionSettings activeComposition;
+    private CameraCompositionPreset appliedCompositionPreset;
+    private bool hasAppliedComposition;
     private bool wasCollisionLimited;
     private bool didWarnAboutHitBuffer;
     private Tween distanceTween;
@@ -61,10 +108,7 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
         gravityUp = gravityState != null ? -gravityState.Direction : Vector3.up;
         orbitForward = GetPlanarForward(transform.forward, gravityUp);
 
-        float lowerDistance = Mathf.Min(minDistance, maxDistance);
-        float upperDistance = Mathf.Max(minDistance, maxDistance);
-        userDistance = Mathf.Clamp(defaultDistance, lowerDistance, upperDistance);
-        displayedDistance = userDistance;
+        ApplySelectedComposition();
         ApplyCameraDistance();
     }
 
@@ -136,6 +180,8 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
 
     private void LateUpdate()
     {
+        ApplySelectedComposition();
+
         if (gravityTransitionActive && gravityManager != null)
         {
             gravityUp = gravityManager.PresentationUp.normalized;
@@ -217,17 +263,21 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
 
     private float CalculateSafeDistance()
     {
-        if (userDistance <= Mathf.Epsilon)
+        Vector3 desiredLocalPosition = GetDesiredCameraLocalPosition(userDistance);
+        float desiredTravelDistance = desiredLocalPosition.magnitude;
+        if (desiredTravelDistance <= Mathf.Epsilon)
         {
             return 0f;
         }
 
+        Vector3 desiredTravelDirection = cameraPivot.TransformDirection(desiredLocalPosition / desiredTravelDistance);
+
         int hitCount = Physics.SphereCastNonAlloc(
             cameraPivot.position,
             collisionRadius,
-            -cameraPivot.forward,
+            desiredTravelDirection,
             collisionHits,
-            userDistance,
+            desiredTravelDistance,
             collisionMask,
             QueryTriggerInteraction.Ignore);
 
@@ -239,7 +289,7 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
             didWarnAboutHitBuffer = true;
         }
 
-        float safeDistance = userDistance;
+        float safeTravelDistance = desiredTravelDistance;
         for (int i = 0; i < hitCount; i++)
         {
             RaycastHit hit = collisionHits[i];
@@ -248,10 +298,10 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
                 continue;
             }
 
-            safeDistance = Mathf.Min(safeDistance, hit.distance - collisionPadding);
+            safeTravelDistance = Mathf.Min(safeTravelDistance, hit.distance - collisionPadding);
         }
 
-        return Mathf.Clamp(safeDistance, 0f, userDistance);
+        return Mathf.Clamp01(safeTravelDistance / desiredTravelDistance) * userDistance;
     }
 
     private void StartDistanceTween(float targetDistance, float duration)
@@ -291,9 +341,59 @@ public sealed class ThirdPersonCameraController : MonoBehaviour
             return;
         }
 
-        Vector3 localPosition = cameraTransform.localPosition;
-        localPosition.z = -displayedDistance;
-        cameraTransform.localPosition = localPosition;
+        float displayedScale = userDistance > Mathf.Epsilon
+            ? Mathf.Clamp01(displayedDistance / userDistance)
+            : 1f;
+        cameraTransform.localPosition = GetDesiredCameraLocalPosition(userDistance) * displayedScale;
+    }
+
+    private void ApplySelectedComposition()
+    {
+        CameraCompositionSettings selectedComposition = GetSelectedComposition();
+        if (hasAppliedComposition
+            && compositionPreset == appliedCompositionPreset
+            && activeComposition.Matches(selectedComposition))
+        {
+            return;
+        }
+
+        activeComposition = selectedComposition;
+        appliedCompositionPreset = compositionPreset;
+        hasAppliedComposition = true;
+
+        if (cameraPivot != null)
+        {
+            Vector3 pivotLocalPosition = cameraPivot.localPosition;
+            pivotLocalPosition.y = activeComposition.PivotHeight;
+            cameraPivot.localPosition = pivotLocalPosition;
+        }
+
+        if (gameplayCamera != null)
+        {
+            gameplayCamera.fieldOfView = activeComposition.FieldOfView;
+        }
+
+        float lowerDistance = Mathf.Min(minDistance, maxDistance);
+        float upperDistance = Mathf.Max(minDistance, maxDistance);
+        userDistance = Mathf.Clamp(activeComposition.DefaultDistance, lowerDistance, upperDistance);
+        displayedDistance = userDistance;
+        wasCollisionLimited = false;
+        KillDistanceTween();
+    }
+
+    private CameraCompositionSettings GetSelectedComposition()
+    {
+        return compositionPreset == CameraCompositionPreset.Centered
+            ? centeredComposition
+            : shoulderGameplayComposition;
+    }
+
+    private Vector3 GetDesiredCameraLocalPosition(float distance)
+    {
+        return new Vector3(
+            activeComposition.CameraLocalOffset.x,
+            activeComposition.CameraLocalOffset.y,
+            -distance);
     }
 
     private static float NormalizeAngle(float angle)
