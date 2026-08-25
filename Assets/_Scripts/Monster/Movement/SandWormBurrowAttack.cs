@@ -65,7 +65,9 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
     [SerializeField, Min(0f), Tooltip("몸 전체가 지면 아래에서 나오도록 실제 등장 시작 깊이는 이 값보다 작아지지 않습니다.")]
     private float minimumFullBodyEmergeDepth = 12f;
     [SerializeField, Min(0f), Tooltip("등장 완료 위치를 지면 위로 얼마나 띄울지 정합니다. 몸빵 느낌을 키우려면 조금 올립니다.")]
-    private float emergeSurfaceOffset = 0.35f;
+    private float emergeSurfaceOffset = 1.2f;
+    [SerializeField, Min(0f), Tooltip("머리만 빼꼼 나오지 않도록 실제 등장 높이가 이 값보다 작아지지 않게 합니다.")]
+    private float minimumEmergeSurfaceOffset = 1.2f;
     [SerializeField, Min(0f), Tooltip("플레이어 위치 정중앙 대신 주변에서 나올 거리입니다. 0이면 플레이어 위치 기준으로 나옵니다.")]
     private float emergeSideOffset = 0.8f;
 
@@ -338,7 +340,7 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
         lastGroundPoint = groundPoint;
         fallStartPosition = navTarget.position;
         emergeStartPosition = groundPoint + emergeGravityDirection * GetEffectiveEmergeStartDepth();
-        emergeEndPosition = groundPoint + currentSurfaceNormal * emergeSurfaceOffset;
+        emergeEndPosition = groundPoint + currentSurfaceNormal * GetEffectiveEmergeSurfaceOffset();
 
         burrowDebugStatus = BurrowDebugStatus.FallingToCurrentGround;
         FaceTargetOnSurface(capturedTargetPosition, emergeGravityDirection);
@@ -518,6 +520,11 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
         return Mathf.Max(emergeStartDepth, minimumFullBodyEmergeDepth);
     }
 
+    private float GetEffectiveEmergeSurfaceOffset()
+    {
+        return Mathf.Max(emergeSurfaceOffset, minimumEmergeSurfaceOffset);
+    }
+
     private Vector3 GetBurrowForwardDirection(Vector3 surfaceNormal)
     {
         Vector3 forward = navTarget != null
@@ -675,6 +682,7 @@ public sealed class SandWormBurrowAttack : MonoBehaviour, IMonsterResettable, IM
         emergeStartDepth = Mathf.Max(0f, emergeStartDepth);
         minimumFullBodyEmergeDepth = Mathf.Max(0f, minimumFullBodyEmergeDepth);
         emergeSurfaceOffset = Mathf.Max(0f, emergeSurfaceOffset);
+        minimumEmergeSurfaceOffset = Mathf.Max(0f, minimumEmergeSurfaceOffset);
         emergeSideOffset = Mathf.Max(0f, emergeSideOffset);
         groundRayStartOffset = Mathf.Max(0f, groundRayStartOffset);
         groundRayDistance = Mathf.Max(0.01f, groundRayDistance);
