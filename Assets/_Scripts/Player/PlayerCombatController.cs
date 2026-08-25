@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 [DefaultExecutionOrder(105)]
@@ -15,6 +16,19 @@ public sealed class PlayerCombatController : MonoBehaviour
     [SerializeField, Min(0f)] private float maxRange = 100f;
     [SerializeField] private LayerMask hitMask = ~0;
     [SerializeField, Min(0)] private int shotDamage = 1;
+
+    [Header("Magazine")]
+    [SerializeField, Min(1)] private int magazineCapacity = 30;
+    [Tooltip("Play Mode에서 확인하는 현재 장탄 수입니다.")]
+    [SerializeField, Min(0)] private int currentRounds;
+    [SerializeField, Min(0.01f)] private float reloadDuration = 3.67f;
+
+    [Header("Shot Audio")]
+    [SerializeField] private AudioSource shotAudioSource;
+
+    [Header("Reload Audio")]
+    [SerializeField] private AudioSource reloadAudioSource;
+    [SerializeField, Min(0f)] private float reloadAudioDelay = 0.3f;
 
     [Header("Physics Hit")]
     [SerializeField, Min(0f)] private float shotPushVelocityChange = 1.5f;
@@ -42,18 +56,35 @@ public sealed class PlayerCombatController : MonoBehaviour
     private bool didWarnAboutCameraBuffer;
     private bool didWarnAboutMuzzleBuffer;
     private double nextShotTime;
+    private double reloadEndsAt;
     private double tracerVisibleUntil;
     private int shotCount;
     private Vector3 lastShotEnd;
 
     internal bool IsFiring { get; private set; }
+    internal bool IsReloading { get; private set; }
+    internal bool ReloadStartedThisFrame { get; private set; }
+    internal int CurrentRounds => currentRounds;
+    internal int MagazineCapacity => magazineCapacity;
     internal float AimPitchDegrees => aimCamera != null ? aimCamera.PitchDegrees : 0f;
     internal bool LastShotAppliedPhysicsPush => lastShotAppliedPhysicsPush;
+
+    public event Action<int, int> MagazineChanged;
+
+    private void OnValidate()
+    {
+        magazineCapacity = Mathf.Max(1, magazineCapacity);
+        currentRounds = Mathf.Clamp(currentRounds, 0, magazineCapacity);
+        reloadDuration = Mathf.Max(0.01f, reloadDuration);
+    }
 
     private void Awake()
     {
         input ??= GetComponent<PlayerInput>();
         playerController = GetComponent<PlayerController>();
+        magazineCapacity = Mathf.Max(1, magazineCapacity);
+        reloadDuration = Mathf.Max(0.01f, reloadDuration);
+        currentRounds = magazineCapacity;
     }
 
     private void Start()
@@ -74,21 +105,65 @@ public sealed class PlayerCombatController : MonoBehaviour
                 this);
         }
 
+        if (shotAudioSource == null || shotAudioSource.clip == null)
+        {
+            Debug.LogWarning(
+                $"{nameof(PlayerCombatController)} on '{name}' has no shot AudioSource or AudioClip. Shots will remain silent.",
+                this);
+        }
+
+        if (reloadAudioSource == null || reloadAudioSource.clip == null)
+        {
+            Debug.LogWarning(
+                $"{nameof(PlayerCombatController)} on '{name}' has no reload AudioSource or AudioClip. Reloads will remain silent.",
+                this);
+        }
+
         HideShotTracer();
     }
 
     private void OnDisable()
     {
         StopFiring();
+        CancelReload();
         HideShotTracer();
     }
 
     private void LateUpdate()
     {
         double now = Time.timeAsDouble;
+        ReloadStartedThisFrame = false;
         UpdateShotTracer(now);
 
-        if (!input.AllowCombat || !input.FireHeld)
+        if (IsReloading)
+        {
+            if (now < reloadEndsAt)
+            {
+                return;
+            }
+
+            CompleteReload();
+        }
+
+        if (!input.AllowCombat)
+        {
+            StopFiring();
+            return;
+        }
+
+        if (input.ReloadPressed && currentRounds < magazineCapacity)
+        {
+            StartReload(now);
+            return;
+        }
+
+        if (currentRounds <= 0)
+        {
+            StartReload(now);
+            return;
+        }
+
+        if (!input.FireHeld)
         {
             StopFiring();
             return;
@@ -113,7 +188,10 @@ public sealed class PlayerCombatController : MonoBehaviour
         }
 
         FireShot(now);
-        nextShotTime = now + fireInterval;
+        if (fireSequenceActive)
+        {
+            nextShotTime = now + fireInterval;
+        }
     }
 
     private void StopFiring()
@@ -121,6 +199,35 @@ public sealed class PlayerCombatController : MonoBehaviour
         fireSequenceActive = false;
         IsFiring = false;
         nextShotTime = 0d;
+    }
+
+    private void StartReload(double now)
+    {
+        if (IsReloading || currentRounds >= magazineCapacity)
+        {
+            return;
+        }
+
+        StopFiring();
+        IsReloading = true;
+        ReloadStartedThisFrame = true;
+        reloadEndsAt = now + reloadDuration;
+        PlayReloadAudio();
+    }
+
+    private void CompleteReload()
+    {
+        SetCurrentRounds(magazineCapacity);
+        IsReloading = false;
+        reloadEndsAt = 0d;
+    }
+
+    private void CancelReload()
+    {
+        IsReloading = false;
+        ReloadStartedThisFrame = false;
+        reloadEndsAt = 0d;
+        reloadAudioSource?.Stop();
     }
 
     private void FireShot(double now)
@@ -157,6 +264,7 @@ public sealed class PlayerCombatController : MonoBehaviour
             ? shotHit.point
             : muzzle.position + shotDirection * shotDistance;
         shotCount++;
+        PlayShotAudio();
         playerController.TryApplyZeroGravityRecoil(-shotDirection);
         lastShotCollider = hasShotHit ? shotHit.collider : null;
         lastShotRigidbody = null;
@@ -184,6 +292,24 @@ public sealed class PlayerCombatController : MonoBehaviour
             shotTracer.enabled = true;
             tracerVisibleUntil = now + shotTracerDuration;
         }
+
+        SetCurrentRounds(currentRounds - 1);
+        if (currentRounds == 0)
+        {
+            StartReload(now);
+        }
+    }
+
+    private void SetCurrentRounds(int rounds)
+    {
+        int nextRounds = Mathf.Clamp(rounds, 0, magazineCapacity);
+        if (currentRounds == nextRounds)
+        {
+            return;
+        }
+
+        currentRounds = nextRounds;
+        MagazineChanged?.Invoke(currentRounds, magazineCapacity);
     }
 
     private void UpdateShotTracer(double now)
@@ -206,6 +332,28 @@ public sealed class PlayerCombatController : MonoBehaviour
         {
             shotTracer.enabled = false;
         }
+    }
+
+    private void PlayShotAudio()
+    {
+        if (shotAudioSource == null || shotAudioSource.clip == null)
+        {
+            return;
+        }
+
+        shotAudioSource.Stop();
+        shotAudioSource.Play();
+    }
+
+    private void PlayReloadAudio()
+    {
+        if (reloadAudioSource == null || reloadAudioSource.clip == null)
+        {
+            return;
+        }
+
+        reloadAudioSource.Stop();
+        reloadAudioSource.PlayDelayed(reloadAudioDelay);
     }
 
     private void ApplyShotPush(RaycastHit shotHit, Vector3 shotDirection)
