@@ -794,6 +794,7 @@ GameObject:
   - component: {fileID: 3910605591710262470}
   - component: {fileID: 5050844216669466999}
   - component: {fileID: 7650192351576888638}
+  - component: {fileID: -5209861145963983283}
   m_Layer: 0
   m_Name: Monster_05_Aeropod_v1
   m_TagString: Untagged
@@ -1423,6 +1424,25 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &-5209861145963983283
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1541205825826231494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89d2c647951c28740a4f5e482ffbb8eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterHitFlash
+  monsterHealth: {fileID: 5879265480448693654}
+  renderers:
+  - {fileID: 1206768541043402727}
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashDuration: 0.12
+  includeInactiveRenderers: 1
+  showDebugLog: 0
 --- !u!1 &1596761307710967336
 GameObject:
   m_ObjectHideFlags: 0

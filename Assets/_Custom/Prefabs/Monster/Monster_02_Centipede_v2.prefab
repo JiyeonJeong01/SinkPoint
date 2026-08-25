@@ -2937,6 +2937,7 @@ GameObject:
   - component: {fileID: 4204414940048558253}
   - component: {fileID: 506495716696390804}
   - component: {fileID: 5472699569901843312}
+  - component: {fileID: 5727528627225228702}
   m_Layer: 0
   m_Name: Monster_02_Centipede_v2
   m_TagString: Untagged
@@ -3626,6 +3627,25 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &5727528627225228702
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4334746406487213513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89d2c647951c28740a4f5e482ffbb8eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterHitFlash
+  monsterHealth: {fileID: 6115114270559739855}
+  renderers:
+  - {fileID: 708196747130439131}
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashDuration: 0.12
+  includeInactiveRenderers: 1
+  showDebugLog: 0
 --- !u!1 &4436192720561085810
 GameObject:
   m_ObjectHideFlags: 0
