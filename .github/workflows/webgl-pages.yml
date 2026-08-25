@@ -23,12 +23,11 @@ jobs:
         with:
           lfs: true
 
-      - uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: |
-            Library-WebGL-
+      - name: Pull and verify LFS files
+        run: |
+          git lfs install
+          git lfs pull
+          git lfs fsck
 
       - name: Build WebGL
         uses: game-ci/unity-builder@v4

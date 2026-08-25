@@ -6,6 +6,8 @@ using UnityEngine.Serialization;
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider), typeof(PlayerInput))]
 public sealed class PlayerController : MonoBehaviour
 {
+    private const float MoveInputDeadZone = 0.1f;
+
     [Header("References")]
     [SerializeField] private PlayerInput input;
     [SerializeField] private Transform cameraTransform;
@@ -38,7 +40,7 @@ public sealed class PlayerController : MonoBehaviour
     [Header("Zero Gravity Recoil")]
     [SerializeField] private bool enableZeroGravityRecoil = true;
     [SerializeField, Min(0f)] private float zeroGravityRecoilVelocityChange = 0.3f;
-    [SerializeField, Min(0f)] private float maxZeroGravityRecoilSpeed = 3f;
+    [SerializeField, Min(0f)] private float maxZeroGravityRecoilSpeed = 4f;
 
     private readonly RaycastHit[] groundHits = new RaycastHit[8];
     private readonly RaycastHit[] stanceHits = new RaycastHit[16];
@@ -85,6 +87,10 @@ public sealed class PlayerController : MonoBehaviour
     internal bool IsSprinting { get; private set; }
     internal bool IsCrouching { get; private set; }
     internal bool IsGravityTransitioning => gravityTransitionActive;
+    internal bool HasMoveIntent => input != null
+        && input.AllowMovement
+        && !gravityTransitionActive
+        && input.Move.sqrMagnitude > MoveInputDeadZone * MoveInputDeadZone;
     internal bool LastZeroGravityRecoilApplied => lastZeroGravityRecoilApplied;
 
     private void Awake()
@@ -153,7 +159,7 @@ public sealed class PlayerController : MonoBehaviour
         visualRoot.rotation = targetRotation;
     }
 
-        /// <summary>
+    /// <summary>
     /// 테스트 씬에서 플레이어 프리팹만 배치해도 실행될 수 있도록 비어 있는 씬 참조를 자동으로 찾습니다.
     /// Inspector에 이미 연결된 값은 덮어쓰지 않습니다.
     /// </summary>
@@ -518,8 +524,6 @@ public sealed class PlayerController : MonoBehaviour
 
     internal void EnterZeroGravity()
     {
-        body.linearVelocity = Vector3.zero;
-        body.angularVelocity = Vector3.zero;
         ClearBufferedJump();
         IsSprinting = false;
         CurrentMoveSpeed = moveSpeed;
@@ -706,7 +710,7 @@ public sealed class PlayerController : MonoBehaviour
             groundNormal = hit.normal;
         }
 
-        if (nearestDistance == float.PositiveInfinity)
+        if (float.IsPositiveInfinity(nearestDistance))
         {
             return false;
         }
