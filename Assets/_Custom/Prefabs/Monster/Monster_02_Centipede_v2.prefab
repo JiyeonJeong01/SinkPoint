@@ -2931,6 +2931,7 @@ GameObject:
   - component: {fileID: 3597284584513369916}
   - component: {fileID: 4470944222853016279}
   - component: {fileID: 7813821729599718941}
+  - component: {fileID: 4545660466167995739}
   m_Layer: 0
   m_Name: Monster_02_Centipede_v2
   m_TagString: Untagged
@@ -2955,6 +2956,7 @@ Transform:
   - {fileID: 3018526387735027707}
   - {fileID: 2868752706044557457}
   - {fileID: 6630852692878410912}
+  - {fileID: 4825563420749501501}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 104.363, z: 0}
 --- !u!95 &4054925169990158905
@@ -3167,6 +3169,27 @@ MonoBehaviour:
   - {fileID: 221638955927744412}
   - {fileID: 6630852692878410912}
   dead: 0
+--- !u!114 &4545660466167995739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4334746406487213513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06d8f15749fb088468c2813774397d7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterDissolveOnDeath
+  dissolveMaterialTemplate: {fileID: 2100000, guid: 3e7101ee60b046b418bc7a05d385162b, type: 2}
+  noiseTexture: {fileID: 0}
+  dissolveDuration: 1.8
+  disableRenderersOnComplete: 1
+  deactivateMonsterOnComplete: 1
+  renderers:
+  - {fileID: 708196747130439131}
+  includeInactiveRenderers: 1
+  showDebugLog: 1
 --- !u!1 &4436192720561085810
 GameObject:
   m_ObjectHideFlags: 0
@@ -4976,7 +4999,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1311965387298679139}
-  - {fileID: 4825563420749501501}
   m_Father: {fileID: 221638955927744412}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!135 &3789393311350277127
@@ -6370,7 +6392,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 6630852692878410912}
+    m_TransformParent: {fileID: 221638955927744412}
     m_Modifications:
     - target: {fileID: 4513302029814848983, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_PresetInfoIsWorld
@@ -6379,6 +6401,14 @@ PrefabInstance:
     - target: {fileID: 4967454835194121739, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_Name
       value: Monster Canvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: worldOffset.y
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: worldOffset.z
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_Pivot.x
@@ -6413,7 +6443,15 @@ PrefabInstance:
       value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.010000001
+      objectReference: {fileID: 0}
+    - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalScale.y
+      value: 0.010000001
+      objectReference: {fileID: 0}
+    - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: m_LocalScale.z
       value: 0.010000001
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
@@ -6426,7 +6464,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalRotation.w
@@ -6450,7 +6488,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 2.16
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x

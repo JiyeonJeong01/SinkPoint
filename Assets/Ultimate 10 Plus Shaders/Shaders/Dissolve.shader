@@ -45,56 +45,93 @@ Shader "Ultimate 10+ Shaders/Dissolve"
     }
     SubShader
     {
-        Tags { "RenderType"="Geometry" "Queue"="Transparent" }
-        LOD 200
+        Tags
+        {
+            "RenderType"="TransparentCutout"
+            "Queue"="AlphaTest"
+            "RenderPipeline"="UniversalPipeline"
+            "UniversalMaterialType"="Lit"
+        }
+        LOD 100
         Cull [_Cull]
 
-        CGPROGRAM
-        // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard addshadow fullforwardshadows
-
-        #ifndef SHADER_API_D3D11
-            #pragma target 3.0
-        #else
-            #pragma target 4.0
-        #endif
-
-        sampler2D _MainTex;
-        sampler2D _NoiseTex;
-
-        half _Cutoff;
-        half _EdgeWidth;
-
-        fixed4 _Color;
-        fixed4 _EdgeColor;
-
-        struct Input
+        Pass
         {
-            float2 uv_MainTex;
-            float2 uv_NoiseTex;
-        };
+            Name "ForwardLit"
+            Tags { "LightMode"="UniversalForward" }
 
-        // Add instancing support for this shader. You need to check 'Enable Instancing' on materials that use the shader.
-        // See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
-        // #pragma instancing_options assumeuniformscaling
-        UNITY_INSTANCING_BUFFER_START(Props)
-            // put more per-instance properties here
-        UNITY_INSTANCING_BUFFER_END(Props)
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 2.0
 
-        fixed4 noisePixel, pixel;
-        half cutoff;
-        void surf (Input IN, inout SurfaceOutputStandard o)
-        {
-            pixel = tex2D (_MainTex, IN.uv_MainTex) * _Color;
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-            o.Albedo = pixel.rgb;
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+            TEXTURE2D(_NoiseTex);
+            SAMPLER(sampler_NoiseTex);
 
-            noisePixel = tex2D (_NoiseTex, IN.uv_NoiseTex);
+            CBUFFER_START(UnityPerMaterial)
+                float4 _Color;
+                float4 _EdgeColor;
+                float4 _MainTex_ST;
+                float4 _NoiseTex_ST;
+                half _Cutoff;
+                half _EdgeWidth;
+                half _Cull;
+            CBUFFER_END
 
-            clip(noisePixel.r >= _Cutoff ? 1 : -1);
-            o.Emission = noisePixel.r >= (_Cutoff * (_EdgeWidth + 1.0)) ? 0 : _EdgeColor;
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                float2 uv : TEXCOORD0;
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float3 positionWS : TEXCOORD0;
+                float3 normalWS : TEXCOORD1;
+                float2 uvMain : TEXCOORD2;
+                float2 uvNoise : TEXCOORD3;
+            };
+
+            Varyings vert(Attributes input)
+            {
+                Varyings output;
+                VertexPositionInputs positionInputs = GetVertexPositionInputs(input.positionOS.xyz);
+
+                output.positionCS = positionInputs.positionCS;
+                output.positionWS = positionInputs.positionWS;
+                output.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                output.uvMain = TRANSFORM_TEX(input.uv, _MainTex);
+                output.uvNoise = TRANSFORM_TEX(input.uv, _NoiseTex);
+                return output;
+            }
+
+            half4 frag(Varyings input) : SV_Target
+            {
+                half4 albedo = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uvMain) * _Color;
+                half noise = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, input.uvNoise).r;
+
+                clip(noise - _Cutoff);
+
+                float3 normalWS = normalize(input.normalWS);
+                Light mainLight = GetMainLight();
+                half diffuse = saturate(dot(normalWS, mainLight.direction));
+                half3 litColor = albedo.rgb * (SampleSH(normalWS) + mainLight.color * diffuse);
+
+                half edgeLimit = saturate(_Cutoff + max(_EdgeWidth, 0.001h));
+                half edgeMask = 1.0h - smoothstep(_Cutoff, edgeLimit, noise);
+                litColor += _EdgeColor.rgb * edgeMask;
+
+                return half4(litColor, albedo.a);
+            }
+            ENDHLSL
         }
-        ENDCG
     }
-    FallBack "Diffuse"
+    FallBack "Hidden/Universal Render Pipeline/FallbackError"
 }
