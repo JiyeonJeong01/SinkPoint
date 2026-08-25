@@ -6403,6 +6403,10 @@ PrefabInstance:
       value: Monster Canvas
       objectReference: {fileID: 0}
     - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: followTarget
+      value: 
+      objectReference: {fileID: 6630852692878410912}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: worldOffset.y
       value: 2
       objectReference: {fileID: 0}
