@@ -10,6 +10,7 @@ public sealed class PlayerController : MonoBehaviour
     [SerializeField] private PlayerInput input;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private GravityState gravityState;
+    [SerializeField] private GravityManager gravityManager;
     [SerializeField] private Transform visualRoot;
 
     [Header("Movement")]
@@ -30,6 +31,14 @@ public sealed class PlayerController : MonoBehaviour
     [Header("Grounding")]
     [SerializeField, Range(0f, 89f)] private float maxGroundAngle = 50f;
     [SerializeField, Min(0f)] private float groundProbeDistance = 0.15f;
+    [SerializeField, Min(0f)] private float groundSnapDistance = 0.3f;
+    [SerializeField, Min(0f)] private float maxGroundSnapSpeed = 5f;
+    [SerializeField, Min(0f)] private float maxGroundSnapUpwardSpeed = 0.5f;
+
+    [Header("Zero Gravity Recoil")]
+    [SerializeField] private bool enableZeroGravityRecoil = true;
+    [SerializeField, Min(0f)] private float zeroGravityRecoilVelocityChange = 0.3f;
+    [SerializeField, Min(0f)] private float maxZeroGravityRecoilSpeed = 3f;
 
     private readonly RaycastHit[] groundHits = new RaycastHit[8];
     private readonly RaycastHit[] stanceHits = new RaycastHit[16];
@@ -42,13 +51,41 @@ public sealed class PlayerController : MonoBehaviour
     private float standingCapsuleHeight;
     private Vector3 standingCapsuleCenter;
     private bool didWarnAboutStanceBuffer;
+    private bool ownsTransitionPositionLock;
+    private Vector3 transitionAnchorPosition;
+    private RigidbodyConstraints constraintsBeforeGravityTransition;
+
+    [Header("Runtime State")]
+    [SerializeField] private bool gravityTransitionActive;
+    [Tooltip("현재 물리 프레임의 지면 Probe 결과입니다.")]
+    [SerializeField] private bool runtimeGrounded;
+    [Tooltip("현재 지면과 중력 Up 사이의 각도입니다.")]
+    [SerializeField] private float runtimeGroundAngle;
+    [Tooltip("캡슐 하단과 현재 지면 사이의 거리입니다. 지면이 없으면 -1입니다.")]
+    [SerializeField] private float runtimeGroundDistance = -1f;
+    [Tooltip("Grounded 이동을 적용하기 직전의 중력 Up 기준 속도입니다.")]
+    [SerializeField] private float runtimeVerticalSpeedBeforeMotion;
+    [Tooltip("이번 물리 프레임에 실제 점프 속도를 적용했는지 표시합니다.")]
+    [SerializeField] private bool runtimeJumpExecuted;
+    [Tooltip("이번 물리 프레임에 Ground Snap이 작동했는지 표시합니다.")]
+    [SerializeField] private bool runtimeGroundSnapActive;
+    [Tooltip("마지막 무중력 반작용 요청이 Rigidbody에 적용되었는지 표시합니다.")]
+    [SerializeField] private bool lastZeroGravityRecoilApplied;
+    [Tooltip("플레이어 Rigidbody의 현재 전체 속력입니다.")]
+    [SerializeField] private float currentZeroGravityRecoilSpeed;
+    [Tooltip("현재 전체 속력이 무중력 반작용 속도 상한에 도달했는지 표시합니다.")]
+    [SerializeField] private bool zeroGravityRecoilSpeedLimitReached;
 
     internal PlayerMotionStateId MotionState => stateMachine.CurrentId;
-    internal Vector3 GravityUp => -gravityState.Direction;
+    internal Vector3 GravityUp => gravityTransitionActive && gravityManager != null
+        ? gravityManager.PresentationUp
+        : -gravityState.Direction;
     internal float MoveSpeed => moveSpeed;
     internal float CurrentMoveSpeed { get; private set; }
     internal bool IsSprinting { get; private set; }
     internal bool IsCrouching { get; private set; }
+    internal bool IsGravityTransitioning => gravityTransitionActive;
+    internal bool LastZeroGravityRecoilApplied => lastZeroGravityRecoilApplied;
 
     private void Awake()
     {
@@ -61,6 +98,15 @@ public sealed class PlayerController : MonoBehaviour
         standingCapsuleHeight = capsule.height;
         standingCapsuleCenter = capsule.center;
         CurrentMoveSpeed = moveSpeed;
+    }
+
+    private void OnEnable()
+    {
+        if (gravityManager != null)
+        {
+            gravityManager.TransitionStarted += BeginGravityTransition;
+            gravityManager.TransitionCompleted += EndGravityTransition;
+        }
     }
 
     private void Start()
@@ -77,6 +123,13 @@ public sealed class PlayerController : MonoBehaviour
     }
     private void OnDisable()
     {
+        if (gravityManager != null)
+        {
+            gravityManager.TransitionStarted -= BeginGravityTransition;
+            gravityManager.TransitionCompleted -= EndGravityTransition;
+        }
+
+        EndGravityTransition();
         ClearBufferedJump();
         IsSprinting = false;
         SetCrouching(false);
@@ -84,7 +137,7 @@ public sealed class PlayerController : MonoBehaviour
 
     private void LateUpdate()
     {
-        Vector3 up = -gravityState.Direction;
+        Vector3 up = GravityUp;
         Vector3 facingForward = Vector3.ProjectOnPlane(cameraTransform.forward, up);
         if (facingForward.sqrMagnitude < Mathf.Epsilon)
         {
@@ -111,6 +164,11 @@ public sealed class PlayerController : MonoBehaviour
             gravityState = FindFirstObjectByType<GravityState>();
         }
 
+        if (gravityManager == null)
+        {
+            gravityManager = FindFirstObjectByType<GravityManager>();
+        }
+
         if (cameraTransform != null)
         {
             return;
@@ -132,9 +190,38 @@ public sealed class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (gravityTransitionActive)
+        {
+            MaintainGravityTransition();
+            UpdateGroundingRuntimeState(false, Vector3.zero, Vector3.zero, -1f, 0f, false, false);
+            UpdateZeroGravityRecoilRuntimeState();
+            return;
+        }
+
         Vector3 gravityDirection = gravityState.Direction;
         Vector3 up = -gravityDirection;
-        bool isGrounded = TryGetGroundNormal(gravityDirection, up, out Vector3 groundNormal);
+        bool hasGravity = gravityState.Strength > 0f;
+        float verticalSpeedBeforeMotion = Vector3.Dot(body.linearVelocity, up);
+        bool groundSnapActive = false;
+        bool isGrounded = TryGetGroundSupport(
+            gravityDirection,
+            up,
+            groundProbeDistance,
+            out Vector3 groundNormal,
+            out float groundDistance);
+
+        if (!isGrounded
+            && CanSnapToGround(hasGravity, verticalSpeedBeforeMotion)
+            && TryGetGroundSupport(
+                gravityDirection,
+                up,
+                groundSnapDistance,
+                out groundNormal,
+                out groundDistance))
+        {
+            isGrounded = true;
+            groundSnapActive = true;
+        }
 
         Vector3 cameraForward = Vector3.ProjectOnPlane(cameraTransform.forward, up).normalized;
         if (cameraForward.sqrMagnitude < Mathf.Epsilon)
@@ -145,7 +232,6 @@ public sealed class PlayerController : MonoBehaviour
         Vector3 cameraRight = Vector3.Cross(up, cameraForward).normalized;
         Vector2 moveInput = Vector2.ClampMagnitude(input.Move, 1f);
         Vector3 moveDirection = cameraForward * moveInput.y + cameraRight * moveInput.x;
-        bool hasGravity = gravityState.Strength > 0f;
         UpdateStance(isGrounded, hasGravity, up);
         UpdateSprint(isGrounded, hasGravity, moveInput);
         bool jumpRequested = UpdateBufferedJump(hasGravity);
@@ -158,7 +244,7 @@ public sealed class PlayerController : MonoBehaviour
             hasGravity,
             isGrounded,
             jumpRequested,
-            Vector3.Dot(body.linearVelocity, up));
+            verticalSpeedBeforeMotion);
 
         bool jumpExecuted = stateMachine.FixedTick(this, context);
         if (jumpExecuted)
@@ -166,7 +252,214 @@ public sealed class PlayerController : MonoBehaviour
             ClearBufferedJump();
         }
 
+        if (groundSnapActive && !jumpExecuted)
+        {
+            ApplyGroundSnap(gravityDirection, groundDistance);
+        }
+
+        UpdateGroundingRuntimeState(
+            isGrounded,
+            groundNormal,
+            up,
+            groundDistance,
+            verticalSpeedBeforeMotion,
+            jumpExecuted,
+            groundSnapActive && !jumpExecuted);
         AlignWithGravity(up);
+        UpdateZeroGravityRecoilRuntimeState();
+    }
+
+    private bool CanSnapToGround(bool hasGravity, float verticalSpeedBeforeMotion)
+    {
+        return hasGravity
+            && stateMachine.CurrentId == PlayerMotionStateId.Grounded
+            && groundSnapDistance > groundProbeDistance
+            && maxGroundSnapSpeed > 0f
+            && verticalSpeedBeforeMotion <= maxGroundSnapUpwardSpeed;
+    }
+
+    private void ApplyGroundSnap(Vector3 gravityDirection, float groundDistance)
+    {
+        if (groundDistance <= 0f || Time.fixedDeltaTime <= 0f)
+        {
+            return;
+        }
+
+        float requiredSnapSpeed = groundDistance / Time.fixedDeltaTime;
+        float snapSpeed = Mathf.Min(requiredSnapSpeed, maxGroundSnapSpeed);
+        float currentGravitySpeed = Vector3.Dot(body.linearVelocity, gravityDirection);
+        float additionalSnapSpeed = Mathf.Max(0f, snapSpeed - currentGravitySpeed);
+        body.linearVelocity += gravityDirection * additionalSnapSpeed;
+    }
+
+    private void UpdateGroundingRuntimeState(
+        bool isGrounded,
+        Vector3 groundNormal,
+        Vector3 up,
+        float groundDistance,
+        float verticalSpeedBeforeMotion,
+        bool jumpExecuted,
+        bool groundSnapActive)
+    {
+        runtimeGrounded = isGrounded;
+        runtimeGroundAngle = isGrounded ? Vector3.Angle(groundNormal, up) : 0f;
+        runtimeGroundDistance = isGrounded ? groundDistance : -1f;
+        runtimeVerticalSpeedBeforeMotion = verticalSpeedBeforeMotion;
+        runtimeJumpExecuted = jumpExecuted;
+        runtimeGroundSnapActive = groundSnapActive;
+    }
+
+    public bool TryApplyZeroGravityRecoil(Vector3 recoilDirection)
+    {
+        lastZeroGravityRecoilApplied = false;
+        UpdateZeroGravityRecoilRuntimeState();
+
+        if (!enableZeroGravityRecoil
+            || body == null
+            || stateMachine is not { CurrentId: PlayerMotionStateId.ZeroGravity }
+            || gravityTransitionActive
+            || !IsFinite(recoilDirection)
+            || recoilDirection.sqrMagnitude <= Mathf.Epsilon
+            || !IsFinite(zeroGravityRecoilVelocityChange)
+            || zeroGravityRecoilVelocityChange <= 0f
+            || !IsFinite(maxZeroGravityRecoilSpeed)
+            || maxZeroGravityRecoilSpeed <= 0f)
+        {
+            return false;
+        }
+
+        Vector3 currentVelocity = body.linearVelocity;
+        if (!IsFinite(currentVelocity))
+        {
+            return false;
+        }
+
+        float currentSpeed = currentVelocity.magnitude;
+        Vector3 requestedDelta = recoilDirection.normalized * zeroGravityRecoilVelocityChange;
+        Vector3 candidateVelocity = currentVelocity + requestedDelta;
+        if (!IsFinite(candidateVelocity))
+        {
+            return false;
+        }
+
+        Vector3 resolvedVelocity;
+        if (currentSpeed <= maxZeroGravityRecoilSpeed)
+        {
+            resolvedVelocity = Vector3.ClampMagnitude(candidateVelocity, maxZeroGravityRecoilSpeed);
+        }
+        else if (candidateVelocity.magnitude <= currentSpeed)
+        {
+            resolvedVelocity = candidateVelocity;
+        }
+        else
+        {
+            return false;
+        }
+
+        Vector3 appliedDelta = resolvedVelocity - currentVelocity;
+        if (appliedDelta.sqrMagnitude <= Mathf.Epsilon)
+        {
+            return false;
+        }
+
+        body.AddForce(appliedDelta, ForceMode.VelocityChange);
+        lastZeroGravityRecoilApplied = true;
+        currentZeroGravityRecoilSpeed = resolvedVelocity.magnitude;
+        zeroGravityRecoilSpeedLimitReached =
+            currentZeroGravityRecoilSpeed >= maxZeroGravityRecoilSpeed;
+        return true;
+    }
+
+    private void UpdateZeroGravityRecoilRuntimeState()
+    {
+        if (body == null || !IsFinite(body.linearVelocity))
+        {
+            currentZeroGravityRecoilSpeed = 0f;
+            zeroGravityRecoilSpeedLimitReached = false;
+            return;
+        }
+
+        currentZeroGravityRecoilSpeed = body.linearVelocity.magnitude;
+        zeroGravityRecoilSpeedLimitReached = IsFinite(maxZeroGravityRecoilSpeed)
+            && maxZeroGravityRecoilSpeed > 0f
+            && currentZeroGravityRecoilSpeed >= maxZeroGravityRecoilSpeed;
+    }
+
+    private static bool IsFinite(Vector3 value)
+    {
+        return IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z);
+    }
+
+    private static bool IsFinite(float value)
+    {
+        return !float.IsNaN(value) && !float.IsInfinity(value);
+    }
+
+    private void BeginGravityTransition()
+    {
+        if (gravityTransitionActive || body == null)
+        {
+            return;
+        }
+
+        gravityTransitionActive = true;
+        transitionAnchorPosition = body.position;
+        constraintsBeforeGravityTransition = body.constraints;
+        body.constraints = constraintsBeforeGravityTransition | RigidbodyConstraints.FreezePosition;
+        ownsTransitionPositionLock = true;
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+        ClearBufferedJump();
+        IsSprinting = false;
+        CurrentMoveSpeed = IsCrouching ? crouchSpeed : moveSpeed;
+    }
+
+    private void MaintainGravityTransition()
+    {
+        input.TryConsumeJumpPressed(out _);
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+        AlignBodyUp(gravityManager.PresentationUp, useMoveRotation: true);
+    }
+
+    private void EndGravityTransition()
+    {
+        if (!gravityTransitionActive || body == null)
+        {
+            return;
+        }
+
+        Vector3 finalUp = gravityManager != null
+            ? gravityManager.PresentationUp
+            : -gravityState.Direction;
+
+        AlignBodyUp(finalUp, useMoveRotation: false);
+        body.position = transitionAnchorPosition;
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+
+        if (ownsTransitionPositionLock)
+        {
+            body.constraints = constraintsBeforeGravityTransition;
+            ownsTransitionPositionLock = false;
+        }
+
+        gravityTransitionActive = false;
+    }
+
+    private void AlignBodyUp(Vector3 up, bool useMoveRotation)
+    {
+        Vector3 normalizedUp = up.normalized;
+        Vector3 currentUp = body.rotation * Vector3.up;
+        Quaternion targetRotation = Quaternion.FromToRotation(currentUp, normalizedUp) * body.rotation;
+
+        if (useMoveRotation)
+        {
+            body.MoveRotation(targetRotation);
+            return;
+        }
+
+        body.rotation = targetRotation;
     }
 
     private bool UpdateBufferedJump(bool hasGravity)
@@ -212,13 +505,7 @@ public sealed class PlayerController : MonoBehaviour
             moveDirection = Vector3.ProjectOnPlane(moveDirection, context.GroundNormal).normalized;
         }
 
-        Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, context.GravityDirection);
-        if (Vector3.Dot(gravityVelocity, context.GravityDirection) > 0f)
-        {
-            gravityVelocity = Vector3.zero;
-        }
-
-        body.linearVelocity = moveDirection * CurrentMoveSpeed + gravityVelocity;
+        body.linearVelocity = moveDirection * CurrentMoveSpeed;
         body.AddForce(-context.GroundNormal * gravityState.Strength, ForceMode.Acceleration);
     }
 
@@ -227,6 +514,20 @@ public sealed class PlayerController : MonoBehaviour
         Vector3 gravityVelocity = Vector3.Project(body.linearVelocity, context.GravityDirection);
         body.linearVelocity = context.MoveDirection * moveSpeed + gravityVelocity;
         body.AddForce(gravityState.Gravity, ForceMode.Acceleration);
+    }
+
+    internal void EnterZeroGravity()
+    {
+        body.linearVelocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
+        ClearBufferedJump();
+        IsSprinting = false;
+        CurrentMoveSpeed = moveSpeed;
+
+        if (IsCrouching && CanUseStandingCapsule(GravityUp))
+        {
+            SetCrouching(false);
+        }
     }
 
     private void UpdateSprint(bool isGrounded, bool hasGravity, Vector2 moveInput)
@@ -359,16 +660,19 @@ public sealed class PlayerController : MonoBehaviour
         body.MoveRotation(nextRotation);
     }
 
-    private bool TryGetGroundNormal(
+    private bool TryGetGroundSupport(
         Vector3 gravityDirection,
         Vector3 up,
-        out Vector3 groundNormal)
+        float probeDistance,
+        out Vector3 groundNormal,
+        out float groundDistance)
     {
         Vector3 scale = transform.lossyScale;
         float radiusScale = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.z));
         float radius = capsule.radius * radiusScale * 0.9f;
         float halfHeight = Mathf.Max(capsule.height * Mathf.Abs(scale.y) * 0.5f, radius);
-        float castDistance = halfHeight - radius + groundProbeDistance;
+        float capsuleBottomDistance = halfHeight - radius;
+        float castDistance = capsuleBottomDistance + probeDistance;
         Vector3 origin = transform.TransformPoint(capsule.center);
 
         int hitCount = Physics.SphereCastNonAlloc(
@@ -382,6 +686,7 @@ public sealed class PlayerController : MonoBehaviour
 
         float nearestDistance = float.PositiveInfinity;
         groundNormal = up;
+        groundDistance = -1f;
 
         for (int i = 0; i < hitCount; i++)
         {
@@ -401,6 +706,12 @@ public sealed class PlayerController : MonoBehaviour
             groundNormal = hit.normal;
         }
 
-        return nearestDistance < float.PositiveInfinity;
+        if (nearestDistance == float.PositiveInfinity)
+        {
+            return false;
+        }
+
+        groundDistance = Mathf.Max(0f, nearestDistance - capsuleBottomDistance);
+        return true;
     }
 }

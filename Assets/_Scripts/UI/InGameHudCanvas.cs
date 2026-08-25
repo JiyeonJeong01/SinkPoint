@@ -11,12 +11,16 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private Slider hpSlider;
     [SerializeField, Tooltip("현재 Zone에 남은 몬스터 수를 표시할 Text입니다. 비워두면 자식의 Monster Count Text를 찾습니다.")]
     private Text monsterCountText;
+    [SerializeField, Tooltip("주기 중력 변경 예고를 표시할 Text입니다. 비워두면 자식의 Gravity Warning Text를 찾습니다.")]
+    private Text gravityWarningText;
     [SerializeField, Tooltip("비워두면 씬에서 PlayerHealth를 자동으로 찾습니다.")]
     private PlayerHealth playerHealth;
     [SerializeField, Tooltip("비워두면 씬의 GameFlowManager를 자동으로 찾습니다.")]
     private GameFlowManager gameFlowManager;
     [SerializeField, Tooltip("비워두면 씬의 MonsterManager를 자동으로 찾습니다.")]
     private MonsterManager monsterManager;
+    [SerializeField, Tooltip("비워두면 씬의 GravityManager를 자동으로 찾습니다.")]
+    private GravityManager gravityManager;
 
     [Header("Runtime Binding")]
     [SerializeField, Tooltip("씬에 따로 배치된 HUD가 플레이어/매니저를 런타임에 자동으로 찾게 합니다.")]
@@ -49,6 +53,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
     {
         BindRuntimeReferences();
         RefreshAll();
+        RefreshGravityWarning();
 
         if (autoBindRuntimeReferences && bindRoutine == null)
         {
@@ -66,6 +71,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         UnbindRuntimeReferences();
         KillHpTween();
+        SetGravityWarningVisible(false);
     }
 
     private void Reset()
@@ -165,6 +171,11 @@ public sealed class InGameHudCanvas : MonoBehaviour
         {
             monsterCountText = FindTextByName("Monster Count Text");
         }
+
+        if (gravityWarningText == null)
+        {
+            gravityWarningText = FindTextByName("Gravity Warning Text");
+        }
     }
 
     private void BindRuntimeReferences()
@@ -176,10 +187,12 @@ public sealed class InGameHudCanvas : MonoBehaviour
             ? GameFlowManager.Instance
             : FindFirstObjectByType<GameFlowManager>();
         monsterManager ??= FindFirstObjectByType<MonsterManager>();
+        gravityManager ??= FindFirstObjectByType<GravityManager>();
 
         BindPlayerHealth(playerHealth);
         BindGameFlowManager(gameFlowManager);
         BindMonsterManager(monsterManager);
+        BindGravityManager(gravityManager);
     }
 
     private IEnumerator BindUntilReadyRoutine()
@@ -187,7 +200,10 @@ public sealed class InGameHudCanvas : MonoBehaviour
         WaitForSeconds wait = new WaitForSeconds(retryBindInterval);
         while (enabled)
         {
-            if (boundPlayerHealth == null || gameFlowManager == null || monsterManager == null)
+            if (boundPlayerHealth == null
+                || gameFlowManager == null
+                || monsterManager == null
+                || gravityManager == null)
             {
                 BindRuntimeReferences();
             }
@@ -227,10 +243,48 @@ public sealed class InGameHudCanvas : MonoBehaviour
         }
     }
 
+    private void BindGravityManager(GravityManager manager)
+    {
+        if (gravityManager != null)
+        {
+            gravityManager.GravityChangeWarning -= OnGravityChangeWarning;
+        }
+
+        gravityManager = manager;
+        if (gravityManager != null)
+        {
+            gravityManager.GravityChangeWarning -= OnGravityChangeWarning;
+            gravityManager.GravityChangeWarning += OnGravityChangeWarning;
+        }
+
+        RefreshGravityWarning();
+    }
+
     private void RefreshAll()
     {
         RefreshHp();
         RefreshMonsterCount();
+    }
+
+    private void Update()
+    {
+        if (gravityWarningText != null
+            && gravityWarningText.gameObject.activeSelf
+            && (gravityManager == null || !gravityManager.IsWarningActive))
+        {
+            SetGravityWarningVisible(false);
+        }
+    }
+
+    private void RefreshGravityWarning()
+    {
+        if (gravityManager == null || !gravityManager.IsWarningActive)
+        {
+            SetGravityWarningVisible(false);
+            return;
+        }
+
+        ShowGravityWarning(gravityManager.NextPeriodicDirection);
     }
 
     private void RefreshMonsterCount()
@@ -274,6 +328,11 @@ public sealed class InGameHudCanvas : MonoBehaviour
         if (monsterManager != null)
         {
             monsterManager.ZoneMonsterCountChanged -= OnZoneMonsterCountChanged;
+        }
+
+        if (gravityManager != null)
+        {
+            gravityManager.GravityChangeWarning -= OnGravityChangeWarning;
         }
     }
 
@@ -319,6 +378,54 @@ public sealed class InGameHudCanvas : MonoBehaviour
         aliveMonsterCount = alive;
         totalMonsterCount = total;
         SetRemainingMonsterCount(alive);
+    }
+
+    private void OnGravityChangeWarning(
+        GravityPreset preset,
+        Vector3 nextDirection,
+        float warningDuration)
+    {
+        ShowGravityWarning(nextDirection);
+    }
+
+    private void ShowGravityWarning(Vector3 nextDirection)
+    {
+        ResolveReferences();
+        if (gravityWarningText == null)
+        {
+            return;
+        }
+
+        gravityWarningText.text = $"GRAVITY SHIFT → {FormatAxis(nextDirection)}";
+        SetGravityWarningVisible(true);
+    }
+
+    private void SetGravityWarningVisible(bool visible)
+    {
+        if (gravityWarningText != null && gravityWarningText.gameObject.activeSelf != visible)
+        {
+            gravityWarningText.gameObject.SetActive(visible);
+        }
+    }
+
+    private static string FormatAxis(Vector3 direction)
+    {
+        Vector3 normalized = direction.normalized;
+        float x = Mathf.Abs(normalized.x);
+        float y = Mathf.Abs(normalized.y);
+        float z = Mathf.Abs(normalized.z);
+
+        if (x >= y && x >= z)
+        {
+            return normalized.x >= 0f ? "+X" : "-X";
+        }
+
+        if (y >= z)
+        {
+            return normalized.y >= 0f ? "+Y" : "-Y";
+        }
+
+        return normalized.z >= 0f ? "+Z" : "-Z";
     }
 
     private Slider FindSliderByName(string objectName)
