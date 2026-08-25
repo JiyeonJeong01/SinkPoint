@@ -283,7 +283,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2292713393759038816}
   - {fileID: 2565617403543165473}
   m_Father: {fileID: 6859899183829735279}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1248,6 +1247,7 @@ GameObject:
   - component: {fileID: 4110329909167601802}
   - component: {fileID: 606051031724002496}
   - component: {fileID: 2509743938208880488}
+  - component: {fileID: 5769219818545805187}
   m_Layer: 0
   m_Name: Monster_04_SandWorm_v1
   m_TagString: Untagged
@@ -1263,15 +1263,16 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3565402760600497152}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.1259497, y: -0, z: -0, w: 0.99203664}
+  m_LocalRotation: {x: 0.12558055, y: -0.07589649, z: -0.009635873, w: 0.9891291}
   m_LocalPosition: {x: 87.95, y: -31.83, z: 30.25}
   m_LocalScale: {x: 0.4, y: 0.4, z: 0.4}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 6859899183829735279}
   - {fileID: 5599810852261076476}
+  - {fileID: 2292713393759038816}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 14.471, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 14.298, y: -9.058, z: -2.255}
 --- !u!95 &6812163333778581384
 Animator:
   serializedVersion: 7
@@ -1414,6 +1415,8 @@ MonoBehaviour:
   navTarget: {fileID: 1291143802675521835}
   targetSensor: {fileID: 9201385391996888922}
   gravityState: {fileID: 0}
+  stateMachine: {fileID: 0}
+  monsterHealth: {fileID: 0}
   movementBehaviours:
   - {fileID: 4110329909167601802}
   attackInterval: 4
@@ -1429,6 +1432,7 @@ MonoBehaviour:
   emergeStartDepth: 1.8
   minimumFullBodyEmergeDepth: 6
   emergeSurfaceOffset: 0.35
+  minimumEmergeSurfaceOffset: 1.2
   emergeSideOffset: 0.8
   groundMask:
     serializedVersion: 2
@@ -1447,6 +1451,27 @@ MonoBehaviour:
   lastGroundHit: 0
   lastDamageApplied: 0
   drawDebugGizmos: 1
+--- !u!114 &5769219818545805187
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3565402760600497152}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06d8f15749fb088468c2813774397d7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterDissolveOnDeath
+  dissolveMaterialTemplate: {fileID: 2100000, guid: 3e7101ee60b046b418bc7a05d385162b, type: 2}
+  noiseTexture: {fileID: 0}
+  dissolveDuration: 1.8
+  disableRenderersOnComplete: 1
+  deactivateMonsterOnComplete: 1
+  renderers:
+  - {fileID: 2196738425646155834}
+  includeInactiveRenderers: 1
+  showDebugLog: 1
 --- !u!1 &3790141500801959078
 GameObject:
   m_ObjectHideFlags: 0
@@ -3364,7 +3389,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1291143802675521835}
+    m_TransformParent: {fileID: 3526033827664420}
     m_Modifications:
     - target: {fileID: 4513302029814848983, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_PresetInfoIsWorld
@@ -3373,6 +3398,18 @@ PrefabInstance:
     - target: {fileID: 4967454835194121739, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_Name
       value: Monster Canvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: followTarget
+      value: 
+      objectReference: {fileID: 1291143802675521835}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: worldOffset.y
+      value: 2.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: worldOffset.z
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_Pivot.x
@@ -3400,11 +3437,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 180
+      value: 450
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 28
+      value: 40
+      objectReference: {fileID: 0}
+    - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.010000002
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3416,7 +3457,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalRotation.w
@@ -3424,15 +3465,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0.00000004470348
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: 0.0000000018626449
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -3440,7 +3481,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 4.08
+      value: 2.5
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
