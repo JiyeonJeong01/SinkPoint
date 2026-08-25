@@ -21,10 +21,25 @@ public sealed class MonsterTargetSensor : MonoBehaviour
     private Transform currentTarget;
     private MonsterHealth health;
     private float forceTargetUntil;
+    private bool combatEnabled = true;
 
     public Transform CurrentTarget => currentTarget;
     public bool HasTarget => currentTarget != null;
     private Transform SensingOrigin => sensingOrigin != null ? sensingOrigin : transform;
+
+    /// <summary>
+    /// GameFlowManager가 Entry 진입 이후에만 전투 감지를 열기 위해 호출합니다.
+    /// 꺼지는 순간 기존 타겟을 지워 Chase/Attack 상태로 넘어가지 않게 합니다.
+    /// </summary>
+    public void SetCombatEnabled(bool enabled)
+    {
+        combatEnabled = enabled;
+        if (!combatEnabled)
+        {
+            currentTarget = null;
+            forceTargetUntil = 0f;
+        }
+    }
 
     private void Awake()
     {
@@ -138,6 +153,12 @@ public sealed class MonsterTargetSensor : MonoBehaviour
     /// </summary>
     private void ResolveInitialTarget()
     {
+        if (!combatEnabled)
+        {
+            currentTarget = null;
+            return;
+        }
+
         if (explicitTarget != null || string.IsNullOrWhiteSpace(playerTag))
         {
             return;
@@ -155,6 +176,12 @@ public sealed class MonsterTargetSensor : MonoBehaviour
     /// </summary>
     public void RefreshTarget()
     {
+        if (!combatEnabled)
+        {
+            currentTarget = null;
+            return;
+        }
+
         if (explicitTarget != null)
         {
             currentTarget = explicitTarget;
@@ -211,7 +238,7 @@ public sealed class MonsterTargetSensor : MonoBehaviour
 
     private void OnDamaged(MonsterHealth monsterHealth, int amount)
     {
-        if (!aggroOnDamaged)
+        if (!combatEnabled || !aggroOnDamaged)
         {
             return;
         }

@@ -918,6 +918,7 @@ GameObject:
   - component: {fileID: 4578289031907160557}
   - component: {fileID: -5622917920784568268}
   - component: {fileID: 4116773001939243451}
+  - component: {fileID: 7659833324464183627}
   m_Layer: 0
   m_Name: Monster_03_Spider_v1
   m_TagString: Untagged
@@ -949,6 +950,7 @@ Transform:
   - {fileID: 4958543674246095950}
   - {fileID: 2872490759600747265}
   - {fileID: 7652034834805705567}
+  - {fileID: 6115289582657593296}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: -102.289, z: 0}
 --- !u!95 &5860683701488304399
@@ -1244,6 +1246,34 @@ MonoBehaviour:
   legShakeVibrato: 24
   lastGroundHit: 0
   lastFallTarget: {x: 0, y: 0, z: 0}
+--- !u!114 &7659833324464183627
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2666830070945471153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06d8f15749fb088468c2813774397d7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterDissolveOnDeath
+  dissolveMaterialTemplate: {fileID: 2100000, guid: 3e7101ee60b046b418bc7a05d385162b, type: 2}
+  noiseTexture: {fileID: 0}
+  dissolveDuration: 2
+  disableRenderersOnComplete: 1
+  deactivateMonsterOnComplete: 1
+  renderers:
+  - {fileID: 7291472534197774913}
+  - {fileID: 7180819622668627778}
+  - {fileID: 3836801230705967546}
+  - {fileID: 7829861248886744171}
+  - {fileID: 5838600649262121149}
+  - {fileID: 8990613857984616148}
+  - {fileID: 501871906654666698}
+  - {fileID: 7694927675607441549}
+  includeInactiveRenderers: 1
+  showDebugLog: 1
 --- !u!1 &2750262938228583184
 GameObject:
   m_ObjectHideFlags: 0
@@ -2493,7 +2523,6 @@ Transform:
   m_Children:
   - {fileID: 8432794431491316702}
   - {fileID: 7032290560675596783}
-  - {fileID: 6115289582657593296}
   m_Father: {fileID: 7988672357365409555}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!135 &3311673760947572882
@@ -3264,7 +3293,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 7652034834805705567}
+    m_TransformParent: {fileID: 7988672357365409555}
     m_Modifications:
     - target: {fileID: 4513302029814848983, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_PresetInfoIsWorld
@@ -3273,6 +3302,18 @@ PrefabInstance:
     - target: {fileID: 4967454835194121739, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_Name
       value: Monster Canvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: followTarget
+      value: 
+      objectReference: {fileID: 7652034834805705567}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: worldOffset.y
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: worldOffset.z
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_Pivot.x
@@ -3304,15 +3345,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 100
+      value: 80
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.009999999
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.010000002
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalScale.z
-      value: 0.009999999
+      value: 0.01
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3324,7 +3369,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -4
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalRotation.w
@@ -3348,7 +3393,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 4.37
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 8303277156898223303, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -3481,6 +3526,16 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
+--- !u!199 &501871906654666698 stripped
+ParticleSystemRenderer:
+  m_CorrespondingSourceObject: {fileID: 9151535570191367980, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
+  m_PrefabInstance: {fileID: 8788713968626401510}
+  m_PrefabAsset: {fileID: 0}
+--- !u!199 &3836801230705967546 stripped
+ParticleSystemRenderer:
+  m_CorrespondingSourceObject: {fileID: 5532890593564246364, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
+  m_PrefabInstance: {fileID: 8788713968626401510}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &4004590380683603028 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5648887711632338098, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
@@ -3491,8 +3546,33 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 4870622194855686402, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
   m_PrefabInstance: {fileID: 8788713968626401510}
   m_PrefabAsset: {fileID: 0}
+--- !u!199 &5838600649262121149 stripped
+ParticleSystemRenderer:
+  m_CorrespondingSourceObject: {fileID: 2950183834154418267, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
+  m_PrefabInstance: {fileID: 8788713968626401510}
+  m_PrefabAsset: {fileID: 0}
+--- !u!199 &7180819622668627778 stripped
+ParticleSystemRenderer:
+  m_CorrespondingSourceObject: {fileID: 1896206399536164772, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
+  m_PrefabInstance: {fileID: 8788713968626401510}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &7514217818436487696 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1274542338553465590, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
+  m_PrefabInstance: {fileID: 8788713968626401510}
+  m_PrefabAsset: {fileID: 0}
+--- !u!199 &7694927675607441549 stripped
+ParticleSystemRenderer:
+  m_CorrespondingSourceObject: {fileID: 1386571271551770731, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
+  m_PrefabInstance: {fileID: 8788713968626401510}
+  m_PrefabAsset: {fileID: 0}
+--- !u!199 &7829861248886744171 stripped
+ParticleSystemRenderer:
+  m_CorrespondingSourceObject: {fileID: 1539819410548597901, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
+  m_PrefabInstance: {fileID: 8788713968626401510}
+  m_PrefabAsset: {fileID: 0}
+--- !u!199 &8990613857984616148 stripped
+ParticleSystemRenderer:
+  m_CorrespondingSourceObject: {fileID: 374602930052732466, guid: 2c6d2b348fcfe854486685bb18c5b03c, type: 3}
   m_PrefabInstance: {fileID: 8788713968626401510}
   m_PrefabAsset: {fileID: 0}

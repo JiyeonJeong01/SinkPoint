@@ -97,14 +97,16 @@ public sealed class MonsterManager : MonoBehaviour
         }
 
         RefreshMonsterList();
+        SetOnlyZoneActive(gameFlowManager != null ? gameFlowManager.CurrentZone : ZoneId.Zone01_Entry);
     }
 
     /// <summary>
     /// 다음 Zone 바리게이트가 열리기 전에 호출합니다.
-    /// 다음 Zone 몬스터를 미리 켜서 문 너머 전투 오브젝트가 준비되게 합니다.
+    /// 다음 Zone 몬스터를 미리 렌더링만 켜고, 실제 추적/공격은 Entry 진입 전까지 막습니다.
     /// </summary>
     public void PrepareZone(ZoneId zoneId)
     {
+        SetZoneCombatEnabled(zoneId, false);
         SetZoneMonstersActive(zoneId, true);
         UpdateReadouts();
     }
@@ -115,7 +117,9 @@ public sealed class MonsterManager : MonoBehaviour
     /// </summary>
     public void BeginZone(ZoneId zoneId)
     {
+        SetOnlyZoneActive(zoneId);
         SetZoneMonstersActive(zoneId, true);
+        SetZoneCombatEnabled(zoneId, true);
         NotifyClearedIfNoLivingMonsters(zoneId);
         UpdateReadouts();
     }
@@ -126,6 +130,7 @@ public sealed class MonsterManager : MonoBehaviour
     /// </summary>
     public void RespawnZone(ZoneId zoneId)
     {
+        SetOnlyZoneActive(zoneId);
         Monster[] monsters = GetMonstersForZone(zoneId);
         for (int i = 0; i < monsters.Length; i++)
         {
@@ -138,6 +143,7 @@ public sealed class MonsterManager : MonoBehaviour
             monster.ResetForRespawn();
         }
 
+        SetZoneCombatEnabled(zoneId, true);
         NotifyClearedIfNoLivingMonsters(zoneId);
         UpdateReadouts();
 
@@ -153,6 +159,14 @@ public sealed class MonsterManager : MonoBehaviour
     /// </summary>
     public void DeactivateZone(ZoneId zoneId)
     {
+        SetZoneCombatEnabled(zoneId, false);
+        if (IsAlwaysVisibleZone(zoneId))
+        {
+            SetZoneMonstersActive(zoneId, true);
+            UpdateReadouts();
+            return;
+        }
+
         SetZoneMonstersActive(zoneId, false);
         UpdateReadouts();
     }
@@ -354,6 +368,43 @@ public sealed class MonsterManager : MonoBehaviour
             }
 
             monster.SetManagedActive(active);
+        }
+    }
+
+    private void SetOnlyZoneActive(ZoneId activeZoneId)
+    {
+        Array zoneValues = Enum.GetValues(typeof(ZoneId));
+        for (int i = 0; i < zoneValues.Length; i++)
+        {
+            ZoneId zoneId = (ZoneId)zoneValues.GetValue(i);
+            bool combatEnabled = zoneId == activeZoneId;
+            bool objectActive = combatEnabled || IsAlwaysVisibleZone(zoneId);
+            SetZoneCombatEnabled(zoneId, combatEnabled);
+            SetZoneMonstersActive(zoneId, objectActive);
+        }
+    }
+
+    private static bool IsAlwaysVisibleZone(ZoneId zoneId)
+    {
+        return zoneId == ZoneId.Zone01_Entry;
+    }
+
+    private void SetZoneCombatEnabled(ZoneId zoneId, bool enabled)
+    {
+        Monster[] monsters = GetMonstersForZone(zoneId);
+        for (int i = 0; i < monsters.Length; i++)
+        {
+            Monster monster = monsters[i];
+            if (monster == null)
+            {
+                continue;
+            }
+
+            MonsterTargetSensor[] sensors = monster.GetComponentsInChildren<MonsterTargetSensor>(true);
+            for (int sensorIndex = 0; sensorIndex < sensors.Length; sensorIndex++)
+            {
+                sensors[sensorIndex].SetCombatEnabled(enabled);
+            }
         }
     }
 
