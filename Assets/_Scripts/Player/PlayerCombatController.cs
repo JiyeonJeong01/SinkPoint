@@ -2,7 +2,7 @@ using UnityEngine;
 
 [DefaultExecutionOrder(105)]
 [DisallowMultipleComponent]
-[RequireComponent(typeof(PlayerInput))]
+[RequireComponent(typeof(PlayerInput), typeof(PlayerController))]
 public sealed class PlayerCombatController : MonoBehaviour
 {
     [Header("References")]
@@ -16,6 +16,17 @@ public sealed class PlayerCombatController : MonoBehaviour
     [SerializeField] private LayerMask hitMask = ~0;
     [SerializeField, Min(0)] private int shotDamage = 1;
 
+    [Header("Physics Hit")]
+    [SerializeField, Min(0f)] private float shotPushVelocityChange = 1.5f;
+
+    [Header("Runtime Shot Debug")]
+    [Tooltip("마지막 최종 사격 Ray가 맞힌 Collider입니다.")]
+    [SerializeField] private Collider lastShotCollider;
+    [Tooltip("마지막 사격이 확인한 비키네마틱 GravityBody Rigidbody입니다.")]
+    [SerializeField] private Rigidbody lastShotRigidbody;
+    [Tooltip("마지막 사격에서 GravityBody에 물리 밀기 힘을 적용했는지 표시합니다.")]
+    [SerializeField] private bool lastShotAppliedPhysicsPush;
+
     [Header("Shot Tracer")]
     [SerializeField] private bool showShotTracer = true;
     [SerializeField] private LineRenderer shotTracer;
@@ -26,21 +37,23 @@ public sealed class PlayerCombatController : MonoBehaviour
     private readonly RaycastHit[] cameraHits = new RaycastHit[16];
     private readonly RaycastHit[] muzzleHits = new RaycastHit[16];
 
+    private PlayerController playerController;
     private bool fireSequenceActive;
     private bool didWarnAboutCameraBuffer;
     private bool didWarnAboutMuzzleBuffer;
     private double nextShotTime;
     private double tracerVisibleUntil;
     private int shotCount;
-    private Collider lastShotCollider;
     private Vector3 lastShotEnd;
 
     internal bool IsFiring { get; private set; }
     internal float AimPitchDegrees => aimCamera != null ? aimCamera.PitchDegrees : 0f;
+    internal bool LastShotAppliedPhysicsPush => lastShotAppliedPhysicsPush;
 
     private void Awake()
     {
         input ??= GetComponent<PlayerInput>();
+        playerController = GetComponent<PlayerController>();
     }
 
     private void Start()
@@ -144,12 +157,20 @@ public sealed class PlayerCombatController : MonoBehaviour
             ? shotHit.point
             : muzzle.position + shotDirection * shotDistance;
         shotCount++;
+        playerController.TryApplyZeroGravityRecoil(-shotDirection);
         lastShotCollider = hasShotHit ? shotHit.collider : null;
+        lastShotRigidbody = null;
+        lastShotAppliedPhysicsPush = false;
         lastShotEnd = shotEnd;
 
         if (hasShotHit && TryGetLivingMonster(shotHit.collider, out MonsterHealth monsterHealth))
         {
             monsterHealth.ApplyDamage(shotDamage);
+        }
+
+        if (hasShotHit)
+        {
+            ApplyShotPush(shotHit, shotDirection);
         }
 
         if (showShotTracer && shotTracer != null)
@@ -185,6 +206,23 @@ public sealed class PlayerCombatController : MonoBehaviour
         {
             shotTracer.enabled = false;
         }
+    }
+
+    private void ApplyShotPush(RaycastHit shotHit, Vector3 shotDirection)
+    {
+        Rigidbody hitBody = shotHit.rigidbody;
+        if (shotPushVelocityChange <= 0f
+            || hitBody == null
+            || hitBody.isKinematic
+            || !hitBody.TryGetComponent(out GravityBody _))
+        {
+            return;
+        }
+
+        lastShotRigidbody = hitBody;
+        hitBody.WakeUp();
+        hitBody.AddForce(shotDirection * shotPushVelocityChange, ForceMode.VelocityChange);
+        lastShotAppliedPhysicsPush = true;
     }
 
     private bool TryGetNearestValidHit(

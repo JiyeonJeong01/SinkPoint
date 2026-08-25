@@ -95,6 +95,29 @@ public class GameFlowManager : MonoBehaviour
 
     public GameFlowState CurrentState => currentState;
     public ZoneId CurrentZone => currentZone;
+    public GravityManager GravityManager => gravityManager;
+    public GravityPreset CurrentGravityPreset => gravityManager != null ? gravityManager.CurrentPreset : null;
+
+    /// <summary>
+    /// Inspector 디버그에서만 임의 Preset을 운영 중력 경로로 적용합니다.
+    /// 게임 진행 Zone과 State는 변경하지 않습니다.
+    /// </summary>
+    public bool DebugApplyGravityPreset(GravityPreset preset)
+    {
+        if (gravityManager == null)
+        {
+            Debug.LogWarning("[GameFlowManager] Cannot apply GravityPreset because GravityManager is not assigned.", this);
+            return false;
+        }
+
+        if (preset == null)
+        {
+            Debug.LogWarning("[GameFlowManager] Cannot apply a null GravityPreset.", this);
+            return false;
+        }
+
+        return gravityManager.ApplyPreset(preset);
+    }
 
     private void Awake()
     {
@@ -221,10 +244,25 @@ public class GameFlowManager : MonoBehaviour
     /// </summary>
     public void HandlePlayerDeath()
     {
+        bool gravityRestored = gravityManager != null
+            && gravityManager.RestoreCurrentPresetImmediately();
+
+        if (gravityManager == null)
+        {
+            Debug.LogWarning("[GameFlowManager] GravityManager is not assigned.", this);
+        }
+
         if (respawnController != null)
         {
             Transform respawnPoint = GetRespawnPoint(currentState);
-            respawnController.RespawnPlayer(respawnPoint);
+            if (gravityRestored)
+            {
+                respawnController.RespawnPlayer(respawnPoint, gravityManager.PresentationUp);
+            }
+            else
+            {
+                respawnController.RespawnPlayer(respawnPoint);
+            }
         }
         else
         {
@@ -251,14 +289,16 @@ public class GameFlowManager : MonoBehaviour
 
         if (showDebugLog)
         {
-            Debug.Log("[GameFlowManager] Player death handled. TODO: respawn player, restore HP, reset enemies, restore checkpoint state.", this);
+            Debug.Log(
+                $"[GameFlowManager] Player death handled. Gravity restored: {gravityRestored}.",
+                this);
         }
-        // TODO: GravityManager가 생기면 체크포인트 기준 중력 상태로 복구할지 결정해서 연결할 것.
         // TODO: UI가 생기면 사망/리스폰 피드백과 현재 목표 텍스트를 갱신할 것.
     }
 
     private void ResolveSceneReferences()
     {
+        gravityManager ??= FindFirstObjectByType<GravityManager>();
         monsterManager ??= FindFirstObjectByType<MonsterManager>();
         playerHealth ??= FindFirstObjectByType<PlayerHealth>();
     }
@@ -581,7 +621,7 @@ public class GameFlowManager : MonoBehaviour
             return;
         }
 
-        if (!gravityManager.ActivateZone(trigger.Zone))
+        if (!gravityManager.ApplyPreset(trigger.Preset))
         {
             return;
         }

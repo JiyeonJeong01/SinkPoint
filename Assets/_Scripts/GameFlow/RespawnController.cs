@@ -30,15 +30,62 @@ public class RespawnController : MonoBehaviour
     /// </summary>
     public void RespawnPlayer(Transform respawnPoint)
     {
-        if (playerRoot == null || respawnPoint == null)
+        if (!CanRespawn(respawnPoint))
         {
-            Debug.LogWarning("[RespawnController] Cannot respawn. Player or respawn point is missing.", this);
             return;
         }
 
+        RespawnPlayer(respawnPoint, respawnPoint.rotation);
+    }
+
+    public void RespawnPlayer(Transform respawnPoint, Vector3 gravityUp)
+    {
+        if (!CanRespawn(respawnPoint))
+        {
+            return;
+        }
+
+        if (!IsFinite(gravityUp) || gravityUp.sqrMagnitude < Mathf.Epsilon)
+        {
+            Debug.LogError("[RespawnController] Cannot respawn with an invalid gravity Up direction.", this);
+            return;
+        }
+
+        Vector3 normalizedUp = gravityUp.normalized;
+        Vector3 forward = Vector3.ProjectOnPlane(respawnPoint.forward, normalizedUp);
+        if (forward.sqrMagnitude < Mathf.Epsilon)
+        {
+            forward = Vector3.ProjectOnPlane(playerRoot.forward, normalizedUp);
+        }
+
+        if (forward.sqrMagnitude < Mathf.Epsilon)
+        {
+            Vector3 fallbackAxis = Mathf.Abs(Vector3.Dot(normalizedUp, Vector3.forward)) < 0.99f
+                ? Vector3.forward
+                : Vector3.right;
+            forward = Vector3.Cross(normalizedUp, fallbackAxis);
+        }
+
+        Quaternion rotation = Quaternion.LookRotation(forward.normalized, normalizedUp);
+        RespawnPlayer(respawnPoint, rotation);
+    }
+
+    private bool CanRespawn(Transform respawnPoint)
+    {
+        if (playerRoot == null || respawnPoint == null)
+        {
+            Debug.LogWarning("[RespawnController] Cannot respawn. Player or respawn point is missing.", this);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void RespawnPlayer(Transform respawnPoint, Quaternion rotation)
+    {
         ClearPlayerVelocity();
 
-        SetPlayerPose(respawnPoint);
+        SetPlayerPose(respawnPoint.position, rotation);
 
         if (showDebugLog)
         {
@@ -57,18 +104,28 @@ public class RespawnController : MonoBehaviour
         playerRigidbody.angularVelocity = Vector3.zero;
     }
 
-    private void SetPlayerPose(Transform respawnPoint)
+    private void SetPlayerPose(Vector3 position, Quaternion rotation)
     {
         if (playerRigidbody != null)
         {
-            playerRigidbody.position = respawnPoint.position;
-            playerRigidbody.rotation = respawnPoint.rotation;
+            playerRigidbody.position = position;
+            playerRigidbody.rotation = rotation;
             playerRigidbody.WakeUp();
         }
 
         playerRoot.SetPositionAndRotation(
-            respawnPoint.position,
-            respawnPoint.rotation
+            position,
+            rotation
         );
+    }
+
+    private static bool IsFinite(Vector3 value)
+    {
+        return !float.IsNaN(value.x)
+            && !float.IsInfinity(value.x)
+            && !float.IsNaN(value.y)
+            && !float.IsInfinity(value.y)
+            && !float.IsNaN(value.z)
+            && !float.IsInfinity(value.z);
     }
 }

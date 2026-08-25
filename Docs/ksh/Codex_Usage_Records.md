@@ -1,4 +1,4 @@
-# Codex 활용 기록
+﻿# Codex 활용 기록
 
 이 문서는 SinkPoint 플레이어·중력 파트에서 Codex를 어떻게 활용했는지 제출과 팀 공유에 필요한 근거만 간결하게 남긴다.
 
@@ -152,3 +152,59 @@
 - 해결한 문제: 환경 Trigger가 사격을 막지 않으면서 몬스터 Trigger는 맞출 수 있도록 카메라·총구 Ray의 후보 규칙을 통일했다. 태그·씬 전역 검색 기반 접촉 판정을 접촉 Collider의 부모 `PlayerHealth` 탐색으로 바꾸고, 죽은 플레이어나 몬스터의 추가 피해를 차단했다. 분리된 Player와 CameraRig Prefab 사이의 `aimCamera` 참조는 `MonsterTest` 씬 override로 연결했다.
 - 사람이 직접 결정한 부분: 기본 체력 `3`, 사격·접촉 피해 `1`, 접촉 쿨타임 `1초`, `Nav Target` SphereCollider 로컬 반경 `3`을 MVP 초기값으로 사용했다. HP UI, 피격·사망 연출, 넉백, 무적 시간, 리스폰과 몸통 부위별 Hitbox는 후속 작업으로 남겼다.
 - 검증 결과: Unity `6000.3.20f1` 재컴파일과 `Assembly-CSharp.csproj` 빌드는 오류 0건으로 성공했으며 빌드에는 기존 애셋·몬스터 디버그 필드 경고 19건만 남았다. `MonsterTest` Play Mode에서 지네가 RouteMove→Chase→Attack으로 전환하고 Trigger Enter 직후 1회, Stay 중 약 1초 간격으로 두 번 더 접촉 피해를 준 뒤 플레이어 사망 상태에서 추가 피해가 멈추는 것을 확인했다. Player Prefab의 `PlayerHealth`, `Nav Target`의 Trigger·접촉 컴포넌트, 루트 접촉 컴포넌트 제거와 `aimCamera` 참조를 확인했다. 사용자가 Inspector의 실시간 체력으로 플레이어 사격 시 몬스터 체력 감소와 몬스터 접촉 시 플레이어 체력 감소를 모두 확인했고, 몬스터가 정해진 횟수만큼 피격된 뒤 이동을 멈추는 사망 동작도 확인해 기본 데미지 상호작용을 완료로 결정했다. 기본 Inspector에는 비직렬화 런타임 필드가 보이지 않았으므로 두 Health 컴포넌트의 `currentHealth`와 `dead`를 Play Mode 확인용 직렬화 필드로 보완했다. `Original_GamePlayScene`, Build Settings, `ProjectSettings`와 외부 에셋 원본은 변경하지 않았다.
+
+## 2026-08-24 — Zone 중력 전환·테스트 Inspector 구현
+
+- Codex 사용처: Zone 기반 90도 중력 전환의 물리·표현 책임을 분리하고, Player·Camera 동기화와 팀원이 반복 사용하기 쉬운 Inspector 테스트 UX를 구현·검증하는 데 사용했다.
+- 구현하거나 정리한 기능: `GravityManager`가 실제 중력을 즉시 적용하면서 단일 `PresentationUp`·진행률·시작/완료 신호를 소유하도록 확장했다. Player는 전환 중 위치와 속도를 고정하고, Camera는 같은 진행률로 Roll한 뒤 새 Up에서 Orbit을 재구성한다. Custom Inspector에는 씬 Zone 드롭다운과 고정 실행 버튼을 둔 `Gravity Zone Select`, 현재 Zone·중력·전환 진행률을 보여 주는 `Play Mode Zone Info`를 분리했다.
+- 해결한 문제: 환경 `GravityBody`의 즉시 반응과 Player·Camera의 짧은 표현 전환을 분리하고, 전환 도중 최신 Zone 재요청도 현재 표시 자세에서 연속되게 했다. 직렬화된 테스트 Zone 슬롯과 Zone별 버튼을 제거하고, 선택과 실행 버튼 사이에 런타임 정보가 끼어 다른 팀원이 조작하기 불편한 Inspector 배치도 정리했다.
+- 사람이 직접 결정한 부분: 실제 게임 전환은 화면 기준 반시계 Roll, 기본 전환 시간 `0.5초`, Player 속도 제거 후 새 중력 방향으로 재개하는 정책으로 확정했다. 사용자가 Play Mode 테스트 성공을 확인했고, 선택 조작과 런타임 정보를 별도 영역으로 나누는 최종 Inspector 구성을 제안했다.
+- 검증 결과: 런타임·Editor 어셈블리 빌드는 오류 0건이며 기존 경고 19건만 남았다. Unity MCP에서 Normal↔Shift 5회 반복, 중간 재요청 연속 오차 `0.000000`, Player·Camera·Presentation Up 일치, Rigidbody 제약과 상위 입력 잠금 복구, Console 오류 0건과 씬 dirty 없음이 확인됐다. 사용자가 실제 Play Mode에서도 중력 전환이 성공적이라고 확인했다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 외부 에셋 원본은 변경하지 않았다.
+
+## 2026-08-25 — 최신 Original 레벨 변경 Player 씬 동기화
+
+- Codex 사용처: `origin/develop` 병합 이력과 두 게임플레이 씬의 Unity YAML을 비교해 자동 Git 병합과 실제 씬 통합을 구분하고, 최신 팀 레벨을 기준으로 Player 씬을 재구성·검증하는 데 사용했다.
+- 구현하거나 정리한 기능: 최신 `Original_GamePlayScene`의 MeshCollider 지형, Zone Entry Point, 바리게이트, 몬스터, NPC와 HUD 구성을 `GamePlayScene_Player`에 동기화했다. 기존 Player 씬의 `GravityManager`, Normal·World +X·World -X 프리셋, Shift·Inversion 트리거 연결, 두 `GravityBody` 테스트 오브젝트와 Respawn Player 참조는 새 레벨 위에 보존했다.
+- 해결한 문제: Git 병합 커밋이 `Original`과 `_Player`를 각각 한쪽 부모 버전으로 유지해 최신 레벨과 최신 중력이 서로 다른 씬에 나뉜 상태를 해소했다. 아직 구현 대상이 아닌 FastDown·Slow·ZeroGravity 트리거는 비활성 상태로 유지했고, 테스트 큐브가 삭제된 외부 Material GUID를 참조하던 항목은 기본 Material로 정리했다.
+- 사람이 직접 결정한 부분: 팀 측에서 `_Player` 변경을 `Original`에 수동 통합하지 않는 현재 작업 방식에서는 플레이어·중력 담당자가 최신 팀 씬을 받아 통합하고, `dev` 반영 시점에 최종 Original 반영까지 책임지기로 했다. 이번 단계에서는 `Original`을 직접 수정하지 않고 우리 통합 씬 갱신까지만 수행했다.
+- 검증 결과: Player 씬은 Unity YAML 문서 1,508개에서 중복 ID 0건, 미해결 로컬 참조 0건이며 Original과 동일한 MeshCollider 316개, Zone Entry Trigger 4개, 바리게이트 4개, HUD·NPC 참조를 가진다. Unity Editor가 변경 씬을 실제 임포트·로드했고 최근 로그에 씬 역직렬화 오류·Missing Script·NullReferenceException이 없었다. `Assembly-CSharp-Editor.csproj` 빌드는 기존 경고 28건과 함께 오류 0건으로 성공했다. `Original_GamePlayScene`, 두 씬 meta, ProjectSettings와 Build Settings에는 diff가 없으며 실제 Zone 진행·중력 전환·Entry Point 충돌은 Play Mode 수동 확인이 남아 있다.
+
+## 2026-08-25 — 중력 Preset·주기 전환·무중력·리스폰 코어 시스템 완료
+
+- Codex 사용처: Zone별 중력 효과 확정과 Trigger 연결을 미룬 상태에서 재사용 가능한 중력 코어를 먼저 완성하기 위해, Preset 데이터·단일 주기 실행·무중력 상태·리스폰 복구의 책임을 구현하고 자동 Play Mode 회귀 검증에 사용했다.
+- 구현하거나 정리한 기능: `GravityPreset`을 `Fixed`, `Periodic`, `ZeroGravity` 모드로 확장하고 방향 목록·변경 간격·예고 시간을 데이터화했다. `GravityManager`는 하나의 Periodic 실행과 예고 상태를 소유하며 중복 적용, Preset 변경과 비활성화 시 수명을 정리한다. Player는 무중력 진입 때 선속도·각속도를 한 번 초기화한 뒤 관성을 허용하고, 리스폰은 현재 Preset을 즉시 복원해 Player Up을 `PresentationUp`에 맞춘다. `GamePlayScene_Player`에는 Trigger와 연결하지 않은 Periodic X축·Zero Gravity 테스트 Preset을 추가했다.
+- 해결한 문제: Reverse Gravity를 특정 Zone과 하드코딩하지 않고 모든 주기형 중력에 사용할 수 있는 Preset으로 분리했다. 같은 Periodic Preset 재적용으로 타이머가 초기화되거나 다른 Preset 이후 이전 Coroutine이 재발하는 문제를 막았으며, 무중력에서 매 프레임 속도를 0으로 덮어 후속 이동을 차단하지 않게 했다. 리스폰은 미확정 `GameFlowState → GravityPreset` 매핑 대신 실제 현재 Preset을 복구해 고정형·주기형·무중력을 같은 경로로 처리한다.
+- 사람이 직접 결정한 부분: 각 기획 Zone과 Trigger에 어떤 중력을 연결할지는 레벨 설계가 확정될 때까지 미루고, 코어 시스템의 Inspector 기반 검증을 이번 완료선으로 삼았다. 별도 빌드 검증 단계는 폐기했으며, 사용자가 Play Mode에서 현재 기능이 모두 정상 동작함을 확인했다. 그래플이 없는 무중력 이동 보완은 사격 반작용을 별도 계획으로 작성한 뒤 구현하기로 했다.
+- 검증 결과: 자동 Play Mode에서 Periodic 방향 전환 14회, 예고 상태, 중복 적용 시 카운트다운 유지, 다른 Preset 적용 시 취소, Zero Gravity의 방향·`PresentationUp` 유지와 Player 상태 진입, `GravityBody` 관성·중력 복귀를 확인했다. Periodic·Zero Gravity 리스폰 후 현재 Preset과 Player 회전이 복구됐고 Player Up과 `PresentationUp`의 내적은 `1.0`이었다. 런타임·Editor 어셈블리 빌드는 기존 경고 28건과 함께 오류 0건, 최종 새 Play Mode Console 오류는 0건이었다. 사용자가 실제 Play Mode에서 전체 동작을 확인해 완료로 판단했다.
+
+## 2026-08-25 — 무중력 무기 발사 반작용 구현
+
+- Codex 사용처: 무중력 코어와 기존 사격 흐름을 대조해 발사 반작용의 책임 경계·속도 상한 규칙을 구현하고 컴파일·로그 검증과 완료 문서화를 수행했다.
+- 구현하거나 정리한 기능: 실제 발사마다 최종 발사 방향 반대로 `ForceMode.VelocityChange` 반작용을 요청한다. `PlayerController`는 ZeroGravity 상태와 중력 전환 여부를 판정하고, 기본 발사당 속도 변화 `0.3`, 전체 속력 상한 `3.0`, 상한 초과 상태의 추가 가속 차단·감속 허용을 소유한다. 설정과 마지막 적용 여부·현재 속력·상한 도달 상태를 Inspector에서 확인할 수 있게 했다.
+- 해결한 문제: 그래플이 없는 무중력 구간에서도 사격으로 이동·조향·제동할 수 있게 하면서 연사 무한 가속을 막았다. 명중·피해·피격 Rigidbody 밀기와 플레이어 반작용을 분리하고, 일반 중력이나 중력 전환 중에는 반작용을 거부하도록 했다.
+- 사람이 직접 결정한 부분: 사격 반작용을 그래플 구현 후에도 무중력 보조 이동 수단으로 유지하고 일반 중력 반동·카메라 연출·무기 시스템 변경은 제외했다. 사용자가 Play Mode 테스트 성공을 확인하고 완료 처리를 승인했다.
+- 검증 결과: 런타임 어셈블리는 오류 0건과 기존 경고 28건, Editor 어셈블리는 오류·경고 0건으로 빌드됐다. 최신 `Editor.log` 범위에 컴파일 실패·예외가 없었고, 사용자의 Play Mode 테스트에서 반작용 동작이 성공했으며 무중력 상태가 아닐 때 발동하는 버그는 발견되지 않았다. 이번 반작용 작업에서는 씬·Prefab·Collider·Packages·ProjectSettings·Build Settings를 변경하지 않았다.
+
+## 2026-08-25 — MeshCollider 지형 접지 이동 안정화
+
+- Codex 사용처: MeshCollider 언덕·굴곡·턱에서 발생한 비의도 상승, 걸림과 순간 Airborne 진동을 현재 Rigidbody 이동·SphereCast 접지 코드에 대조하고, 만족할 때 즉시 중단하는 순차 계획으로 원인별 최소 보정을 구현·검증하는 데 사용했다.
+- 구현하거나 정리한 기능: Grounded 이동이 이전 충돌에서 남은 중력축 속도를 다시 합치지 않게 하면서 지면 접선 이동은 유지했다. 접지 쿼리는 캡슐 하단 기준 지면 거리를 반환하도록 확장하고, 기본 Probe `0.15`를 놓친 경우 직전 상태가 Grounded이며 위쪽 속도가 `0.5` 이하일 때만 거리 `0.3`, 최대 속도 `5`의 중력 방향 Ground Snap을 적용했다. 접지·지면 각도·거리·보정 전 수직 속도·점프·Snap 작동 여부를 Inspector 런타임 값으로 추가했다.
+- 해결한 문제: 경사로와 턱에서 점프 입력 없이 튀거나 걸리는 현상을 Grounded 속도 계약 수정으로 약 90% 억제하고, 울퉁불퉁한 지형에서 접지가 짧게 끊겨 낙하와 재충돌을 반복하던 떨림은 제한적 Ground Snap으로 보완했다. 실제 점프 프레임, 무중력과 중력 전환 중에는 Snap이 개입하지 않도록 기존 상태 책임을 유지했다.
+- 사람이 직접 결정한 부분: 순번 1 결과를 유지하고 마찰성 걸림이 거의 사라져 Physics Material 조정은 건너뛰었다. 순번 3 적용 후 현재 지형 이동이 만족할 만하다고 직접 확인해 노멀 안정화, Step Assist와 충돌 메시 개선 요청은 미실행 상태로 남기고 작업 완료를 승인했다.
+- 검증 결과: Unity `6000.3.20f1` 재컴파일은 오류 0건으로 완료됐고, 새 Play Mode에서 Ground Snap 설정과 런타임 지면 관찰값 갱신, 신규 Console Error 0건을 확인했다. 사용자가 실제 지형 이동을 다시 테스트해 최종 조작감이 만족 기준을 충족한다고 판정했다. 이번 작업에서는 `PlayerController.cs`와 계획·기록 문서만 변경했으며 `Original_GamePlayScene`, 지형 Collider, Prefab, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-25 — TPS 카메라 구도 프리셋·숄더 뷰 구현
+
+- Codex 사용처: 기존 3인칭 카메라의 중앙 구도를 보존하면서 Inspector에서 비교 가능한 숄더 뷰 프리셋과 충돌 경로를 구현·검증하는 데 사용했다.
+- 구현하거나 정리한 기능: `ThirdPersonCameraController`에 `Centered`와 `ShoulderGameplay` 구도 프리셋을 추가했다. 각 프리셋은 Pivot 높이, 카메라 로컬 오프셋, 기본 거리, FOV를 소유하고, 기본 `ShoulderGameplay`는 오른쪽 `0.35m` 오프셋을 사용한다. 카메라 충돌 검사는 Pivot에서 최종 숄더 희망 위치까지 SphereCast하며, 프리팹에는 사용자 줌 범위 `0.6 ~ 2.5`를 저장했다.
+- 해결한 문제: 기존 중심축 뒤쪽만 검사하던 충돌 경로를 실제 숄더 카메라 경로와 일치시켜, 구도 프리셋과 충돌 회피가 서로 다른 위치를 기준으로 동작하지 않게 했다.
+- 사람이 직접 결정한 부분: 사용자가 Play Mode에서 최대 거리를 `2.5`로 조정하고 현재 구도가 적절하다고 확인했다. 좌우 어깨 전환, 자동 전환, 피치 연동 오프셋과 플레이어 디더 페이드는 후속 항목으로 남겼다.
+- 검증 결과: Unity 재컴파일은 오류 0건으로 완료됐고, 새 Play Mode 시작 뒤 Console error 0건을 확인했다. 사용자가 실제 Play Mode에서 작업 성공을 확인했다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 이번 작업에서 수정하지 않았다.
+
+## 2026-08-25 — GravitySystem 프리팹화 및 GameFlow Preset 디버그
+
+- Codex 사용처: 중력 운영 구성의 재사용 경계를 정리하고, 기존 GravityManager의 Preset 선택 경로를 GameFlowManager Inspector에서도 같은 런타임 API로 사용할 수 있게 구현·검증했다.
+- 구현하거나 정리한 기능: `/GamePlay/GravitySystem`에서 두 `GravityTestBody`를 제거하고 `GravityState`, `GravityManager`, 운영 Preset 자식을 포함한 `GravitySystem.prefab`을 생성했다. `GravityPresetSceneSelector` Editor helper로 두 Inspector의 hierarchy-path Preset 목록과 session-only 선택을 공유하고, Odin GameFlowManager Inspector 맨 아래에 Play Mode용 Preset 선택·적용·현재 Preset 표시를 추가했다.
+- 해결한 문제: 중력 구성과 테스트 바디가 같은 씬 루트에 섞인 상태를 분리했고, GameFlow 디버그 중 Preset을 시험하려면 별도 GravitySystem Inspector로 이동해야 하던 흐름을 제거했다. GameFlowManager의 선택 적용은 `GravityManager.ApplyPreset()`만 호출해 Player·Camera·Periodic 처리 경로를 우회하지 않는다.
+- 사람이 직접 결정한 부분: 임의 Preset 적용은 진행 Trigger가 아니므로 `CurrentZone`과 `CurrentState`를 바꾸지 않고, 선택값도 씬/Prefab override가 아닌 Editor session 값으로 유지했다. 실제 Inspector 조작감과 Trigger 통과 뒤 연속 진행은 후속 Play Mode에서 확인한다.
+- 검증 결과: Unity 재컴파일은 `failed=false`, 오류 0건이었다. 새 Play Mode에서 GameFlowManager API로 Periodic Z, Normal, Zero Gravity Preset을 순서대로 적용해 CurrentPreset, Periodic routine 시작·정리와 strength `9.81`/`0`을 확인했다. Periodic 적용 전후 `CurrentZone = Zone01_Entry`, `CurrentState = Entry`가 유지됐고, 새 Console error는 없었다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.

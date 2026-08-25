@@ -27,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 552207065049471901}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.98, z: -0.68}
+  m_LocalPosition: {x: 0, y: 0.98, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -249,6 +249,7 @@ MonoBehaviour:
   input: {fileID: 8920254418987295136}
   cameraTransform: {fileID: 0}
   gravityState: {fileID: 0}
+  gravityManager: {fileID: 0}
   visualRoot: {fileID: 6573849201642835102}
   moveSpeed: 3
   sprintSpeed: 5
@@ -262,6 +263,7 @@ MonoBehaviour:
   gravityAlignmentSpeed: 720
   maxGroundAngle: 50
   groundProbeDistance: 0.15
+  gravityTransitionActive: 0
 --- !u!114 &9134441389679627703
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -296,11 +298,16 @@ MonoBehaviour:
   input: {fileID: 8920254418987295136}
   aimCamera: {fileID: 0}
   muzzle: {fileID: 4026860882140793202}
-  fireInterval: 0.1
+  fireInterval: 0.15
   maxRange: 100
   hitMask:
     serializedVersion: 2
-    m_Bits: 3127
+    m_Bits: 3095
+  shotDamage: 1
+  shotPushVelocityChange: 1.5
+  lastShotCollider: {fileID: 0}
+  lastShotRigidbody: {fileID: 0}
+  lastShotAppliedPhysicsPush: 0
   showShotTracer: 1
   shotTracer: {fileID: 1810366946}
   shotTracerDuration: 0.05
@@ -316,9 +323,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b56131079ac13974d9e144eccaaeeae8, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHealth: 3
+  currentHealth: 0
+  dead: 0
 --- !u!1 &5443816450742337034
 GameObject:
   m_ObjectHideFlags: 0

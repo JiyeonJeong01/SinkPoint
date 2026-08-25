@@ -149,6 +149,7 @@ internal sealed class ZeroGravityMotionState : IPlayerMotionState
 
     public void Enter(PlayerController owner)
     {
+        owner.EnterZeroGravity();
     }
 
     public void FixedTick(PlayerController owner, PlayerFixedContext context)
