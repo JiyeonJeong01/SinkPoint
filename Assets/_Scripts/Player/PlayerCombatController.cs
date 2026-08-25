@@ -11,6 +11,11 @@ public sealed class PlayerCombatController : MonoBehaviour
     [SerializeField] private ThirdPersonCameraController aimCamera;
     [SerializeField] private Transform muzzle;
 
+    [Header("Muzzle Flash")]
+    [SerializeField] private GameObject muzzleFlashPrefab;
+    [SerializeField] private Transform muzzleFlashAnchor;
+    [SerializeField, Min(0f)] private float muzzleFlashVisibleDuration = 0.12f;
+
     [Header("Firing")]
     [SerializeField, Min(0.01f)] private float fireInterval = 0.1f;
     [SerializeField, Min(0f)] private float maxRange = 100f;
@@ -45,8 +50,18 @@ public sealed class PlayerCombatController : MonoBehaviour
     [SerializeField] private bool showShotTracer = true;
     [SerializeField] private LineRenderer shotTracer;
     [SerializeField, Min(0f)] private float shotTracerDuration = 0.05f;
-    [SerializeField] private Color hitTracerColor = Color.red;
-    [SerializeField] private Color missTracerColor = Color.cyan;
+    [SerializeField] private Color hitTracerColor = new(1f, 0.70980394f, 0.18039216f, 1f);
+    [SerializeField] private Color missTracerColor = new(1f, 0.70980394f, 0.18039216f, 1f);
+    [SerializeField, Min(0f)] private float minTracerVisualDistance = 2f;
+    [SerializeField, Range(0f, 180f)] private float maxTracerCameraAngle = 20f;
+
+    [Header("Tracer Parallax Debug")]
+    [Tooltip("마지막 발사에서 VFX Anchor부터 실제 명중점까지의 Tracer 거리입니다.")]
+    [SerializeField] private float lastTracerVisualDistance;
+    [Tooltip("마지막 발사에서 카메라 중앙 Ray와 실제 Muzzle Ray 사이의 각도입니다.")]
+    [SerializeField] private float lastTracerCameraAngle;
+    [Tooltip("마지막 발사 Tracer가 근거리 또는 큰 카메라 시차로 숨겨졌는지 표시합니다.")]
+    [SerializeField] private bool lastTracerSuppressedByParallax;
 
     private readonly RaycastHit[] cameraHits = new RaycastHit[16];
     private readonly RaycastHit[] muzzleHits = new RaycastHit[16];
@@ -58,6 +73,9 @@ public sealed class PlayerCombatController : MonoBehaviour
     private double nextShotTime;
     private double reloadEndsAt;
     private double tracerVisibleUntil;
+    private GameObject muzzleFlashInstance;
+    private ParticleSystem[] muzzleFlashParticles = Array.Empty<ParticleSystem>();
+    private double muzzleFlashVisibleUntil;
     private int shotCount;
     private Vector3 lastShotEnd;
 
@@ -76,6 +94,9 @@ public sealed class PlayerCombatController : MonoBehaviour
         magazineCapacity = Mathf.Max(1, magazineCapacity);
         currentRounds = Mathf.Clamp(currentRounds, 0, magazineCapacity);
         reloadDuration = Mathf.Max(0.01f, reloadDuration);
+        muzzleFlashVisibleDuration = Mathf.Max(0f, muzzleFlashVisibleDuration);
+        minTracerVisualDistance = Mathf.Max(0f, minTracerVisualDistance);
+        maxTracerCameraAngle = Mathf.Clamp(maxTracerCameraAngle, 0f, 180f);
     }
 
     private void Awake()
@@ -85,6 +106,7 @@ public sealed class PlayerCombatController : MonoBehaviour
         magazineCapacity = Mathf.Max(1, magazineCapacity);
         reloadDuration = Mathf.Max(0.01f, reloadDuration);
         currentRounds = magazineCapacity;
+        InitializeMuzzleFlash();
     }
 
     private void Start()
@@ -119,7 +141,15 @@ public sealed class PlayerCombatController : MonoBehaviour
                 this);
         }
 
+        if (muzzleFlashPrefab == null || muzzleFlashAnchor == null)
+        {
+            Debug.LogWarning(
+                $"{nameof(PlayerCombatController)} on '{name}' has no Muzzle Flash Prefab or Anchor. Shots will remain functional without a muzzle flash.",
+                this);
+        }
+
         HideShotTracer();
+        HideMuzzleFlash();
     }
 
     private void OnDisable()
@@ -127,6 +157,7 @@ public sealed class PlayerCombatController : MonoBehaviour
         StopFiring();
         CancelReload();
         HideShotTracer();
+        HideMuzzleFlash();
     }
 
     private void LateUpdate()
@@ -134,6 +165,7 @@ public sealed class PlayerCombatController : MonoBehaviour
         double now = Time.timeAsDouble;
         ReloadStartedThisFrame = false;
         UpdateShotTracer(now);
+        UpdateMuzzleFlash(now);
 
         if (IsReloading)
         {
@@ -265,6 +297,7 @@ public sealed class PlayerCombatController : MonoBehaviour
             : muzzle.position + shotDirection * shotDistance;
         shotCount++;
         PlayShotAudio();
+        PlayMuzzleFlash(now);
         playerController.TryApplyZeroGravityRecoil(-shotDirection);
         lastShotCollider = hasShotHit ? shotHit.collider : null;
         lastShotRigidbody = null;
@@ -281,16 +314,28 @@ public sealed class PlayerCombatController : MonoBehaviour
             ApplyShotPush(shotHit, shotDirection);
         }
 
-        if (showShotTracer && shotTracer != null)
+        Vector3 tracerOrigin = muzzleFlashAnchor != null
+            ? muzzleFlashAnchor.position
+            : muzzle.position;
+        lastTracerVisualDistance = Vector3.Distance(tracerOrigin, shotEnd);
+        lastTracerCameraAngle = Vector3.Angle(aimRay.direction, shotDirection);
+        lastTracerSuppressedByParallax = lastTracerVisualDistance < minTracerVisualDistance
+            || lastTracerCameraAngle > maxTracerCameraAngle;
+
+        if (showShotTracer && shotTracer != null && !lastTracerSuppressedByParallax)
         {
             Color tracerColor = hasShotHit ? hitTracerColor : missTracerColor;
             shotTracer.positionCount = 2;
-            shotTracer.SetPosition(0, muzzle.position);
+            shotTracer.SetPosition(0, tracerOrigin);
             shotTracer.SetPosition(1, shotEnd);
             shotTracer.startColor = tracerColor;
             shotTracer.endColor = tracerColor;
             shotTracer.enabled = true;
             tracerVisibleUntil = now + shotTracerDuration;
+        }
+        else if (shotTracer != null)
+        {
+            HideShotTracer();
         }
 
         SetCurrentRounds(currentRounds - 1);
@@ -322,6 +367,16 @@ public sealed class PlayerCombatController : MonoBehaviour
         if (!showShotTracer || now >= tracerVisibleUntil)
         {
             shotTracer.enabled = false;
+            return;
+        }
+
+        if (shotTracer.enabled)
+        {
+            Transform tracerOrigin = muzzleFlashAnchor != null ? muzzleFlashAnchor : muzzle;
+            if (tracerOrigin != null)
+            {
+                shotTracer.SetPosition(0, tracerOrigin.position);
+            }
         }
     }
 
@@ -332,6 +387,69 @@ public sealed class PlayerCombatController : MonoBehaviour
         {
             shotTracer.enabled = false;
         }
+    }
+
+    private void InitializeMuzzleFlash()
+    {
+        if (muzzleFlashPrefab == null || muzzleFlashAnchor == null)
+        {
+            return;
+        }
+
+        muzzleFlashInstance = Instantiate(muzzleFlashPrefab, muzzleFlashAnchor, false);
+        muzzleFlashInstance.name = $"{muzzleFlashPrefab.name} (Runtime)";
+        muzzleFlashInstance.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+        foreach (MikeNspired.XRIStarterKit.DestroyAfterTime destroyAfterTime
+                 in muzzleFlashInstance.GetComponentsInChildren<MikeNspired.XRIStarterKit.DestroyAfterTime>(true))
+        {
+            destroyAfterTime.enabled = false;
+        }
+
+        muzzleFlashParticles = muzzleFlashInstance.GetComponentsInChildren<ParticleSystem>(true);
+        muzzleFlashInstance.SetActive(false);
+    }
+
+    private void PlayMuzzleFlash(double now)
+    {
+        if (muzzleFlashInstance == null)
+        {
+            return;
+        }
+
+        muzzleFlashInstance.SetActive(true);
+        foreach (ParticleSystem particle in muzzleFlashParticles)
+        {
+            particle.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+            particle.Play(false);
+        }
+
+        muzzleFlashVisibleUntil = now + muzzleFlashVisibleDuration;
+    }
+
+    private void UpdateMuzzleFlash(double now)
+    {
+        if (muzzleFlashInstance != null
+            && muzzleFlashInstance.activeSelf
+            && now >= muzzleFlashVisibleUntil)
+        {
+            HideMuzzleFlash();
+        }
+    }
+
+    private void HideMuzzleFlash()
+    {
+        muzzleFlashVisibleUntil = 0d;
+        if (muzzleFlashInstance == null)
+        {
+            return;
+        }
+
+        foreach (ParticleSystem particle in muzzleFlashParticles)
+        {
+            particle.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        muzzleFlashInstance.SetActive(false);
     }
 
     private void PlayShotAudio()

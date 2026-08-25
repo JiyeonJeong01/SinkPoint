@@ -317,14 +317,21 @@ MonoBehaviour:
   input: {fileID: 8920254418987295136}
   aimCamera: {fileID: 0}
   muzzle: {fileID: 4026860882140793202}
+  muzzleFlashPrefab: {fileID: 3901148745110949095, guid: 9192e08d2f3857b468cb7452ab4bbdb9, type: 3}
+  muzzleFlashAnchor: {fileID: 4026860882140793300}
+  muzzleFlashVisibleDuration: 0.12
   fireInterval: 0.13
   maxRange: 100
   hitMask:
     serializedVersion: 2
     m_Bits: 3095
   shotDamage: 1
+  magazineCapacity: 30
+  currentRounds: 0
+  reloadDuration: 3.67
   shotAudioSource: {fileID: 4323034296836736570}
   reloadAudioSource: {fileID: 5196372481048273156}
+  reloadAudioDelay: 0.3
   shotPushVelocityChange: 1.5
   lastShotCollider: {fileID: 0}
   lastShotRigidbody: {fileID: 0}
@@ -332,8 +339,13 @@ MonoBehaviour:
   showShotTracer: 1
   shotTracer: {fileID: 1810366946}
   shotTracerDuration: 0.05
-  hitTracerColor: {r: 1, g: 0, b: 0, a: 1}
-  missTracerColor: {r: 0, g: 1, b: 1, a: 1}
+  hitTracerColor: {r: 1, g: 0.88235295, b: 0.18039216, a: 1}
+  missTracerColor: {r: 1, g: 0.88235295, b: 0.18039216, a: 1}
+  minTracerVisualDistance: 2
+  maxTracerCameraAngle: 20
+  lastTracerVisualDistance: 0
+  lastTracerCameraAngle: 0
+  lastTracerSuppressedByParallax: 0
 --- !u!114 &7138164389181206742
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -689,10 +701,11 @@ Transform:
   m_GameObject: {fileID: 5443816450742337034}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -1.0140544, y: 0.049652718, z: -0.00000022724271}
+  m_LocalPosition: {x: -1.28, y: -0.084, z: -0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 4026860882140793300}
   m_Father: {fileID: 8069843372107187663}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!120 &1810366946
@@ -805,6 +818,37 @@ LineRenderer:
   m_UseWorldSpace: 1
   m_Loop: 0
   m_ApplyActiveColorSpace: 1
+--- !u!1 &5443816450742337100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4026860882140793300}
+  m_Layer: 0
+  m_Name: MuzzleVfxAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4026860882140793300
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5443816450742337100}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 2, y: 2, z: 2}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4026860882140793202}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6573849201642835101
 GameObject:
   m_ObjectHideFlags: 0

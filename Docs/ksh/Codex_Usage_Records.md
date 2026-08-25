@@ -252,3 +252,11 @@
 - Codex 사용처: 리로드 상태 소유 경로와 기존 Player SFX Mixer 구성을 대조해 수동·자동 리로드가 공통으로 사용하는 효과음 재생 경로를 추가했다.
 - 구현하거나 정리한 기능: `PlayerCombatController`에 리로드 전용 `AudioSource` 참조와 재생 함수를 추가하고, 실제 `StartReload()`이 성립할 때 `squarebun-m4a1-reload-sound-316890.mp3`를 한 번 재생하도록 연결했다. Player Prefab에는 사격·발소리와 간섭하지 않는 별도 Source를 추가해 `SinkPointSfx`의 Player 그룹으로 라우팅했으며 Play On Awake와 Loop는 끄고 오디오 데이터 사전 로드를 켰다. Controller 비활성화로 리로드가 취소되면 재생도 중지한다.
 - 검증 결과: `Assembly-CSharp.csproj` 빌드와 Unity 재컴파일은 오류 0건으로 통과했다. Unity가 MP3를 `Decompress On Load`로 임포트하고 Prefab 및 실제 Play Mode Player의 `reloadAudioSource` 참조, AudioClip, Player Mixer 그룹을 정상 해석했으며 새 Play Mode Console Error는 0건이었다. 수동·자동 리로드의 실제 애니메이션 대비 음향 타이밍과 볼륨 청감은 사용자 확인이 남아 있다. `Original_GamePlayScene`, Collider, Packages, ProjectSettings와 Build Settings는 변경하지 않았다.
+
+## 2026-08-25 — 플레이어 Muzzle Flash 및 게임플레이 Tracer 구성
+
+- Codex 사용처: XR Interaction Starter Kit의 Muzzle Flash 후보 구조와 기존 hitscan·LineRenderer 흐름을 대조해 Player Prefab 단일 슬롯, 런타임 재사용과 게임플레이 Tracer 표현을 구현·검증했다.
+- 구현하거나 정리한 기능: Player Prefab의 `Muzzle` 아래에 2배 스케일 `MuzzleVfxAnchor`를 추가하고 기본 `RifleFlash`를 등록했다. `PlayerCombatController`는 VFX를 한 번 생성해 ParticleSystem 5개를 재사용하고 XR 원본의 `DestroyAfterTime`은 런타임 복제본에서만 비활성화한다. 기존 Tracer는 기본 ON 상태와 `#FFB52E` 색으로 통일하고 표시 중 시작점이 현재 Anchor를 따라가게 했다.
+- 해결한 문제: 연사마다 VFX를 생성·파괴하지 않고 실제 발사와 Flash·Tracer를 같은 경로로 연결했다. XR 데모 Prefab의 `0.1초` 자동 파괴와 데모 루트 Transform을 Player 런타임에서 격리했으며, 작은 RifleFlash는 원본 수정 없이 Anchor 스케일로 확대했다.
+- 사람이 직접 결정한 부분: 사용자가 Play Mode에서 기본 발사 연동이 정상임을 확인하고 RifleFlash 2배 크기가 충분하다고 확정했다. 큰 상하 피치의 카메라–총구 근거리 시차는 단순 VFX 조정 범위를 넘어가므로 별도 방향성·Tracer 정책 계획으로 분리한 뒤 기존 계획을 완료 처리하도록 승인했다.
+- 검증 결과: Unity 재컴파일은 오류 0건이었다. 실제 `FireShot()` 호출에서 탄약 감소, Flash와 Tracer 활성화, 주황색 적용과 시간 종료 뒤 재사용 상태를 확인했고 새 Console Error는 없었다. Pistol·Rifle·TerraFormer 후보는 모두 ParticleSystem과 `DestroyAfterTime` 5개 구조로 공통 제어가 가능했다. `Original_GamePlayScene`, Collider, XR 원본 VFX, Packages, ProjectSettings와 Build Settings는 이번 작업에서 수정하지 않았다.
