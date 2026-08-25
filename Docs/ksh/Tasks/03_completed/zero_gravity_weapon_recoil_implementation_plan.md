@@ -1,7 +1,7 @@
 ﻿# 무중력 무기 발사 반작용 구현 실행 계획
 
 문서 작성일: 2026-08-25
-현재 상태: 계획
+현재 상태: 완료 — 코드·자동 컴파일·사용자 Play Mode 검증 완료
 
 계획 프로필: `standard`
 
@@ -39,7 +39,7 @@
 ## 4. 현재 구현과 전제
 
 - `PlayerCombatController.FireShot()`은 카메라 중심 조준점과 총구를 이용해 최종 `shotDirection`을 계산하고, 명중 여부와 무관하게 실제 발사 횟수를 확정한다.
-- 현재 연사 간격은 `0.1초`다.
+- 현재 연사 간격은 `0.15초`다.
 - `PlayerController`는 플레이어 Rigidbody와 `PlayerMotionStateMachine`의 현재 상태를 소유한다.
 - `ZeroGravityMotionState`는 진입 시 선속도·각속도를 한 번 초기화하고 이후 물리 프레임에서 속도를 덮어쓰지 않는다.
 - `PlayerController`는 중력 전환 중 여부를 이미 추적한다.
@@ -169,3 +169,20 @@ Player Prefab에서 두 컴포넌트가 같은 GameObject에 있음을 확인했
 - 구현을 시작하면 이 문서를 `Docs/ksh/Tasks/02_in-progress`로 이동한다.
 - 구현·자동 검증 결과를 각 단계 아래에 기록하되 사용자 Play Mode 확인과 구분한다.
 - 사용자 확인까지 완료되면 `Docs/ksh/Codex_Usage_Records.md`에 하나의 완료 작업 단위로 기록하고 `Docs/ksh/Tasks/03_completed`로 이동한다.
+
+## 13. 구현·검증 기록
+
+2026-08-25 코드 구현과 자동 검증:
+
+1. `PlayerController.TryApplyZeroGravityRecoil(Vector3)`와 Inspector 설정값을 구현했다. 비활성화, 비무중력 상태, 중력 전환 중, 유효하지 않은 방향·설정값은 `false`로 거부한다.
+2. 현재 전체 속력이 상한 이하일 때 후보 속도를 `ClampMagnitude`하고, 이미 상한을 넘은 경우 현재 속력을 늘리지 않는 요청만 허용하도록 구현했다.
+3. `PlayerCombatController.FireShot()`에서 실제 `shotCount` 증가 직후 `-shotDirection` 반작용을 한 번 요청하도록 연결했다. 명중·피해·피격 Rigidbody 밀기 분기와 독립적이다.
+4. 마지막 요청 적용 여부, 현재 전체 속력과 상한 도달 여부를 `PlayerController` Inspector 런타임 값으로 추가했다.
+5. `dotnet build Assembly-CSharp.csproj --no-restore`: 오류 0건. 기존 외부 에셋·타 파트 경고 28건이며 이번 변경의 신규 경고는 없다.
+6. `dotnet build Assembly-CSharp-Editor.csproj --no-restore`: 오류 0건, 경고 0건.
+7. 최신 `Editor.log` 범위에서 `error CS`, 컴파일 실패와 예외 문자열이 없음을 확인했다.
+8. 사용자가 Play Mode 테스트 성공을 확인했다. 무중력 상태가 아닐 때 반작용이 발동하는 버그는 테스트 범위에서 발견되지 않았다.
+
+확인된 기존 값:
+
+- `PlayerCombatController` 코드 초기값은 `fireInterval = 0.1f`지만 Player Prefab 직렬화 값은 `0.15`다. 이번 작업은 연사 간격을 변경하지 않았다.

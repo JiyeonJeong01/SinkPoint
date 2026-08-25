@@ -2,7 +2,7 @@ using UnityEngine;
 
 [DefaultExecutionOrder(105)]
 [DisallowMultipleComponent]
-[RequireComponent(typeof(PlayerInput))]
+[RequireComponent(typeof(PlayerInput), typeof(PlayerController))]
 public sealed class PlayerCombatController : MonoBehaviour
 {
     [Header("References")]
@@ -37,6 +37,7 @@ public sealed class PlayerCombatController : MonoBehaviour
     private readonly RaycastHit[] cameraHits = new RaycastHit[16];
     private readonly RaycastHit[] muzzleHits = new RaycastHit[16];
 
+    private PlayerController playerController;
     private bool fireSequenceActive;
     private bool didWarnAboutCameraBuffer;
     private bool didWarnAboutMuzzleBuffer;
@@ -52,6 +53,7 @@ public sealed class PlayerCombatController : MonoBehaviour
     private void Awake()
     {
         input ??= GetComponent<PlayerInput>();
+        playerController = GetComponent<PlayerController>();
     }
 
     private void Start()
@@ -155,6 +157,7 @@ public sealed class PlayerCombatController : MonoBehaviour
             ? shotHit.point
             : muzzle.position + shotDirection * shotDistance;
         shotCount++;
+        playerController.TryApplyZeroGravityRecoil(-shotDirection);
         lastShotCollider = hasShotHit ? shotHit.collider : null;
         lastShotRigidbody = null;
         lastShotAppliedPhysicsPush = false;
