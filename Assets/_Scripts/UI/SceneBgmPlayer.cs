@@ -124,7 +124,7 @@ public sealed class SceneBgmPlayer : MonoBehaviour
         {
             case BgmProfile.MainTitle:
                 bgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(
-                    "Assets/Caves and Dungeons/Call of the Depths/Call_of_the_Depths_Loop_A.wav");
+                    "Assets/Caves and Dungeons/Call of the Depths/Call_of_the_Depths_Loop_B.wav");
                 break;
             case BgmProfile.Gameplay:
                 bgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(

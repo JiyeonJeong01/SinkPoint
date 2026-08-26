@@ -878,7 +878,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "GRAVITY SHIFT \u2192 +Z"
+  m_Text: "중력 방향 전환"
 --- !u!114 &8673871927049954090
 MonoBehaviour:
   m_ObjectHideFlags: 0

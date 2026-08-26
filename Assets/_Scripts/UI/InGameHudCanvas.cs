@@ -417,7 +417,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
             return;
         }
 
-        ShowGravityWarning(gravityManager.NextPeriodicDirection);
+        ShowGravityWarning(gravityManager.CurrentPreset);
     }
 
     private void RefreshMonsterCount()
@@ -652,7 +652,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
         Vector3 nextDirection,
         float warningDuration)
     {
-        ShowGravityWarning(nextDirection);
+        ShowGravityWarning(preset);
     }
 
     private void OnGravityChangeFeedbackStarted(
@@ -660,10 +660,10 @@ public sealed class InGameHudCanvas : MonoBehaviour
         Vector3 direction,
         float visibleDuration)
     {
-        ShowGravityChangeFeedback(direction, visibleDuration);
+        ShowGravityChangeFeedback(preset, visibleDuration);
     }
 
-    private void ShowGravityWarning(Vector3 nextDirection)
+    private void ShowGravityWarning(GravityPreset preset)
     {
         ResolveReferences();
         if (gravityWarningText == null && GetGravityWarningObject() == null)
@@ -673,13 +673,13 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         if (gravityWarningText != null)
         {
-            gravityWarningText.text = $"GRAVITY SHIFT → {FormatAxis(nextDirection)}";
+            gravityWarningText.text = GetGravityFeedbackText(preset);
         }
 
         SetGravityWarningVisible(true);
     }
 
-    private void ShowGravityChangeFeedback(Vector3 direction, float visibleDuration)
+    private void ShowGravityChangeFeedback(GravityPreset preset, float visibleDuration)
     {
         ResolveReferences();
         if (gravityWarningText == null && GetGravityWarningObject() == null)
@@ -692,7 +692,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         if (gravityWarningText != null)
         {
-            gravityWarningText.text = $"GRAVITY SHIFT → {FormatAxis(direction)}";
+            gravityWarningText.text = GetGravityFeedbackText(preset);
         }
 
         gravityChangeFeedbackVisible = true;
@@ -791,6 +791,13 @@ public sealed class InGameHudCanvas : MonoBehaviour
         }
 
         return gravityWarningText != null ? gravityWarningText.gameObject : null;
+    }
+
+    private static string GetGravityFeedbackText(GravityPreset preset)
+    {
+        return preset != null && preset.Mode == GravityPresetMode.ZeroGravity
+            ? "무중력 진입"
+            : "중력 방향 전환";
     }
 
     private static string FormatAxis(Vector3 direction)

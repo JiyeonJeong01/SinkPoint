@@ -63,14 +63,6 @@ public sealed class MonsterManager : MonoBehaviour
         RefreshMonsterList();
     }
 
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Alpha9))
-        {
-            DebugKillCurrentZoneMonsters();
-        }
-    }
-
     private void OnDestroy()
     {
         UnregisterMonsterEvents();

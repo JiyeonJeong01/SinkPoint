@@ -48,6 +48,11 @@ public sealed class GrapplingHook : MonoBehaviour
     [SerializeField, Min(0f)] private float maxPullDuration = 3f;
     [SerializeField] private LayerMask grappleSurfaceMask;
 
+    [Header("Rope Visual")]
+    [SerializeField, Range(2, 16)] private int ropeSegmentCount = 8;
+    [SerializeField, Min(0f)] private float ropeWaveAmplitude = 0.12f;
+    [SerializeField, Min(0f)] private float ropeWaveSpeed = 10f;
+
     [Header("Debug")]
     [SerializeField] private bool logGrappleFailures = true;
     [SerializeField, TextArea] private string lastGrappleDebug;
@@ -67,7 +72,9 @@ public sealed class GrapplingHook : MonoBehaviour
     private const float MuzzlePathEndpointTolerance = 0.05f;
     private Vector3 launchOrigin;
     private Vector3 launchEndpoint;
+    private Vector3 ropeWaveNormal = Vector3.up;
     private double launchStartedAt;
+    private float pullStartDistance;
     private string launchTargetDebug;
 
     internal bool IsBusy => grappleState != GrappleState.Idle;
@@ -101,7 +108,7 @@ public sealed class GrapplingHook : MonoBehaviour
             return;
         }
 
-        grappleLine.positionCount = 2;
+        grappleLine.positionCount = Mathf.Max(2, ropeSegmentCount);
         grappleLine.useWorldSpace = true;
         grappleLine.enabled = false;
     }
@@ -165,6 +172,8 @@ public sealed class GrapplingHook : MonoBehaviour
         launchDistance = Vector3.Distance(launchOrigin, launchEndpoint);
         launchProgress = 0f;
         pullElapsed = 0f;
+        pullStartDistance = 0f;
+        ropeWaveNormal = BuildRopeWaveNormal(launchEndpoint - launchOrigin);
         launchStartedAt = Time.timeAsDouble;
         grappleState = GrappleState.Launching;
         grappleLine.enabled = true;
@@ -206,6 +215,7 @@ public sealed class GrapplingHook : MonoBehaviour
         }
 
         pullElapsed = 0f;
+        pullStartDistance = Mathf.Max(Vector3.Distance(muzzle.position, anchorPoint), Mathf.Epsilon);
         grappleState = GrappleState.Pulling;
         PlayOneShot(anchoredSfxClip, anchoredSfxVolume);
         PlayGrapplingLoop();
@@ -440,8 +450,98 @@ public sealed class GrapplingHook : MonoBehaviour
 
     private void SetLinePositions(Vector3 start, Vector3 end)
     {
-        grappleLine.SetPosition(0, start);
-        grappleLine.SetPosition(1, end);
+        int segmentCount = Mathf.Max(2, ropeSegmentCount);
+        if (grappleLine.positionCount != segmentCount)
+        {
+            grappleLine.positionCount = segmentCount;
+        }
+
+        Vector3 line = end - start;
+        float distance = line.magnitude;
+        float waveAmount = GetRopeWaveAmount(distance);
+        if (segmentCount <= 2 || ropeWaveAmplitude <= 0f || waveAmount <= 0f || distance <= Mathf.Epsilon)
+        {
+            SetStraightLinePositions(start, end, segmentCount);
+            return;
+        }
+
+        Vector3 waveNormal = GetStableRopeWaveNormal(line / distance);
+        for (int i = 0; i < segmentCount; i++)
+        {
+            float t = i / (float)(segmentCount - 1);
+            float endpointFade = Mathf.Sin(t * Mathf.PI);
+            float sCurve = Mathf.Sin(t * Mathf.PI * 2f);
+            float subtleSwing = 0.75f + 0.25f * Mathf.Sin(Time.time * ropeWaveSpeed + t * Mathf.PI);
+            Vector3 offset = waveNormal * (sCurve * endpointFade * ropeWaveAmplitude * waveAmount * subtleSwing);
+            grappleLine.SetPosition(i, Vector3.Lerp(start, end, t) + offset);
+        }
+    }
+
+    private void SetStraightLinePositions(Vector3 start, Vector3 end, int segmentCount)
+    {
+        for (int i = 0; i < segmentCount; i++)
+        {
+            float t = segmentCount <= 1 ? 0f : i / (float)(segmentCount - 1);
+            grappleLine.SetPosition(i, Vector3.Lerp(start, end, t));
+        }
+    }
+
+    private float GetRopeWaveAmount(float currentDistance)
+    {
+        switch (grappleState)
+        {
+            case GrappleState.Launching:
+                return Mathf.Sin(Mathf.Clamp01(launchProgress) * Mathf.PI);
+            case GrappleState.Pulling:
+                float retractProgress = pullStartDistance <= Mathf.Epsilon
+                    ? 0f
+                    : 1f - Mathf.Clamp01(currentDistance / pullStartDistance);
+                return Mathf.Sin(retractProgress * Mathf.PI);
+            default:
+                return 0f;
+        }
+    }
+
+    private Vector3 GetStableRopeWaveNormal(Vector3 ropeDirection)
+    {
+        Vector3 normal = Vector3.ProjectOnPlane(ropeWaveNormal, ropeDirection);
+        if (normal.sqrMagnitude <= 0.0001f)
+        {
+            normal = BuildRopeWaveNormal(ropeDirection);
+        }
+
+        normal.Normalize();
+        if (Vector3.Dot(normal, ropeWaveNormal) < 0f)
+        {
+            normal = -normal;
+        }
+
+        return normal;
+    }
+
+    private Vector3 BuildRopeWaveNormal(Vector3 ropeDirection)
+    {
+        Vector3 direction = ropeDirection.sqrMagnitude > 0.0001f
+            ? ropeDirection.normalized
+            : transform.forward;
+        Vector3 normalSource = aimCamera != null ? aimCamera.transform.right : transform.right;
+        Vector3 normal = Vector3.ProjectOnPlane(normalSource, direction);
+        if (normal.sqrMagnitude <= 0.0001f)
+        {
+            normal = Vector3.ProjectOnPlane(transform.up, direction);
+        }
+
+        if (normal.sqrMagnitude <= 0.0001f)
+        {
+            normal = Vector3.Cross(direction, Vector3.up);
+        }
+
+        if (normal.sqrMagnitude <= 0.0001f)
+        {
+            normal = Vector3.right;
+        }
+
+        return normal.normalized;
     }
 
     private void OnPlayerDied(PlayerHealth health)
