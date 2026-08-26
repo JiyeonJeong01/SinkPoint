@@ -1,0 +1,19 @@
+fileFormatVersion: 2
+guid: d8444d1f50e40a649a972dd73e7b6bdc
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _DistortionNoise: {fileID: 2800000, guid: a5cc908907bcc99438b8da8e0fae7454, type: 3}
+  - _DistortionDist: {fileID: 2800000, guid: a5cc908907bcc99438b8da8e0fae7454, type: 3}
+  - _CutoutTexture: {fileID: 2800000, guid: 38e5fbcdc59407f4687abb7193140e38, type: 3}
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 401070
+  packageName: Distortion VFX
+  packageVersion: 1.0.0
+  assetPath: Assets/Vefects/Distortion VFX/VFX/Shaders/SH_VFX_Vefects_Distortion_Flat_01_BIRP.shader
+  uploadId: 977396

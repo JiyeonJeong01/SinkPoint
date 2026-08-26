@@ -14,6 +14,15 @@ public sealed class GravityManager : MonoBehaviour
     [Header("Presentation Transition")]
     [SerializeField, Min(0f)] private float transitionDuration = 0.5f;
 
+    [Header("Gravity Change Feedback")]
+    [SerializeField, Range(0.01f, 1f)] private float gravityChangeTimeScale = 0.2f;
+    [SerializeField, Range(0.01f, 1f)] private float periodicGravityChangeTimeScale = 0.5f;
+    [SerializeField, Min(0f)] private float gravityChangeFeedbackDuration = 1.2f;
+    [SerializeField, Min(0f)] private float distortionStopDelay = 0.2f;
+    [SerializeField] private ParticleSystem distortionParticlePrefab;
+    [SerializeField] private Transform distortionParticleAnchor;
+    [SerializeField, Min(0f)] private float distortionParticleScaleMultiplier = 1f;
+
     public GravityPreset CurrentPreset { get; private set; }
     public GravityPreset InitialPreset => initialPreset;
     public GravityPreset TargetPreset { get; private set; }
@@ -30,6 +39,7 @@ public sealed class GravityManager : MonoBehaviour
     public event Action TransitionStarted;
     public event Action TransitionCompleted;
     public event Action<GravityPreset, Vector3, float> GravityChangeWarning;
+    public event Action<GravityPreset, Vector3, float> GravityChangeFeedbackStarted;
 
     private Vector3 transitionStartUp;
     private Vector3 transitionTargetUp;
@@ -37,7 +47,12 @@ public sealed class GravityManager : MonoBehaviour
     private float transitionAngle;
     private float transitionElapsed;
     private Coroutine periodicRoutine;
+    private Coroutine feedbackRoutine;
+    private ParticleSystem distortionParticleInstance;
+    private float timeScaleBeforeFeedback = 1f;
+    private float fixedDeltaTimeBeforeFeedback = 0.02f;
     private int periodicRunId;
+    private bool suppressFeedback;
 
     private void Awake()
     {
@@ -54,7 +69,9 @@ public sealed class GravityManager : MonoBehaviour
 
         if (initialPreset != null)
         {
+            suppressFeedback = true;
             ApplyPreset(initialPreset);
+            suppressFeedback = false;
         }
     }
 
@@ -83,6 +100,7 @@ public sealed class GravityManager : MonoBehaviour
 
     private void OnDisable()
     {
+        StopGravityChangeFeedback(true);
         StopPeriodicRoutine();
 
         if (IsTransitioning)
@@ -342,6 +360,7 @@ public sealed class GravityManager : MonoBehaviour
         }
 
         CurrentPreset = preset;
+        StartGravityChangeFeedback(preset, normalizedDirection, instantPresentation);
 
         if (IsTransitioning && transitionDuration <= Mathf.Epsilon)
         {
@@ -362,6 +381,116 @@ public sealed class GravityManager : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void StartGravityChangeFeedback(
+        GravityPreset preset,
+        Vector3 normalizedDirection,
+        bool instantPresentation)
+    {
+        if (suppressFeedback || instantPresentation || !Application.isPlaying)
+        {
+            return;
+        }
+
+        StopGravityChangeFeedback(true);
+        feedbackRoutine = StartCoroutine(RunGravityChangeFeedback(preset, normalizedDirection));
+    }
+
+    private IEnumerator RunGravityChangeFeedback(GravityPreset preset, Vector3 normalizedDirection)
+    {
+        timeScaleBeforeFeedback = Time.timeScale;
+        fixedDeltaTimeBeforeFeedback = Time.fixedDeltaTime;
+
+        float targetTimeScale = preset != null && preset.Mode == GravityPresetMode.Periodic
+            ? periodicGravityChangeTimeScale
+            : gravityChangeTimeScale;
+        ApplyTimeScale(targetTimeScale);
+        PlayDistortionParticle();
+        GravityChangeFeedbackStarted?.Invoke(preset, normalizedDirection, gravityChangeFeedbackDuration);
+
+        float elapsed = 0f;
+        while (elapsed < gravityChangeFeedbackDuration)
+        {
+            yield return null;
+            elapsed += Time.unscaledDeltaTime;
+        }
+
+        ApplyTimeScale(timeScaleBeforeFeedback, fixedDeltaTimeBeforeFeedback);
+
+        elapsed = 0f;
+        while (elapsed < distortionStopDelay)
+        {
+            yield return null;
+            elapsed += Time.unscaledDeltaTime;
+        }
+
+        StopDistortionParticle();
+        feedbackRoutine = null;
+    }
+
+    private void StopGravityChangeFeedback(bool restoreTimeScale)
+    {
+        bool wasRunning = feedbackRoutine != null;
+        if (feedbackRoutine != null)
+        {
+            StopCoroutine(feedbackRoutine);
+            feedbackRoutine = null;
+        }
+
+        if (restoreTimeScale && wasRunning)
+        {
+            ApplyTimeScale(timeScaleBeforeFeedback, fixedDeltaTimeBeforeFeedback);
+        }
+
+        StopDistortionParticle();
+    }
+
+    private void ApplyTimeScale(float timeScale)
+    {
+        ApplyTimeScale(timeScale, fixedDeltaTimeBeforeFeedback * Mathf.Max(0.01f, timeScale));
+    }
+
+    private static void ApplyTimeScale(float timeScale, float fixedDeltaTime)
+    {
+        Time.timeScale = Mathf.Max(0f, timeScale);
+        Time.fixedDeltaTime = Mathf.Max(0.0001f, fixedDeltaTime);
+    }
+
+    private void PlayDistortionParticle()
+    {
+        if (distortionParticlePrefab == null)
+        {
+            return;
+        }
+
+        if (distortionParticleInstance == null)
+        {
+            Transform anchor = distortionParticleAnchor != null ? distortionParticleAnchor : transform;
+            distortionParticleInstance = Instantiate(
+                distortionParticlePrefab,
+                anchor.position,
+                anchor.rotation,
+                anchor);
+        }
+
+        distortionParticleInstance.gameObject.SetActive(true);
+        distortionParticleInstance.transform.localPosition = Vector3.zero;
+        distortionParticleInstance.transform.localRotation = Quaternion.identity;
+        distortionParticleInstance.transform.localScale =
+            distortionParticlePrefab.transform.localScale * distortionParticleScaleMultiplier;
+        distortionParticleInstance.Play(true);
+    }
+
+    private void StopDistortionParticle()
+    {
+        if (distortionParticleInstance == null)
+        {
+            return;
+        }
+
+        distortionParticleInstance.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        distortionParticleInstance.gameObject.SetActive(false);
     }
 
     private bool TryValidatePreset(GravityPreset preset)

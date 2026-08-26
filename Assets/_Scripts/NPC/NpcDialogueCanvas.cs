@@ -47,6 +47,16 @@ public sealed class NpcDialogueCanvas : MonoBehaviour
         }
     }
 
+    private void OnDisable()
+    {
+        ReleaseDialogueLock();
+    }
+
+    private void OnDestroy()
+    {
+        ReleaseDialogueLock();
+    }
+
     public void BindNpc(Transform anchor)
     {
     }
@@ -166,15 +176,28 @@ public sealed class NpcDialogueCanvas : MonoBehaviour
         FinishTypingImmediately();
         SetDialogueVisible(false);
 
-        if (lockedInput != null)
-        {
-            lockedInput.SetGameplayInput();
-        }
-
-        lockedInput = null;
+        ReleaseDialogueLock();
         Action callback = ended;
         ended = null;
         callback?.Invoke();
+    }
+
+    private void ReleaseDialogueLock()
+    {
+        if (typingRoutine != null)
+        {
+            StopCoroutine(typingRoutine);
+            typingRoutine = null;
+        }
+
+        typing = false;
+        dialogueActive = false;
+
+        if (lockedInput != null)
+        {
+            lockedInput.SetGameplayInput();
+            lockedInput = null;
+        }
     }
 
     private void SetDialogueVisible(bool visible)

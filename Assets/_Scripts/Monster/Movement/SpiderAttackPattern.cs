@@ -41,6 +41,8 @@ public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMo
     [SerializeField] private Transform navTarget;
     [SerializeField] private MonsterStateMachine stateMachine;
     [SerializeField] private SpiderSurfaceRouteMover routeMover;
+    [SerializeField, Tooltip("공격/이동/사망 사운드를 재생합니다. 비워두면 같은 몬스터 계층에서 찾습니다.")]
+    private MonsterAudioFeedback audioFeedback;
     [SerializeField, Tooltip("배회 중 독 분사는 감지 상태와 무관하게 이 태그의 플레이어를 향해 발사합니다.")]
     private string playerTag = "Player";
     [SerializeField, Tooltip("거미 입에 배치해 둔 독 분사 VFX 오브젝트입니다. 비어 있으면 자식에서 VFX_Pressure_Pee_Attack 이름을 찾습니다.")]
@@ -92,7 +94,7 @@ public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMo
     [SerializeField, Min(0f), Tooltip("RoutePause 종료 몇 초 전부터 독 분사를 허용할지 정합니다. 값이 작을수록 더 늦게 쏩니다.")]
     private float sprayBeforeRouteResumeSeconds = 0.3f;
     [SerializeField, Range(0f, 1f), Tooltip("독 분사가 실제 피해를 줄 확률입니다.")]
-    private float sprayHitChance = 0.33f;
+    private float sprayHitChance = 0.7f;
     [SerializeField, Min(0)] private int sprayDamage = 1;
     [SerializeField, Min(0f), Tooltip("독 분사 시작 전 플레이어를 바라보는 준비 시간입니다.")]
     private float faceTargetDuration = 0.08f;
@@ -265,6 +267,10 @@ public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMo
         routeMover ??= GetComponentInParent<SpiderSurfaceRouteMover>();
         routeMover ??= GetComponentInChildren<SpiderSurfaceRouteMover>();
 
+        audioFeedback ??= GetComponent<MonsterAudioFeedback>();
+        audioFeedback ??= GetComponentInParent<MonsterAudioFeedback>();
+        audioFeedback ??= GetComponentInChildren<MonsterAudioFeedback>();
+
         if (sprayVfxObject == null)
         {
             Transform vfx = FindChildRecursive(transform, "VFX_Pressure_Pee_Attack");
@@ -397,7 +403,11 @@ public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMo
         }
 
         attackSequence
-            .AppendCallback(() => attackDebugStatus = AttackDebugStatus.MeleeLunge)
+            .AppendCallback(() =>
+            {
+                attackDebugStatus = AttackDebugStatus.MeleeLunge;
+                audioFeedback?.PlayBodySlam();
+            })
             .Append(navTarget.DOMove(lungePosition, lungeDuration).SetEase(Ease.InQuad))
             .AppendCallback(() => TryApplyDirectMeleeDamage(target))
             .AppendCallback(() => attackDebugStatus = AttackDebugStatus.MeleeRecover);
@@ -407,6 +417,7 @@ public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMo
             attackSequence
                 .AppendInterval(secondLungeDelay)
                 .AppendCallback(() => FaceTarget(target))
+                .AppendCallback(() => audioFeedback?.PlayBodySlam())
                 .Append(navTarget.DOMove(recoverPosition, lungeDuration).SetEase(Ease.InQuad))
                 .AppendCallback(() => TryApplyDirectMeleeDamage(target));
         }
@@ -454,6 +465,7 @@ public sealed class SpiderAttackPattern : MonoBehaviour, IMonsterResettable, IMo
                 AimSprayVfx(aimPosition);
                 SetSprayVfxActive(true);
                 PlaySprayParticles();
+                audioFeedback?.PlayRangedAttack();
                 sprayedDuringCurrentRoutePause = true;
                 TryApplySprayDamage(target);
             });

@@ -33,6 +33,14 @@ public sealed class MapBoxBarrier : MonoBehaviour
     [SerializeField, Tooltip("켜면 씬 시작 시 닫힌 위치에서 시작합니다. 꺼두면 열린 위치에서 시작합니다.")]
     private bool startClosed = true;
 
+    [Header("Audio")]
+    [SerializeField, Tooltip("바리게이트가 열리기 시작할 때 한 번 재생할 사운드입니다.")]
+    private AudioClip openSound;
+    [SerializeField, Tooltip("비워두면 같은 오브젝트의 AudioSource를 자동으로 사용합니다.")]
+    private AudioSource audioSource;
+    [SerializeField, Range(0f, 1f)]
+    private float openSoundVolume = 0.8f;
+
     [Header("Debug Readout")]
     [SerializeField, Tooltip("현재 바리게이트 상태입니다. 런타임 확인용입니다.")]
     private BarrierState state = BarrierState.Closed;
@@ -132,6 +140,10 @@ public sealed class MapBoxBarrier : MonoBehaviour
 
         KillMoveTween();
         state = movingState;
+        if (movingState == BarrierState.Opening)
+        {
+            PlayOpenSound();
+        }
 
         moveTween = Body.DOMove(destination.position, moveDuration)
             .SetEase(moveEase)
@@ -148,6 +160,21 @@ public sealed class MapBoxBarrier : MonoBehaviour
     private void ResolveSceneReferences()
     {
         movingBody ??= transform;
+        audioSource ??= GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 1f;
+    }
+
+    private void PlayOpenSound()
+    {
+        if (openSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(openSound, openSoundVolume);
+        }
     }
 
     private void KillMoveTween()
@@ -164,5 +191,12 @@ public sealed class MapBoxBarrier : MonoBehaviour
     private void OnValidate()
     {
         moveDuration = Mathf.Max(0.01f, moveDuration);
+#if UNITY_EDITOR
+        if (openSound == null)
+        {
+            openSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/Audios/Environment/SpookyDoor/SpookyDoor_1.wav");
+        }
+#endif
     }
 }
