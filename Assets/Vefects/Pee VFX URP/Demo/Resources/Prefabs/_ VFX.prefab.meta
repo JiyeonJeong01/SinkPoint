@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: ab30de08977fd534cb5788ea21d426c4
+guid: c822a3c4ee0201244807517676eb689d
 PrefabImporter:
   externalObjects: {}
   userData: 
@@ -7,8 +7,8 @@ PrefabImporter:
   assetBundleVariant: 
 AssetOrigin:
   serializedVersion: 1
-  productId: 398182
-  packageName: Wind VFX - URP
-  packageVersion: 1.0
+  productId: 401072
+  packageName: Distortion VFX - URP
+  packageVersion: 1.0.0
   assetPath: Assets/Vefects/Pee VFX URP/Demo/Resources/Prefabs/_ VFX.prefab
-  uploadId: 972086
+  uploadId: 977394

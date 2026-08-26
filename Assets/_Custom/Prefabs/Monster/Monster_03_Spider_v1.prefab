@@ -924,14 +924,14 @@ GameObject:
   - component: {fileID: 4959351788328038994}
   - component: {fileID: 8580449892667941570}
   - component: {fileID: 345989468168449663}
-  - component: {fileID: 7495720971591045517}
+  - component: {fileID: 560307529723686740}
   m_Layer: 0
   m_Name: Monster_03_Spider_v1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &7988672357365409555
 Transform:
   m_ObjectHideFlags: 0
@@ -993,9 +993,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70b34ed5df3948748b26c0d5eb91372d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealth
-  maxHealth: 30
+  maxHealth: 35
   destroyOnDeath: 0
-  currentHealth: 0
+  currentHealth: 35
   dead: 0
 --- !u!114 &1932961232513188371
 MonoBehaviour:
@@ -1176,7 +1176,7 @@ MonoBehaviour:
   secondLungeChance: 0.35
   secondLungeDelay: 0.12
   applyDirectMeleeDamage: 0
-  meleeDamage: 1
+  meleeDamage: 8
   directMeleeDamageRadius: 1.2
   sprayMinDistance: 2
   sprayMaxDistance: 9
@@ -1186,7 +1186,7 @@ MonoBehaviour:
   sprayNearRoutePauseEnd: 1
   sprayBeforeRouteResumeSeconds: 0.3
   sprayHitChance: 0.7
-  sprayDamage: 1
+  sprayDamage: 5
   faceTargetDuration: 0.08
   scaleStreamZ: 1
   sprayAimAxis: 0
@@ -1713,7 +1713,7 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &7495720971591045517
+--- !u!114 &560307529723686740
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

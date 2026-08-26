@@ -12,6 +12,7 @@ public sealed class GravitySourceEndingController : MonoBehaviour
     [SerializeField] private EndingCanvas endingCanvas;
     [SerializeField] private InGameHudCanvas hudCanvas;
     [SerializeField] private PlayerInput playerInput;
+    [SerializeField] private Rigidbody playerRigidbody;
 
     [Header("Presentation")]
     [SerializeField, Min(0f)] private float sourceMoveDuration = 2.5f;
@@ -23,6 +24,8 @@ public sealed class GravitySourceEndingController : MonoBehaviour
     private bool sourceReady;
     private bool endingRunning;
     private Coroutine sourceMoveRoutine;
+    private RigidbodyConstraints playerConstraintsBeforeEnding;
+    private bool playerPhysicsLocked;
 
     private void Awake()
     {
@@ -43,6 +46,8 @@ public sealed class GravitySourceEndingController : MonoBehaviour
 
     private void OnDisable()
     {
+        UnlockPlayerPhysics();
+
         if (monsterManager != null)
         {
             monsterManager.LastMonsterDied -= OnLastMonsterDied;
@@ -56,6 +61,7 @@ public sealed class GravitySourceEndingController : MonoBehaviour
             return;
         }
 
+        LockPlayerPhysics(triggeringPlayerInput);
         StartCoroutine(EndingRoutine(triggeringPlayerInput));
     }
 
@@ -117,6 +123,9 @@ public sealed class GravitySourceEndingController : MonoBehaviour
 
         playerInput = triggeringPlayerInput != null ? triggeringPlayerInput : playerInput;
         playerInput ??= FindFirstObjectByType<PlayerInput>();
+        playerRigidbody ??= playerInput != null
+            ? playerInput.GetComponentInParent<Rigidbody>()
+            : FindFirstObjectByType<PlayerController>()?.GetComponent<Rigidbody>();
         hudCanvas ??= FindFirstObjectByType<InGameHudCanvas>();
         endingCanvas ??= FindFirstObjectByType<EndingCanvas>(FindObjectsInactive.Include);
 
@@ -159,6 +168,9 @@ public sealed class GravitySourceEndingController : MonoBehaviour
         endingCanvas ??= FindFirstObjectByType<EndingCanvas>(FindObjectsInactive.Include);
         hudCanvas ??= FindFirstObjectByType<InGameHudCanvas>();
         playerInput ??= FindFirstObjectByType<PlayerInput>();
+        playerRigidbody ??= playerInput != null
+            ? playerInput.GetComponentInParent<Rigidbody>()
+            : FindFirstObjectByType<PlayerController>()?.GetComponent<Rigidbody>();
 
         if (gravitySource == null)
         {
@@ -202,6 +214,43 @@ public sealed class GravitySourceEndingController : MonoBehaviour
         {
             orbTrigger.SetTriggerEnabled(enabled);
         }
+    }
+
+    private void LockPlayerPhysics(PlayerInput triggeringPlayerInput)
+    {
+        if (playerPhysicsLocked)
+        {
+            return;
+        }
+
+        playerInput = triggeringPlayerInput != null ? triggeringPlayerInput : playerInput;
+        playerInput ??= FindFirstObjectByType<PlayerInput>();
+        PlayerController playerController = FindFirstObjectByType<PlayerController>();
+        playerRigidbody = playerController != null ? playerController.GetComponent<Rigidbody>() : null;
+
+        if (playerRigidbody == null)
+        {
+            Debug.LogWarning("[GravitySourceEndingController] Player Rigidbody is not assigned.", this);
+            return;
+        }
+
+        playerConstraintsBeforeEnding = playerRigidbody.constraints;
+        playerRigidbody.constraints = playerConstraintsBeforeEnding
+            | RigidbodyConstraints.FreezePositionX
+            | RigidbodyConstraints.FreezePositionY
+            | RigidbodyConstraints.FreezePositionZ;
+        playerPhysicsLocked = true;
+    }
+
+    private void UnlockPlayerPhysics()
+    {
+        if (!playerPhysicsLocked || playerRigidbody == null)
+        {
+            return;
+        }
+
+        playerRigidbody.constraints = playerConstraintsBeforeEnding;
+        playerPhysicsLocked = false;
     }
 
     private static Transform FindChildByName(Transform root, string childName)

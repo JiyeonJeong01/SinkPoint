@@ -13,6 +13,8 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private Text monsterCountText;
     [SerializeField, Tooltip("현재 장탄 수를 표시할 Text입니다. 비워두면 자식의 Ammo Count Text를 찾습니다.")]
     private Text ammoCountText;
+    [SerializeField, Tooltip("중력 변경 경고를 담는 패널 RectTransform입니다. 비워두면 자식의 Gravity Warning Panel을 찾고, 없으면 Gravity Warning Text를 직접 움직입니다.")]
+    private RectTransform gravityWarningPanel;
     [SerializeField, Tooltip("주기 중력 변경 예고를 표시할 Text입니다. 비워두면 자식의 Gravity Warning Text를 찾습니다.")]
     private Text gravityWarningText;
     [SerializeField, Tooltip("플레이어 피격 시 짧게 표시할 Image입니다. 비워두면 자식의 Hurt를 찾습니다.")]
@@ -44,6 +46,14 @@ public sealed class InGameHudCanvas : MonoBehaviour
     [SerializeField, Min(0f), Tooltip("피격 이미지가 다시 사라지는 시간입니다.")]
     private float hurtFadeOutDuration = 0.2f;
 
+    [Header("Gravity Warning Animation")]
+    [SerializeField, Min(0f), Tooltip("중력 변경 경고 UI가 내려오는 시간입니다.")]
+    private float gravityWarningSlideInDuration = 0.25f;
+    [SerializeField, Min(0f), Tooltip("중력 변경 경고 UI가 올라가는 시간입니다.")]
+    private float gravityWarningSlideOutDuration = 0.25f;
+    [SerializeField, Min(0f), Tooltip("숨김 위치를 표시 위치보다 위로 얼마나 올릴지입니다.")]
+    private float gravityWarningHiddenOffsetY = 96f;
+
     [Header("Debug Readout")]
     [SerializeField, Tooltip("HUD가 현재 카운트를 읽고 있는 Zone입니다.")]
     private ZoneId monsterCountZone;
@@ -58,6 +68,11 @@ public sealed class InGameHudCanvas : MonoBehaviour
     private Tween hpTween;
     private Tween hurtTween;
     private Tween fadeTween;
+    private Tween gravityWarningTween;
+    private RectTransform gravityWarningRectTransform;
+    private Vector2 gravityWarningShownPosition;
+    private bool gravityWarningPositionCaptured;
+    private bool gravityChangeFeedbackVisible;
     private int displayedCurrentHp = -1;
     private int displayedMaxHp = -1;
     private int displayedCurrentRounds = -1;
@@ -94,6 +109,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
         KillHpTween();
         KillHurtTween();
         KillFadeTween();
+        KillGravityWarningTween();
         SetHurtAlpha(0f);
         SetGravityWarningVisible(false);
     }
@@ -221,9 +237,23 @@ public sealed class InGameHudCanvas : MonoBehaviour
             ammoCountText = FindTextByName("Ammo Count Text");
         }
 
+        if (gravityWarningPanel == null)
+        {
+            gravityWarningPanel = FindRectTransformByName("Gravity Warning Panel");
+        }
+
         if (gravityWarningText == null)
         {
             gravityWarningText = FindTextByName("Gravity Warning Text");
+        }
+
+        if (gravityWarningRectTransform == null)
+        {
+            gravityWarningRectTransform = gravityWarningPanel != null
+                ? gravityWarningPanel
+                : gravityWarningText != null
+                    ? gravityWarningText.rectTransform
+                    : null;
         }
 
         if (hurtImage == null)
@@ -333,6 +363,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
         if (gravityManager != null)
         {
             gravityManager.GravityChangeWarning -= OnGravityChangeWarning;
+            gravityManager.GravityChangeFeedbackStarted -= OnGravityChangeFeedbackStarted;
         }
 
         gravityManager = manager;
@@ -340,6 +371,8 @@ public sealed class InGameHudCanvas : MonoBehaviour
         {
             gravityManager.GravityChangeWarning -= OnGravityChangeWarning;
             gravityManager.GravityChangeWarning += OnGravityChangeWarning;
+            gravityManager.GravityChangeFeedbackStarted -= OnGravityChangeFeedbackStarted;
+            gravityManager.GravityChangeFeedbackStarted += OnGravityChangeFeedbackStarted;
         }
 
         RefreshGravityWarning();
@@ -366,8 +399,10 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
     private void Update()
     {
-        if (gravityWarningText != null
-            && gravityWarningText.gameObject.activeSelf
+        GameObject warningObject = GetGravityWarningObject();
+        if (warningObject != null
+            && warningObject.activeSelf
+            && !gravityChangeFeedbackVisible
             && (gravityManager == null || !gravityManager.IsWarningActive))
         {
             SetGravityWarningVisible(false);
@@ -437,6 +472,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
         if (gravityManager != null)
         {
             gravityManager.GravityChangeWarning -= OnGravityChangeWarning;
+            gravityManager.GravityChangeFeedbackStarted -= OnGravityChangeFeedbackStarted;
         }
     }
 
@@ -619,24 +655,142 @@ public sealed class InGameHudCanvas : MonoBehaviour
         ShowGravityWarning(nextDirection);
     }
 
+    private void OnGravityChangeFeedbackStarted(
+        GravityPreset preset,
+        Vector3 direction,
+        float visibleDuration)
+    {
+        ShowGravityChangeFeedback(direction, visibleDuration);
+    }
+
     private void ShowGravityWarning(Vector3 nextDirection)
     {
         ResolveReferences();
-        if (gravityWarningText == null)
+        if (gravityWarningText == null && GetGravityWarningObject() == null)
         {
             return;
         }
 
-        gravityWarningText.text = $"GRAVITY SHIFT → {FormatAxis(nextDirection)}";
+        if (gravityWarningText != null)
+        {
+            gravityWarningText.text = $"GRAVITY SHIFT → {FormatAxis(nextDirection)}";
+        }
+
         SetGravityWarningVisible(true);
+    }
+
+    private void ShowGravityChangeFeedback(Vector3 direction, float visibleDuration)
+    {
+        ResolveReferences();
+        if (gravityWarningText == null && GetGravityWarningObject() == null)
+        {
+            return;
+        }
+
+        CaptureGravityWarningPosition();
+        KillGravityWarningTween();
+
+        if (gravityWarningText != null)
+        {
+            gravityWarningText.text = $"GRAVITY SHIFT → {FormatAxis(direction)}";
+        }
+
+        gravityChangeFeedbackVisible = true;
+        SetGravityWarningVisible(true);
+
+        if (gravityWarningRectTransform == null)
+        {
+            gravityWarningTween = DOVirtual.DelayedCall(
+                    Mathf.Max(0f, visibleDuration),
+                    HideGravityChangeFeedback)
+                .SetUpdate(true)
+                .SetTarget(this);
+            return;
+        }
+
+        Vector2 hiddenPosition = gravityWarningShownPosition
+            + Vector2.up * gravityWarningHiddenOffsetY;
+        gravityWarningRectTransform.anchoredPosition = hiddenPosition;
+
+        Sequence sequence = DOTween.Sequence()
+            .SetUpdate(true)
+            .SetTarget(this);
+
+        if (gravityWarningSlideInDuration <= 0f)
+        {
+            sequence.AppendCallback(() => gravityWarningRectTransform.anchoredPosition = gravityWarningShownPosition);
+        }
+        else
+        {
+            sequence.Append(gravityWarningRectTransform
+                .DOAnchorPos(gravityWarningShownPosition, gravityWarningSlideInDuration)
+                .SetEase(Ease.OutCubic));
+        }
+
+        sequence.AppendInterval(Mathf.Max(0f, visibleDuration));
+
+        if (gravityWarningSlideOutDuration <= 0f)
+        {
+            sequence.AppendCallback(() => gravityWarningRectTransform.anchoredPosition = hiddenPosition);
+        }
+        else
+        {
+            sequence.Append(gravityWarningRectTransform
+                .DOAnchorPos(hiddenPosition, gravityWarningSlideOutDuration)
+                .SetEase(Ease.InCubic));
+        }
+
+        sequence.OnComplete(HideGravityChangeFeedback);
+        gravityWarningTween = sequence;
+    }
+
+    private void CaptureGravityWarningPosition()
+    {
+        if (gravityWarningPositionCaptured || gravityWarningRectTransform == null)
+        {
+            return;
+        }
+
+        gravityWarningShownPosition = gravityWarningRectTransform.anchoredPosition;
+        gravityWarningPositionCaptured = true;
+    }
+
+    private void HideGravityChangeFeedback()
+    {
+        gravityChangeFeedbackVisible = false;
+        gravityWarningTween = null;
+        SetGravityWarningVisible(false);
+    }
+
+    private void KillGravityWarningTween()
+    {
+        if (gravityWarningTween == null)
+        {
+            return;
+        }
+
+        gravityWarningTween.Kill();
+        gravityWarningTween = null;
+        gravityChangeFeedbackVisible = false;
     }
 
     private void SetGravityWarningVisible(bool visible)
     {
-        if (gravityWarningText != null && gravityWarningText.gameObject.activeSelf != visible)
+        GameObject warningObject = GetGravityWarningObject();
+        if (warningObject != null && warningObject.activeSelf != visible)
         {
-            gravityWarningText.gameObject.SetActive(visible);
+            warningObject.SetActive(visible);
         }
+    }
+
+    private GameObject GetGravityWarningObject()
+    {
+        if (gravityWarningPanel != null)
+        {
+            return gravityWarningPanel.gameObject;
+        }
+
+        return gravityWarningText != null ? gravityWarningText.gameObject : null;
     }
 
     private static string FormatAxis(Vector3 direction)
@@ -681,6 +835,20 @@ public sealed class InGameHudCanvas : MonoBehaviour
             if (texts[i] != null && texts[i].name == objectName)
             {
                 return texts[i];
+            }
+        }
+
+        return null;
+    }
+
+    private RectTransform FindRectTransformByName(string objectName)
+    {
+        RectTransform[] transforms = GetComponentsInChildren<RectTransform>(true);
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            if (transforms[i] != null && transforms[i].name == objectName)
+            {
+                return transforms[i];
             }
         }
 

@@ -2937,7 +2937,7 @@ GameObject:
   - component: {fileID: 4204414940048558253}
   - component: {fileID: 506495716696390804}
   - component: {fileID: 5472699569901843312}
-  - component: {fileID: 5727528627225228702}
+  - component: {fileID: 3169957162814551436}
   m_Layer: 0
   m_Name: Monster_02_Centipede_v2
   m_TagString: Untagged
@@ -2999,9 +2999,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70b34ed5df3948748b26c0d5eb91372d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealth
-  maxHealth: 3
+  maxHealth: 9
   destroyOnDeath: 0
-  currentHealth: 0
+  currentHealth: 9
   dead: 0
 --- !u!114 &3897721830502905251
 MonoBehaviour:
@@ -3035,7 +3035,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterStateMachine
   distanceOrigin: {fileID: 6630852692878410912}
-  attackRange: 0.3
+  attackRange: 0.5
   initialState: 1
   logStateChanges: 1
   currentState: 0
@@ -3146,7 +3146,7 @@ MonoBehaviour:
   gravityState: {fileID: 0}
   stateMachine: {fileID: 3065405781309598760}
   audioFeedback: {fileID: 0}
-  cooldown: 1.8
+  cooldown: 1.5
   windupDuration: 0.3
   lungeDuration: 0.2
   recoverDuration: 0.3
@@ -3627,7 +3627,7 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &5727528627225228702
+--- !u!114 &3169957162814551436
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

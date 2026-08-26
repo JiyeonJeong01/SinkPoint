@@ -1253,7 +1253,7 @@ GameObject:
   - component: {fileID: 4638806069400766780}
   - component: {fileID: 2815042447456061931}
   - component: {fileID: 3903902761124584432}
-  - component: {fileID: -7491072586615102408}
+  - component: {fileID: 7017638736328376325}
   m_Layer: 0
   m_Name: Monster_04_SandWorm_v1
   m_TagString: Untagged
@@ -1448,8 +1448,8 @@ MonoBehaviour:
   groundRayDistance: 40
   groundProbeSpread: 2
   damage: 5
-  damageRadius: 1.6
-  hitChance: 0.33
+  damageRadius: 1.8
+  hitChance: 0.434
   damageOncePerAttack: 1
   burrowDebugStatus: 0
   cooldownRemaining: 0
@@ -1909,7 +1909,7 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &-7491072586615102408
+--- !u!114 &7017638736328376325
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

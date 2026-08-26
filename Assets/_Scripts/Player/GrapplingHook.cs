@@ -34,6 +34,14 @@ public sealed class GrapplingHook : MonoBehaviour
     [SerializeField] private Transform muzzle;
     [SerializeField] private LineRenderer grappleLine;
 
+    [Header("Grapple Audio")]
+    [SerializeField] private AudioSource grappleLoopAudioSource;
+    [SerializeField] private AudioSource grappleOneShotAudioSource;
+    [SerializeField] private AudioClip anchoredSfxClip;
+    [SerializeField] private AudioClip grapplingLoopClip;
+    [SerializeField, Range(0f, 1f)] private float anchoredSfxVolume = 0.8f;
+    [SerializeField, Range(0f, 1f)] private float grapplingLoopVolume = 0.7f;
+
     [Header("Grapple Settings")]
     [SerializeField, Min(0f)] private float maxGrappleRange = 45f;
     [SerializeField, Min(0.01f)] private float hookLaunchSpeed = 40f;
@@ -71,6 +79,7 @@ public sealed class GrapplingHook : MonoBehaviour
         playerHealth ??= GetComponent<PlayerHealth>();
         aimCamera ??= FindFirstObjectByType<ThirdPersonCameraController>();
         muzzle ??= FindChildTransform("MuzzleVfxAnchor") ?? FindChildTransform("Muzzle");
+        ResolveAudioReferences();
     }
 
     private void OnEnable()
@@ -198,6 +207,8 @@ public sealed class GrapplingHook : MonoBehaviour
 
         pullElapsed = 0f;
         grappleState = GrappleState.Pulling;
+        PlayOneShot(anchoredSfxClip, anchoredSfxVolume);
+        PlayGrapplingLoop();
     }
 
     private void UpdatePull()
@@ -441,6 +452,7 @@ public sealed class GrapplingHook : MonoBehaviour
     private void EndGrapple(GrappleEndReason reason)
     {
         float endedPullElapsed = pullElapsed;
+        StopGrapplingLoop();
         playerController?.CancelGrapplePull();
         if (grappleLine != null)
         {
@@ -460,5 +472,73 @@ public sealed class GrapplingHook : MonoBehaviour
         {
             Debug.LogWarning($"[GrapplingHook] Ended: {lastGrappleDebug}", this);
         }
+    }
+
+    private void ResolveAudioReferences()
+    {
+        if (grappleLoopAudioSource == null)
+        {
+            grappleLoopAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        if (grappleOneShotAudioSource == null)
+        {
+            grappleOneShotAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        ConfigureAudioSource(grappleLoopAudioSource, true);
+        ConfigureAudioSource(grappleOneShotAudioSource, false);
+    }
+
+    private static void ConfigureAudioSource(AudioSource audioSource, bool loop)
+    {
+        audioSource.playOnAwake = false;
+        audioSource.loop = loop;
+        audioSource.spatialBlend = 0f;
+    }
+
+    private void PlayGrapplingLoop()
+    {
+        if (grappleLoopAudioSource == null || grapplingLoopClip == null)
+        {
+            return;
+        }
+
+        if (grappleLoopAudioSource.isPlaying && grappleLoopAudioSource.clip == grapplingLoopClip)
+        {
+            return;
+        }
+
+        grappleLoopAudioSource.Stop();
+        grappleLoopAudioSource.clip = grapplingLoopClip;
+        grappleLoopAudioSource.volume = grapplingLoopVolume;
+        grappleLoopAudioSource.loop = true;
+        grappleLoopAudioSource.Play();
+    }
+
+    private void StopGrapplingLoop()
+    {
+        if (grappleLoopAudioSource != null)
+        {
+            grappleLoopAudioSource.Stop();
+        }
+    }
+
+    private void PlayOneShot(AudioClip clip, float volume)
+    {
+        if (grappleOneShotAudioSource != null && clip != null)
+        {
+            grappleOneShotAudioSource.PlayOneShot(clip, volume);
+        }
+    }
+
+    private void OnValidate()
+    {
+#if UNITY_EDITOR
+        anchoredSfxClip ??= UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/AnchoredSFX.mp3");
+        grapplingLoopClip ??= UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/Grappling.mp3");
+#endif
     }
 }
