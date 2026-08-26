@@ -4,13 +4,26 @@ using UnityEngine.UI;
 
 public static class SinkPointNpcPrefabBuilder
 {
-    private const string PlayerPrefabPath = "Assets/_Custom/Prefabs/Player/Player.prefab";
-    private const string RootFolder = "Assets/_Custom/Prefab";
+    private const string CharacterVisualPrefabPath =
+        "Assets/Toon_Soldiers/ToonSoldiers_Armies/prefabs/army/TS-Armies_Recon_B.prefab";
+    private const string RootFolder = "Assets/_Custom/Prefabs";
     private const string NpcFolder = RootFolder + "/NPC";
     private const string UiFolder = RootFolder + "/UI";
     private const string NpcPrefabPath = NpcFolder + "/NPC.prefab";
     private const string NpcCanvasPrefabPath = UiFolder + "/NPC Canvas.prefab";
     private const string NpcIdleControllerPath = "Assets/Toon_Soldiers/ToonSoldiers_Armies/sample_scene/sample_animator_guard.controller";
+
+    private static readonly string[] PlayerOnlyComponentTypeNames =
+    {
+        "GrapplingHook",
+        "PlayerFootsteps",
+        nameof(PlayerAnimationController),
+        nameof(PlayerCombatController),
+        nameof(ThirdPersonCameraController),
+        nameof(PlayerController),
+        nameof(PlayerHealth),
+        nameof(PlayerInput)
+    };
 
     [MenuItem("SinkPoint/Generate MVP NPC Prefabs")]
     public static void Generate()
@@ -26,9 +39,50 @@ public static class SinkPointNpcPrefabBuilder
         Debug.Log($"[SinkPointNpcPrefabBuilder] Generated {NpcPrefabPath} and {NpcCanvasPrefabPath}.");
     }
 
+    [MenuItem("SinkPoint/Repair NPC Prefab Independence")]
+    public static void RepairNpcPrefabIndependence()
+    {
+        GameObject root = PrefabUtility.LoadPrefabContents(NpcPrefabPath);
+        try
+        {
+            if (PrefabUtility.IsPartOfPrefabInstance(root))
+            {
+                PrefabUtility.UnpackPrefabInstance(
+                    root,
+                    PrefabUnpackMode.OutermostRoot,
+                    InteractionMode.AutomatedAction);
+
+                PrefabUtility.SaveAsPrefabAsset(root, NpcPrefabPath);
+            }
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+
+        root = PrefabUtility.LoadPrefabContents(NpcPrefabPath);
+        try
+        {
+            RemovePlayerOnlyComponents(root);
+            RemovePlayerPresentationExtras(root);
+            RestoreCharacterVisualPrefabConnection(root);
+            ConfigureNpcAnimators(root);
+
+            PrefabUtility.SaveAsPrefabAsset(root, NpcPrefabPath);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log($"[SinkPointNpcPrefabBuilder] Repaired {NpcPrefabPath} as a standalone NPC prefab.");
+    }
+
     private static void EnsureFolders()
     {
-        CreateFolderIfMissing("Assets/_Custom", "Prefab");
+        CreateFolderIfMissing("Assets/_Custom", "Prefabs");
         CreateFolderIfMissing(RootFolder, "NPC");
         CreateFolderIfMissing(RootFolder, "UI");
     }
@@ -128,14 +182,8 @@ public static class SinkPointNpcPrefabBuilder
 
     private static void CreateNpcPrefab(NpcDialogueCanvas canvasPrefab)
     {
-        GameObject source = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
-        GameObject root = source != null
-            ? (GameObject)PrefabUtility.InstantiatePrefab(source)
-            : new GameObject("NPC");
-
-        root.name = "NPC";
-        RemovePlayerOnlyComponents(root);
-        ConfigureNpcAnimators(root);
+        GameObject root = new GameObject("NPC");
+        CreateCharacterVisual(root.transform);
 
         Transform anchor = new GameObject("QuestionMarkAnchor").transform;
         anchor.SetParent(root.transform, false);
@@ -167,24 +215,91 @@ public static class SinkPointNpcPrefabBuilder
         Object.DestroyImmediate(root);
     }
 
+    private static void CreateCharacterVisual(Transform root)
+    {
+        GameObject visualRoot = new GameObject("VisualRoot");
+        visualRoot.transform.SetParent(root, false);
+
+        InstantiateCharacterVisual(visualRoot.transform);
+        ConfigureNpcAnimators(root.gameObject);
+    }
+
+    private static void RestoreCharacterVisualPrefabConnection(GameObject root)
+    {
+        Transform visualRoot = root.transform.Find("VisualRoot");
+        if (visualRoot == null)
+        {
+            visualRoot = new GameObject("VisualRoot").transform;
+            visualRoot.SetParent(root.transform, false);
+        }
+
+        Transform existingVisual = visualRoot.Find("TS-Armies_Recon_B");
+        if (existingVisual != null)
+        {
+            string sourcePath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(existingVisual.gameObject);
+            if (sourcePath == CharacterVisualPrefabPath)
+            {
+                return;
+            }
+
+            Object.DestroyImmediate(existingVisual.gameObject, true);
+        }
+
+        InstantiateCharacterVisual(visualRoot);
+    }
+
+    private static void InstantiateCharacterVisual(Transform visualRoot)
+    {
+
+        GameObject visualPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CharacterVisualPrefabPath);
+        if (visualPrefab == null)
+        {
+            throw new System.InvalidOperationException(
+                $"NPC character visual prefab was not found at {CharacterVisualPrefabPath}.");
+        }
+
+        GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(visualPrefab, visualRoot.transform);
+        visual.name = "TS-Armies_Recon_B";
+        visual.transform.localPosition = new Vector3(0f, -0.235f, 0f);
+        visual.transform.localRotation = Quaternion.identity;
+        visual.transform.localScale = Vector3.one * 0.3f;
+    }
+
     private static void RemovePlayerOnlyComponents(GameObject root)
     {
-        RemoveComponents<PlayerAnimationController>(root);
-        RemoveComponents<PlayerCombatController>(root);
-        RemoveComponents<PlayerController>(root);
-        RemoveComponents<PlayerHealth>(root);
-        RemoveComponents<PlayerInput>(root);
-        RemoveComponents<ThirdPersonCameraController>(root);
+        foreach (string typeName in PlayerOnlyComponentTypeNames)
+        {
+            Component[] components = root.GetComponentsInChildren<Component>(true);
+            foreach (Component component in components)
+            {
+                if (component != null && component.GetType().Name == typeName)
+                {
+                    Object.DestroyImmediate(component, true);
+                }
+            }
+        }
+
         RemoveRootComponent<CapsuleCollider>(root);
         RemoveRootComponent<Rigidbody>(root);
     }
 
-    private static void RemoveComponents<T>(GameObject root) where T : Component
+    private static void RemovePlayerPresentationExtras(GameObject root)
     {
-        T[] components = root.GetComponentsInChildren<T>(true);
-        foreach (T component in components)
+        AudioReverbFilter reverbFilter = root.GetComponent<AudioReverbFilter>();
+        if (reverbFilter != null)
         {
-            Object.DestroyImmediate(component, true);
+            Object.DestroyImmediate(reverbFilter, true);
+        }
+
+        foreach (AudioSource audioSource in root.GetComponents<AudioSource>())
+        {
+            Object.DestroyImmediate(audioSource, true);
+        }
+
+        Transform grappleRope = root.transform.Find("GrappleRope");
+        if (grappleRope != null)
+        {
+            Object.DestroyImmediate(grappleRope.gameObject, true);
         }
     }
 

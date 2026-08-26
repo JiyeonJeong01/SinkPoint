@@ -21,6 +21,16 @@ public class GameFlowManager : MonoBehaviour
     }
 
     [System.Serializable]
+    private sealed class ZoneRespawnPoint
+    {
+        [Tooltip("이 리스폰 위치를 사용할 진행 Zone입니다.")]
+        public ZoneId zoneId;
+
+        [Tooltip("해당 Zone에서 플레이어가 사망했을 때 돌아갈 위치입니다.")]
+        public Transform respawnPoint;
+    }
+
+    [System.Serializable]
     private sealed class ZoneFlowData
     {
         [Tooltip("이 데이터가 담당하는 Zone입니다.")]
@@ -71,12 +81,25 @@ public class GameFlowManager : MonoBehaviour
     [SerializeField] private RespawnController respawnController;
     [SerializeField, Tooltip("플레이어 체력입니다. 비워두면 씬에서 자동으로 찾고, 사망 리스폰 때 체력을 회복합니다.")]
     private PlayerHealth playerHealth;
+    [SerializeField, Tooltip("리스폰 페이드 중 입력을 잠깐 막을 플레이어 입력입니다. 비워두면 씬에서 자동으로 찾습니다.")]
+    private PlayerInput playerInput;
+    [SerializeField, Tooltip("사망/리스폰 페이드에 사용할 HUD입니다. 비워두면 씬에서 자동으로 찾습니다.")]
+    private InGameHudCanvas inGameHudCanvas;
 
     [Tooltip("Zone별 몬스터 활성화, 리스폰, 전멸 알림을 담당하는 매니저입니다.")]
     [SerializeField] private MonsterManager monsterManager;
 
-    [Tooltip("현재 GameFlowState에 따라 사용할 리스폰 위치 목록입니다.")]
+    [Tooltip("현재 ZoneId에 따라 사용할 리스폰 위치 목록입니다. 리스폰은 currentState가 아니라 currentZone 기준으로 처리합니다.")]
+    [SerializeField] private ZoneRespawnPoint[] zoneRespawnPoints;
+
+    [Tooltip("예전 GameFlowState 기준 리스폰 위치입니다. Zone Respawn Points가 비어 있을 때만 호환용으로 사용합니다.")]
     [SerializeField] private StateRespawnPoint[] stateRespawnPoints;
+    [SerializeField, Min(0f), Tooltip("플레이어 사망 후 화면이 검게 변하는 시간입니다.")]
+    private float deathFadeInSeconds = 1f;
+    [SerializeField, Min(0f), Tooltip("화면이 완전히 어두워진 뒤 리스폰 처리 전에 기다리는 시간입니다.")]
+    private float respawnBlackHoldSeconds = 1f;
+    [SerializeField, Min(0f), Tooltip("리스폰 후 화면이 다시 밝아지는 시간입니다.")]
+    private float deathFadeOutSeconds = 1f;
 
     [Header("Zone Activation")]
     [Tooltip("씬 시작 시 활성화할 Zone입니다.")]
@@ -92,6 +115,8 @@ public class GameFlowManager : MonoBehaviour
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLog = true;
+
+    private bool isRespawnRunning;
 
     public GameFlowState CurrentState => currentState;
     public ZoneId CurrentZone => currentZone;
@@ -143,14 +168,6 @@ public class GameFlowManager : MonoBehaviour
         if (Instance == this)
         {
             Instance = null;
-        }
-    }
-
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Alpha0))
-        {
-            DebugOpenCurrentNextBarrier();
         }
     }
 
@@ -244,6 +261,45 @@ public class GameFlowManager : MonoBehaviour
     /// </summary>
     public void HandlePlayerDeath()
     {
+        if (isRespawnRunning)
+        {
+            return;
+        }
+
+        StartCoroutine(PlayerDeathRespawnRoutine());
+    }
+
+    /// <summary>
+    /// 사망 화면 전환, 플레이어/몬스터 위치 초기화, 체력 복구를 한 흐름으로 처리합니다.
+    /// 중복 사망 이벤트가 들어와도 HandlePlayerDeath에서 한 번만 시작됩니다.
+    /// </summary>
+    private IEnumerator PlayerDeathRespawnRoutine()
+    {
+        isRespawnRunning = true;
+        ResolveSceneReferences();
+        if (playerInput != null)
+        {
+            playerInput.SetCutsceneInput();
+        }
+
+        if (inGameHudCanvas != null)
+        {
+            yield return inGameHudCanvas.FadeScreenRoutine(1f, deathFadeInSeconds);
+        }
+        else
+        {
+            Debug.LogWarning("[GameFlowManager] InGameHudCanvas is not assigned. Respawning without fade.", this);
+            if (deathFadeInSeconds > 0f)
+            {
+                yield return new WaitForSecondsRealtime(deathFadeInSeconds);
+            }
+        }
+
+        if (respawnBlackHoldSeconds > 0f)
+        {
+            yield return new WaitForSecondsRealtime(respawnBlackHoldSeconds);
+        }
+
         bool gravityRestored = gravityManager != null
             && gravityManager.RestoreCurrentPresetImmediately();
 
@@ -254,7 +310,7 @@ public class GameFlowManager : MonoBehaviour
 
         if (respawnController != null)
         {
-            Transform respawnPoint = GetRespawnPoint(currentState);
+            Transform respawnPoint = GetRespawnPoint(currentZone);
             if (gravityRestored)
             {
                 respawnController.RespawnPlayer(respawnPoint, gravityManager.PresentationUp);
@@ -293,7 +349,18 @@ public class GameFlowManager : MonoBehaviour
                 $"[GameFlowManager] Player death handled. Gravity restored: {gravityRestored}.",
                 this);
         }
-        // TODO: UI가 생기면 사망/리스폰 피드백과 현재 목표 텍스트를 갱신할 것.
+
+        if (inGameHudCanvas != null)
+        {
+            yield return inGameHudCanvas.FadeScreenRoutine(0f, deathFadeOutSeconds);
+        }
+
+        if (playerInput != null)
+        {
+            playerInput.SetGameplayInput();
+        }
+
+        isRespawnRunning = false;
     }
 
     private void ResolveSceneReferences()
@@ -301,6 +368,8 @@ public class GameFlowManager : MonoBehaviour
         gravityManager ??= FindFirstObjectByType<GravityManager>();
         monsterManager ??= FindFirstObjectByType<MonsterManager>();
         playerHealth ??= FindFirstObjectByType<PlayerHealth>();
+        playerInput ??= FindFirstObjectByType<PlayerInput>();
+        inGameHudCanvas ??= FindFirstObjectByType<InGameHudCanvas>();
     }
 
     private void RegisterPlayerHealth()
@@ -328,18 +397,45 @@ public class GameFlowManager : MonoBehaviour
         HandlePlayerDeath();
     }
 
-    // 현재 진행 상태에 맞는 리스폰 위치를 찾습니다.
-    // 체크포인트 규칙이 복잡해지기 전까지는 Inspector 배열 매핑만으로 충분합니다.
-    private Transform GetRespawnPoint(GameFlowState state)
+    // 현재 Zone에 맞는 리스폰 위치를 찾습니다.
+    // 중력 진행 상태인 currentState와 Zone 진행 위치가 어긋날 수 있어서 currentZone을 기준으로 삼습니다.
+    private Transform GetRespawnPoint(ZoneId zoneId)
+    {
+        if (zoneRespawnPoints != null)
+        {
+            foreach (ZoneRespawnPoint zoneRespawnPoint in zoneRespawnPoints)
+            {
+                if (zoneRespawnPoint == null || zoneRespawnPoint.zoneId != zoneId)
+                {
+                    continue;
+                }
+
+                return zoneRespawnPoint.respawnPoint;
+            }
+        }
+
+        Transform legacyRespawnPoint = GetLegacyRespawnPoint(zoneId);
+        if (legacyRespawnPoint != null)
+        {
+            return legacyRespawnPoint;
+        }
+
+        Debug.LogWarning($"[GameFlowManager] Respawn point is not assigned for Zone: {zoneId}", this);
+        return null;
+    }
+
+    // 기존 씬에 이미 넣어둔 GameFlowState 리스폰 배열을 바로 날리지 않기 위한 임시 호환 경로입니다.
+    private Transform GetLegacyRespawnPoint(ZoneId zoneId)
     {
         if (stateRespawnPoints == null)
         {
             return null;
         }
 
+        GameFlowState legacyState = ConvertZoneToLegacyRespawnState(zoneId);
         foreach (StateRespawnPoint stateRespawnPoint in stateRespawnPoints)
         {
-            if (stateRespawnPoint == null || stateRespawnPoint.state != state)
+            if (stateRespawnPoint == null || stateRespawnPoint.state != legacyState)
             {
                 continue;
             }
@@ -347,8 +443,26 @@ public class GameFlowManager : MonoBehaviour
             return stateRespawnPoint.respawnPoint;
         }
 
-        Debug.LogWarning($"[GameFlowManager] Respawn point is not assigned for state: {state}", this);
         return null;
+    }
+
+    private static GameFlowState ConvertZoneToLegacyRespawnState(ZoneId zoneId)
+    {
+        switch (zoneId)
+        {
+            case ZoneId.Zone01_Entry:
+                return GameFlowState.Entry;
+            case ZoneId.Zone02_Normal:
+                return GameFlowState.Normal;
+            case ZoneId.Zone03_GravityShift:
+                return GameFlowState.GravityShift;
+            case ZoneId.Zone04_Inversion:
+                return GameFlowState.Inversion;
+            case ZoneId.Zone05_ZeroGravitySource:
+                return GameFlowState.ZeroGravity;
+            default:
+                return GameFlowState.Entry;
+        }
     }
 
     private void RegisterGravityTriggers()
@@ -670,5 +784,12 @@ public class GameFlowManager : MonoBehaviour
         {
             Debug.Log($"[GameFlowManager] State changed: {previousState} -> {currentState}", this);
         }
+    }
+
+    private void OnValidate()
+    {
+        deathFadeInSeconds = Mathf.Max(0f, deathFadeInSeconds);
+        respawnBlackHoldSeconds = Mathf.Max(0f, respawnBlackHoldSeconds);
+        deathFadeOutSeconds = Mathf.Max(0f, deathFadeOutSeconds);
     }
 }

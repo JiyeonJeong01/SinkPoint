@@ -83,9 +83,14 @@ public sealed class Monster : MonoBehaviour
         EnsureInitialized();
         gameObject.SetActive(true);
 
-        RestoreInitialPoses();
+        bool shouldRestorePose = zoneId == ZoneId.Zone02_Normal;
+        if (shouldRestorePose)
+        {
+            SetLegControllersEnabled(false);
+            RestoreInitialPoses();
+        }
+
         ClearRigidbodyVelocity();
-        SetLegControllersEnabled(true);
 
         if (health != null)
         {
@@ -93,7 +98,15 @@ public sealed class Monster : MonoBehaviour
         }
 
         dead = false;
-        ResetRuntimeComponents();
+        if (shouldRestorePose)
+        {
+            ResetRuntimeComponents();
+            MonsterProceduralPoseResetter.ResetProceduralPose(transform);
+            SetLegControllersEnabled(true);
+            return;
+        }
+
+        ResetNonMovementRuntimeComponents();
     }
 
     public void SetManagedActive(bool active)
@@ -216,6 +229,34 @@ public sealed class Monster : MonoBehaviour
                 resettable.ResetMonsterRuntime();
             }
         }
+    }
+
+    private void ResetNonMovementRuntimeComponents()
+    {
+        MonoBehaviour[] behaviours = GetComponentsInChildren<MonoBehaviour>(true);
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            MonoBehaviour behaviour = behaviours[i];
+            if (behaviour is not IMonsterResettable resettable || IsMovementRuntimeReset(behaviour))
+            {
+                continue;
+            }
+
+            resettable.ResetMonsterRuntime();
+        }
+    }
+
+    private static bool IsMovementRuntimeReset(MonoBehaviour behaviour)
+    {
+        return behaviour is MonsterNavTargetMover
+            || behaviour is AerialFreeFlightMover
+            || behaviour is AerialProjectileAttack
+            || behaviour is CentipedeLungeAttack
+            || behaviour is SandWormBurrowAttack
+            || behaviour is SpiderAttackPattern
+            || behaviour is SpiderDeathFall
+            || behaviour is SpiderSurfaceRouteMover
+            || behaviour is WormBurrowAttack;
     }
 
     private void OnHealthDied(MonsterHealth monsterHealth)

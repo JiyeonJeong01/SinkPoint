@@ -23,7 +23,21 @@ public sealed class MainTitleScene : MonoBehaviour
     [SerializeField] private Text loadingPercentText;
     [SerializeField, Min(0f)] private float minimumLoadingPanelTime = 0.2f;
 
+    [Header("BGM")]
+    [SerializeField, Tooltip("타이틀 씬에서 반복 재생할 BGM입니다.")]
+    private AudioClip titleBgmClip;
+    [SerializeField, Tooltip("비워두면 별도 AudioSource를 자동으로 추가합니다.")]
+    private AudioSource titleBgmAudioSource;
+    [SerializeField, Range(0f, 1f)] private float titleBgmVolume = 0.55f;
+    [SerializeField] private bool playTitleBgmOnStart = true;
+
     [Header("Button Feedback")]
+    [SerializeField, Tooltip("타이틀 UI 버튼 클릭 시 재생할 사운드입니다.")]
+    private AudioClip buttonClickSound;
+    [SerializeField, Tooltip("비워두면 같은 오브젝트의 AudioSource를 자동으로 사용합니다.")]
+    private AudioSource buttonAudioSource;
+    [SerializeField, Range(0f, 1f)]
+    private float buttonClickVolume = 0.8f;
     [SerializeField, Min(1f)] private float hoverScale = 1.08f;
     [SerializeField, Min(0.01f)] private float pressedScale = 0.94f;
     [SerializeField, Min(0f)] private float buttonTweenDuration = 0.12f;
@@ -34,9 +48,22 @@ public sealed class MainTitleScene : MonoBehaviour
 
     private void Awake()
     {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        ResolveAudioReferences();
+        ResolveTitleBgmReferences();
         RegisterButtonTweens();
         CloseAllPanels();
         SetLoadingVisible(false);
+    }
+
+    private void Start()
+    {
+        if (playTitleBgmOnStart)
+        {
+            PlayTitleBgm();
+        }
     }
 
     private void OnDestroy()
@@ -206,6 +233,7 @@ public sealed class MainTitleScene : MonoBehaviour
             AddEventTrigger(eventTrigger, EventTriggerType.PointerExit, _ => TweenButton(button, buttonTransform, 1f));
             AddEventTrigger(eventTrigger, EventTriggerType.PointerDown, _ => TweenButton(button, buttonTransform, pressedScale));
             AddEventTrigger(eventTrigger, EventTriggerType.PointerUp, _ => TweenButton(button, buttonTransform, hoverScale));
+            button.onClick.AddListener(PlayButtonClickSound);
         }
     }
 
@@ -240,5 +268,81 @@ public sealed class MainTitleScene : MonoBehaviour
         };
         entry.callback.AddListener(callback);
         eventTrigger.triggers.Add(entry);
+    }
+
+    private void ResolveAudioReferences()
+    {
+        buttonAudioSource ??= GetComponent<AudioSource>();
+        if (buttonAudioSource == null)
+        {
+            buttonAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        buttonAudioSource.playOnAwake = false;
+        buttonAudioSource.spatialBlend = 0f;
+    }
+
+    private void PlayButtonClickSound()
+    {
+        if (buttonClickSound != null && buttonAudioSource != null)
+        {
+            buttonAudioSource.PlayOneShot(buttonClickSound, buttonClickVolume);
+        }
+    }
+
+    private void ResolveTitleBgmReferences()
+    {
+        if (titleBgmAudioSource == null)
+        {
+            AudioSource[] sources = GetComponents<AudioSource>();
+            for (int i = 0; i < sources.Length; i++)
+            {
+                if (sources[i] != buttonAudioSource)
+                {
+                    titleBgmAudioSource = sources[i];
+                    break;
+                }
+            }
+        }
+
+        if (titleBgmAudioSource == null)
+        {
+            titleBgmAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        titleBgmAudioSource.playOnAwake = false;
+        titleBgmAudioSource.loop = true;
+        titleBgmAudioSource.spatialBlend = 0f;
+    }
+
+    private void PlayTitleBgm()
+    {
+        if (titleBgmClip == null || titleBgmAudioSource == null)
+        {
+            return;
+        }
+
+        titleBgmAudioSource.clip = titleBgmClip;
+        titleBgmAudioSource.volume = titleBgmVolume;
+        titleBgmAudioSource.loop = true;
+        titleBgmAudioSource.Play();
+    }
+
+    private void OnValidate()
+    {
+#if UNITY_EDITOR
+        titleBgmVolume = Mathf.Clamp01(titleBgmVolume);
+        if (titleBgmClip == null)
+        {
+            titleBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/Caves and Dungeons/Call of the Depths/Call_of_the_Depths_Loop_B.wav");
+        }
+
+        if (buttonClickSound == null)
+        {
+            buttonClickSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/Audios/Menu/Menu_Buttons_1.wav");
+        }
+#endif
     }
 }

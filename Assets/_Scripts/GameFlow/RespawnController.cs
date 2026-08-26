@@ -18,6 +18,43 @@ public class RespawnController : MonoBehaviour
 
     private void Awake()
     {
+        ResolveReferences();
+    }
+
+    private void Reset()
+    {
+        ResolveReferences();
+    }
+
+    private void ResolveReferences()
+    {
+        if (playerRoot == null)
+        {
+            GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+            if (playerObject != null)
+            {
+                playerRoot = playerObject.transform;
+            }
+        }
+
+        if (playerRoot == null)
+        {
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            if (playerHealth != null)
+            {
+                playerRoot = playerHealth.transform;
+            }
+        }
+
+        if (playerRoot == null)
+        {
+            PlayerInput playerInput = FindFirstObjectByType<PlayerInput>();
+            if (playerInput != null)
+            {
+                playerRoot = playerInput.transform;
+            }
+        }
+
         if (playerRigidbody == null && playerRoot != null)
         {
             playerRigidbody = playerRoot.GetComponent<Rigidbody>();
@@ -72,6 +109,8 @@ public class RespawnController : MonoBehaviour
 
     private bool CanRespawn(Transform respawnPoint)
     {
+        ResolveReferences();
+
         if (playerRoot == null || respawnPoint == null)
         {
             Debug.LogWarning("[RespawnController] Cannot respawn. Player or respawn point is missing.", this);

@@ -5151,7 +5151,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70b34ed5df3948748b26c0d5eb91372d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealth
-  maxHealth: 3
+  maxHealth: 15
   destroyOnDeath: 0
   currentHealth: 0
   dead: 0
@@ -5209,9 +5209,9 @@ MonoBehaviour:
   navTarget: {fileID: 0}
   gravityState: {fileID: 0}
   stateMachine: {fileID: 0}
-  moveSpeed: 1.8
+  moveSpeed: 2.5
   rotationSpeed: 360
-  stoppingDistance: 0.1
+  stoppingDistance: 0.07
   obstacleMask:
     serializedVersion: 2
     m_Bits: 0
@@ -5297,6 +5297,7 @@ MonoBehaviour:
   navTarget: {fileID: 1879521574420107733}
   gravityState: {fileID: 0}
   stateMachine: {fileID: 301846206165554030}
+  audioFeedback: {fileID: 0}
   cooldown: 1.8
   windupDuration: 0.3
   lungeDuration: 0.2

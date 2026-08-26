@@ -72,6 +72,7 @@ public class PlayerInput : MonoBehaviour
     public bool FirePressed { get; private set; }
     public bool FireHeld { get; private set; }
     public bool GrapplePressed { get; private set; }
+    public bool GrappleHeld { get; private set; }
 
     private void Update()
     {
@@ -213,6 +214,7 @@ public class PlayerInput : MonoBehaviour
         }
 
         GrapplePressed = allowGrapple && Input.GetMouseButtonDown(1);
+        GrappleHeld = allowGrapple && Input.GetMouseButton(1);
 
         // 상호작용은 대화 중에도 허용될 수 있으므로 전투/이동 차단과 별도로 관리합니다.
         InteractPressed = allowInteract && Input.GetKeyDown(KeyCode.I);

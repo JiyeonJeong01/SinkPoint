@@ -6,6 +6,8 @@ using UnityEngine.Serialization;
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider), typeof(PlayerInput))]
 public sealed class PlayerController : MonoBehaviour
 {
+    private const float MoveInputDeadZone = 0.1f;
+
     [Header("References")]
     [SerializeField] private PlayerInput input;
     [SerializeField] private Transform cameraTransform;
@@ -38,7 +40,12 @@ public sealed class PlayerController : MonoBehaviour
     [Header("Zero Gravity Recoil")]
     [SerializeField] private bool enableZeroGravityRecoil = true;
     [SerializeField, Min(0f)] private float zeroGravityRecoilVelocityChange = 0.3f;
-    [SerializeField, Min(0f)] private float maxZeroGravityRecoilSpeed = 3f;
+    [SerializeField, Min(0f)] private float maxZeroGravityRecoilSpeed = 4f;
+
+    [Header("Grappling Hook")]
+    [SerializeField, Min(0f)] private float grapplePullAcceleration = 30f;
+    [SerializeField, Min(0f)] private float maxGrapplePullSpeed = 12f;
+    [SerializeField, Min(0f)] private float grappleStopDistance = 1.1f;
 
     private readonly RaycastHit[] groundHits = new RaycastHit[8];
     private readonly RaycastHit[] stanceHits = new RaycastHit[16];
@@ -54,6 +61,9 @@ public sealed class PlayerController : MonoBehaviour
     private bool ownsTransitionPositionLock;
     private Vector3 transitionAnchorPosition;
     private RigidbodyConstraints constraintsBeforeGravityTransition;
+    private Vector3 grappleAnchorPoint;
+    private Vector3 grappleSurfaceNormal;
+    private float grapplePullSpeed;
 
     [Header("Runtime State")]
     [SerializeField] private bool gravityTransitionActive;
@@ -75,6 +85,14 @@ public sealed class PlayerController : MonoBehaviour
     [SerializeField] private float currentZeroGravityRecoilSpeed;
     [Tooltip("현재 전체 속력이 무중력 반작용 속도 상한에 도달했는지 표시합니다.")]
     [SerializeField] private bool zeroGravityRecoilSpeedLimitReached;
+    [Tooltip("그래플 당김이 PlayerController의 Rigidbody 경로에서 활성인지 표시합니다.")]
+    [SerializeField] private bool grapplePullActive;
+    [Tooltip("그래플이 이번 연결에서 만든 목표 방향 속도입니다.")]
+    [SerializeField] private float currentGrapplePullSpeed;
+    [Tooltip("현재 그래플 도착 지점까지의 거리입니다.")]
+    [SerializeField] private float grappleArrivalDistance = -1f;
+    [Tooltip("마지막 그래플 종료가 도착 판정으로 끝났는지 표시합니다.")]
+    [SerializeField] private bool lastGrappleArrived;
 
     internal PlayerMotionStateId MotionState => stateMachine.CurrentId;
     internal Vector3 GravityUp => gravityTransitionActive && gravityManager != null
@@ -85,7 +103,13 @@ public sealed class PlayerController : MonoBehaviour
     internal bool IsSprinting { get; private set; }
     internal bool IsCrouching { get; private set; }
     internal bool IsGravityTransitioning => gravityTransitionActive;
+    internal bool HasMoveIntent => input != null
+        && input.AllowMovement
+        && !gravityTransitionActive
+        && input.Move.sqrMagnitude > MoveInputDeadZone * MoveInputDeadZone;
     internal bool LastZeroGravityRecoilApplied => lastZeroGravityRecoilApplied;
+    internal bool IsGrapplePullActive => grapplePullActive;
+    internal bool LastGrappleArrived => lastGrappleArrived;
 
     private void Awake()
     {
@@ -153,7 +177,7 @@ public sealed class PlayerController : MonoBehaviour
         visualRoot.rotation = targetRotation;
     }
 
-        /// <summary>
+    /// <summary>
     /// 테스트 씬에서 플레이어 프리팹만 배치해도 실행될 수 있도록 비어 있는 씬 참조를 자동으로 찾습니다.
     /// Inspector에 이미 연결된 값은 덮어쓰지 않습니다.
     /// </summary>
@@ -256,6 +280,8 @@ public sealed class PlayerController : MonoBehaviour
         {
             ApplyGroundSnap(gravityDirection, groundDistance);
         }
+
+        ApplyGrapplePull();
 
         UpdateGroundingRuntimeState(
             isGrounded,
@@ -402,6 +428,7 @@ public sealed class PlayerController : MonoBehaviour
             return;
         }
 
+        CancelGrapplePull();
         gravityTransitionActive = true;
         transitionAnchorPosition = body.position;
         constraintsBeforeGravityTransition = body.constraints;
@@ -518,8 +545,6 @@ public sealed class PlayerController : MonoBehaviour
 
     internal void EnterZeroGravity()
     {
-        body.linearVelocity = Vector3.zero;
-        body.angularVelocity = Vector3.zero;
         ClearBufferedJump();
         IsSprinting = false;
         CurrentMoveSpeed = moveSpeed;
@@ -649,6 +674,92 @@ public sealed class PlayerController : MonoBehaviour
         body.AddForce(gravityState.Gravity, ForceMode.Acceleration);
     }
 
+    internal bool TryBeginGrapplePull(Vector3 anchorPoint, Vector3 surfaceNormal)
+    {
+        if (body == null
+            || body.isKinematic
+            || gravityTransitionActive
+            || !IsFinite(anchorPoint)
+            || !IsFinite(surfaceNormal)
+            || surfaceNormal.sqrMagnitude < Mathf.Epsilon)
+        {
+            return false;
+        }
+
+        grappleAnchorPoint = anchorPoint;
+        grappleSurfaceNormal = surfaceNormal.normalized;
+        grapplePullSpeed = 0f;
+        currentGrapplePullSpeed = 0f;
+        grappleArrivalDistance = Vector3.Distance(body.position, GetGrappleArrivalPoint());
+        lastGrappleArrived = false;
+        grapplePullActive = true;
+        return true;
+    }
+
+    internal void CancelGrapplePull()
+    {
+        grapplePullActive = false;
+        grapplePullSpeed = 0f;
+        currentGrapplePullSpeed = 0f;
+        grappleArrivalDistance = -1f;
+    }
+
+    private void ApplyGrapplePull()
+    {
+        if (!grapplePullActive || body == null)
+        {
+            return;
+        }
+
+        Vector3 arrivalPoint = GetGrappleArrivalPoint();
+        Vector3 toArrival = arrivalPoint - body.position;
+        float distance = toArrival.magnitude;
+        grappleArrivalDistance = distance;
+
+        if (!IsFinite(toArrival) || distance <= Mathf.Epsilon)
+        {
+            CompleteGrapplePull();
+            return;
+        }
+
+        grapplePullSpeed = Mathf.Min(
+            maxGrapplePullSpeed,
+            grapplePullSpeed + grapplePullAcceleration * Time.fixedDeltaTime);
+        Vector3 direction = toArrival / distance;
+        float safeStepSpeed = Time.fixedDeltaTime > Mathf.Epsilon
+            ? distance / Time.fixedDeltaTime
+            : grapplePullSpeed;
+        float requestedSpeed = Mathf.Min(grapplePullSpeed, safeStepSpeed);
+        Vector3 currentVelocity = body.linearVelocity;
+        float currentTargetSpeed = Vector3.Dot(currentVelocity, direction);
+        Vector3 perpendicularVelocity = currentVelocity - direction * currentTargetSpeed;
+        float resolvedTargetSpeed = Mathf.Max(currentTargetSpeed, requestedSpeed);
+        body.linearVelocity = perpendicularVelocity + direction * resolvedTargetSpeed;
+        currentGrapplePullSpeed = requestedSpeed;
+
+        if (distance <= grappleStopDistance * 0.01f)
+        {
+            CompleteGrapplePull();
+        }
+    }
+
+    private Vector3 GetGrappleArrivalPoint()
+    {
+        return grappleAnchorPoint + grappleSurfaceNormal * grappleStopDistance;
+    }
+
+    private void CompleteGrapplePull()
+    {
+        float inwardSpeed = Vector3.Dot(body.linearVelocity, grappleSurfaceNormal);
+        if (inwardSpeed < 0f)
+        {
+            body.linearVelocity -= grappleSurfaceNormal * inwardSpeed;
+        }
+
+        lastGrappleArrived = true;
+        CancelGrapplePull();
+    }
+
     private void AlignWithGravity(Vector3 up)
     {
         Vector3 currentUp = body.rotation * Vector3.up;
@@ -706,7 +817,7 @@ public sealed class PlayerController : MonoBehaviour
             groundNormal = hit.normal;
         }
 
-        if (nearestDistance == float.PositiveInfinity)
+        if (float.IsPositiveInfinity(nearestDistance))
         {
             return false;
         }

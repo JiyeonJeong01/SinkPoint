@@ -10,6 +10,7 @@ using UnityEngine;
 public sealed class MonsterManager : MonoBehaviour
 {
     public event Action<ZoneId, int, int> ZoneMonsterCountChanged;
+    public event Action<Monster> LastMonsterDied;
 
     [Serializable]
     private sealed class ZoneMonsterGroup
@@ -54,19 +55,12 @@ public sealed class MonsterManager : MonoBehaviour
     [SerializeField] private bool showDebugLog = true;
 
     private Monster[] trackedMonsters = Array.Empty<Monster>();
+    private bool lastMonsterDiedNotified;
 
     private void Awake()
     {
         ResolveReferences();
         RefreshMonsterList();
-    }
-
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Alpha9))
-        {
-            DebugKillCurrentZoneMonsters();
-        }
     }
 
     private void OnDestroy()
@@ -130,6 +124,7 @@ public sealed class MonsterManager : MonoBehaviour
     /// </summary>
     public void RespawnZone(ZoneId zoneId)
     {
+        lastMonsterDiedNotified = false;
         SetOnlyZoneActive(zoneId);
         Monster[] monsters = GetMonstersForZone(zoneId);
         for (int i = 0; i < monsters.Length; i++)
@@ -283,6 +278,7 @@ public sealed class MonsterManager : MonoBehaviour
 
     private void RefreshMonsterList()
     {
+        lastMonsterDiedNotified = false;
         UnregisterMonsterEvents();
         EnsureZoneGroups();
 
@@ -337,6 +333,7 @@ public sealed class MonsterManager : MonoBehaviour
         }
 
         NotifyClearedIfNoLivingMonsters(zoneId);
+        NotifyLastMonsterDiedIfNeeded(monster);
     }
 
     private void NotifyClearedIfNoLivingMonsters(ZoneId zoneId)
@@ -479,6 +476,38 @@ public sealed class MonsterManager : MonoBehaviour
         }
 
         return count;
+    }
+
+    private int CountAllLivingMonsters()
+    {
+        RefreshMonsterListIfEmpty();
+        int count = 0;
+        if (trackedMonsters == null)
+        {
+            return count;
+        }
+
+        for (int i = 0; i < trackedMonsters.Length; i++)
+        {
+            Monster monster = trackedMonsters[i];
+            if (monster != null && !monster.IsDead)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private void NotifyLastMonsterDiedIfNeeded(Monster monster)
+    {
+        if (lastMonsterDiedNotified || CountAllLivingMonsters() > 0)
+        {
+            return;
+        }
+
+        lastMonsterDiedNotified = true;
+        LastMonsterDied?.Invoke(monster);
     }
 
     private void UpdateReadouts()

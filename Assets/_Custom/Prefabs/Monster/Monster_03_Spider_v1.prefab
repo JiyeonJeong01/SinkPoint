@@ -350,18 +350,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 1987638941038348810}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 7611854087589987575}
   totalLegs:
@@ -373,10 +373,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &1672351343231365766
 GameObject:
@@ -619,18 +619,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 7658586898950625620}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 3745307482084040826}
   totalLegs:
@@ -642,10 +642,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &2115497037815441416
 GameObject:
@@ -919,13 +919,19 @@ GameObject:
   - component: {fileID: -5622917920784568268}
   - component: {fileID: 4116773001939243451}
   - component: {fileID: 7659833324464183627}
+  - component: {fileID: -5484369806747404936}
+  - component: {fileID: 7885915889754411056}
+  - component: {fileID: 4959351788328038994}
+  - component: {fileID: 8580449892667941570}
+  - component: {fileID: 345989468168449663}
+  - component: {fileID: 299279019949729095}
   m_Layer: 0
   m_Name: Monster_03_Spider_v1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &7988672357365409555
 Transform:
   m_ObjectHideFlags: 0
@@ -987,9 +993,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70b34ed5df3948748b26c0d5eb91372d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealth
-  maxHealth: 30
+  maxHealth: 35
   destroyOnDeath: 0
-  currentHealth: 0
+  currentHealth: 35
   dead: 0
 --- !u!114 &1932961232513188371
 MonoBehaviour:
@@ -1114,6 +1120,8 @@ MonoBehaviour:
   route: {fileID: 0}
   routes:
   - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   advanceRouteOnEnable: 1
   routeIndexOffset: 0
   advanceToNextRouteAfterLoop: 1
@@ -1152,6 +1160,7 @@ MonoBehaviour:
   navTarget: {fileID: 7652034834805705567}
   stateMachine: {fileID: 1503581176762907530}
   routeMover: {fileID: 4062740330282539956}
+  audioFeedback: {fileID: 0}
   playerTag: Player
   sprayVfxObject: {fileID: 4206403690262442468}
   streamTransform: {fileID: 4004590380683603028}
@@ -1167,7 +1176,7 @@ MonoBehaviour:
   secondLungeChance: 0.35
   secondLungeDelay: 0.12
   applyDirectMeleeDamage: 0
-  meleeDamage: 1
+  meleeDamage: 6
   directMeleeDamageRadius: 1.2
   sprayMinDistance: 2
   sprayMaxDistance: 9
@@ -1176,8 +1185,8 @@ MonoBehaviour:
   sprayDuration: 0.2
   sprayNearRoutePauseEnd: 1
   sprayBeforeRouteResumeSeconds: 0.3
-  sprayHitChance: 0.33
-  sprayDamage: 1
+  sprayHitChance: 0.7
+  sprayDamage: 5
   faceTargetDuration: 0.08
   scaleStreamZ: 1
   sprayAimAxis: 0
@@ -1274,6 +1283,462 @@ MonoBehaviour:
   - {fileID: 7694927675607441549}
   includeInactiveRenderers: 1
   showDebugLog: 1
+--- !u!82 &-5484369806747404936
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2666830070945471153}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 1
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 22
+  Pan2D: 0
+  rolloffMode: 1
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!82 &7885915889754411056
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2666830070945471153}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 22
+  Pan2D: 0
+  rolloffMode: 1
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &4959351788328038994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2666830070945471153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c43ce292327393b4bbb22c56d01aeb35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterAudioFeedback
+  profile: 2
+  movementTarget: {fileID: 7652034834805705567}
+  movementLoopSource: {fileID: 8580449892667941570}
+  oneShotSource: {fileID: 345989468168449663}
+  movementLoopClip: {fileID: 8300000, guid: ebb6eed36a2b6e0448996cef3841feb2, type: 3}
+  bodySlamClip: {fileID: 8300000, guid: 09a9747c6d9a7824eaa6da29aa4860d7, type: 3}
+  rangedAttackClip: {fileID: 8300000, guid: 09a9747c6d9a7824eaa6da29aa4860d7, type: 3}
+  burrowClip: {fileID: 0}
+  emergeAttackClip: {fileID: 0}
+  chaseStartClip: {fileID: 0}
+  deathClip: {fileID: 8300000, guid: a742bcec7eb41834ea7af30bb4b30db6, type: 3}
+  randomAliveClip: {fileID: 8300000, guid: 92a79d18abe1376439d43b47778ea771, type: 3}
+  movingSpeedThreshold: 0.05
+  movementStopGraceSeconds: 0.45
+  movementVolume: 0.45
+  oneShotVolume: 0.8
+  bodySlamVolumeMultiplier: 1
+  rangedAttackVolumeMultiplier: 1
+  burrowVolumeMultiplier: 1
+  emergeAttackVolumeMultiplier: 1
+  chaseStartVolumeMultiplier: 1
+  deathVolumeMultiplier: 1.5
+  randomAliveVolumeMultiplier: 1
+  randomIntervalMin: 5
+  randomIntervalMax: 9
+  spatialBlend: 0.75
+  maxDistance: 40
+  isMovementLoopPlaying: 0
+  lastMoveSpeed: 0
+  randomSoundRemaining: 0
+--- !u!82 &8580449892667941570
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2666830070945471153}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 1
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 22
+  Pan2D: 0
+  rolloffMode: 1
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!82 &345989468168449663
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2666830070945471153}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 22
+  Pan2D: 0
+  rolloffMode: 1
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &299279019949729095
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2666830070945471153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89d2c647951c28740a4f5e482ffbb8eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterHitFlash
+  monsterHealth: {fileID: 9061432815590820470}
+  renderers:
+  - {fileID: 7291472534197774913}
+  - {fileID: 7180819622668627778}
+  - {fileID: 3836801230705967546}
+  - {fileID: 7829861248886744171}
+  - {fileID: 5838600649262121149}
+  - {fileID: 8990613857984616148}
+  - {fileID: 501871906654666698}
+  - {fileID: 7694927675607441549}
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashDuration: 0.12
+  includeInactiveRenderers: 1
+  showDebugLog: 0
 --- !u!1 &2750262938228583184
 GameObject:
   m_ObjectHideFlags: 0
@@ -1610,18 +2075,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 4914006925675118378}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 3521655141802630881}
   totalLegs:
@@ -1633,10 +2098,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &4446706015448724238
 GameObject:
@@ -2050,18 +2515,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 2521217065581385482}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 1489465120462683149}
   totalLegs:
@@ -2073,10 +2538,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &5561165096230392416
 GameObject:
@@ -2168,6 +2633,7 @@ Transform:
   - {fileID: 7993279100484756251}
   - {fileID: 7201313690263599547}
   - {fileID: 7514217818436487696}
+  - {fileID: 7032290560675596783}
   m_Father: {fileID: 5365594068688003661}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &199010686094320415
@@ -2271,12 +2737,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5791455944168183228}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.64, z: -5.77}
-  m_LocalScale: {x: 3.927094, y: 3.5291464, z: 8.1841}
+  m_LocalRotation: {x: 0.000000075497894, y: -1, z: -0.000000037748958, w: 0.000000075497894}
+  m_LocalPosition: {x: 0, y: 0.63999903, z: 1.7700027}
+  m_LocalScale: {x: 6.273923, y: 5.691452, z: 8.184097}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7652034834805705567}
+  m_Father: {fileID: 6473314296490056777}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &8284458962275396904
 BoxCollider:
@@ -2367,18 +2833,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 6219144637088719386}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 6135518194110728331}
   totalLegs:
@@ -2390,10 +2856,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &6113686166584165304
 GameObject:
@@ -2522,7 +2988,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8432794431491316702}
-  - {fileID: 7032290560675596783}
   m_Father: {fileID: 7988672357365409555}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!135 &3311673760947572882
@@ -2754,18 +3219,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 6779549687711734154}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 9212896780929322471}
   totalLegs:
@@ -2777,10 +3242,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &7343748950122978835
 GameObject:
@@ -3006,18 +3471,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 3483129911142830410}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 3127
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 5673931140947645962}
   totalLegs:
@@ -3029,10 +3494,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &8082481518579952745
 GameObject:
@@ -3133,18 +3598,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IKSolver: {fileID: 0}
-  maxDistance: 4
+  maxDistance: 1.35
   maxRayDistance: 100
   groundOffset: 6
-  offsetByVelocity: 15
+  offsetByVelocity: 4
   nextFootTarget: {fileID: 5108304003553363681}
   currentTarget: {fileID: 0}
   root: {fileID: 6473314296490056777}
   layerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  speed: 20
-  groundSnap: 1
+  speed: 25
+  groundSnap: 1.5
   grounded: 1
   oppositeLeg: {fileID: 239362930076011505}
   totalLegs:
@@ -3156,10 +3621,10 @@ MonoBehaviour:
   - {fileID: 6135518194110728331}
   - {fileID: 3745307482084040826}
   - {fileID: 7611854087589987575}
-  minLegsGrounded: 5
-  failDistance: 0
+  minLegsGrounded: 3
+  failDistance: 3
   legLift: 1.9
-  distanceToLiftLeg: 2
+  distanceToLiftLeg: 3.5
   paused: 0
 --- !u!1 &8332399033802849441
 GameObject:
@@ -3306,7 +3771,7 @@ PrefabInstance:
     - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: followTarget
       value: 
-      objectReference: {fileID: 7652034834805705567}
+      objectReference: {fileID: 6473314296490056777}
     - target: {fileID: 5911633101328018959, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: worldOffset.y
       value: 3
@@ -3409,11 +3874,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8837986324319991134, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8837986324319991134, guid: 45006c67fdca59e4c908892e76dcf38e, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
