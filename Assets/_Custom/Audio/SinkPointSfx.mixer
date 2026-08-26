@@ -30,7 +30,6 @@ AudioMixerGroupController:
   m_Send: 00000000000000000000000000000000
   m_Effects:
   - {fileID: 4019703786080668343}
-  - {fileID: -1719647303727259530}
   - {fileID: -8116535806003638768}
   m_UserColorIndex: 0
   m_Mute: 0
@@ -69,20 +68,6 @@ AudioMixerEffectController:
   m_SendTarget: {fileID: 0}
   m_EnableWetMix: 0
   m_Bypass: 0
---- !u!244 &-1719647303727259530
-AudioMixerEffectController:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_EffectID: 799d6defbfd644c4fa3cb9294be93ff8
-  m_EffectName: Reverb
-  m_MixLevel: 00000000000000000000000000000000
-  m_Parameters: []
-  m_SendTarget: {fileID: 0}
-  m_EnableWetMix: 0
-  m_Bypass: 0
 --- !u!241 &24100000
 AudioMixerController:
   m_ObjectHideFlags: 0
@@ -100,9 +85,14 @@ AudioMixerController:
   m_EnableSuspend: 1
   m_UpdateMode: 0
   m_ExposedParameters: []
-  m_AudioMixerGroupViews: []
+  m_AudioMixerGroupViews:
+  - guids:
+    - 8dd9d5850897c464d8fe9954f80b86e2
+    - 5846e51e2f614e443842e7494c8212db
+    - 94188fdb6a8094b4085bd888a362d6b8
+    name: View
   m_CurrentViewIndex: 0
-  m_TargetSnapshot: {fileID: 24500006}
+  m_TargetSnapshot: {fileID: 1599786362642348863}
 --- !u!243 &24300002
 AudioMixerGroupController:
   m_ObjectHideFlags: 0

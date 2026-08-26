@@ -142,7 +142,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: af0fc1d029f871b41ac08cd31b34ba58, type: 3}
     m_FontSize: 23
     m_FontStyle: 1
     m_BestFit: 0
@@ -342,7 +342,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: af0fc1d029f871b41ac08cd31b34ba58, type: 3}
     m_FontSize: 23
     m_FontStyle: 1
     m_BestFit: 0
@@ -542,7 +542,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: af0fc1d029f871b41ac08cd31b34ba58, type: 3}
     m_FontSize: 34
     m_FontStyle: 1
     m_BestFit: 0
@@ -675,6 +675,13 @@ MonoBehaviour:
   mainTitleButton: {fileID: 5154247526073635457}
   exitButton: {fileID: 1488506437441536697}
   playerInput: {fileID: 0}
+  buttonClickSound: {fileID: 8300000, guid: 9c46d51637e534442abd180345f84948, type: 3}
+  buttonAudioSource: {fileID: 0}
+  buttonClickVolume: 0.8
+  hoverScale: 1.08
+  pressedScale: 0.94
+  buttonTweenDuration: 0.12
+  buttonEase: 9
 --- !u!1 &7825858430562095968
 GameObject:
   m_ObjectHideFlags: 0

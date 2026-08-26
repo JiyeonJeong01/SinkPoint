@@ -673,7 +673,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         if (gravityWarningText != null)
         {
-            gravityWarningText.text = $"GRAVITY SHIFT → {FormatAxis(nextDirection)}";
+            gravityWarningText.text = "중력 방향 전환";
         }
 
         SetGravityWarningVisible(true);
@@ -692,7 +692,7 @@ public sealed class InGameHudCanvas : MonoBehaviour
 
         if (gravityWarningText != null)
         {
-            gravityWarningText.text = $"GRAVITY SHIFT → {FormatAxis(direction)}";
+            gravityWarningText.text = "중력 방향 전환";
         }
 
         gravityChangeFeedbackVisible = true;
