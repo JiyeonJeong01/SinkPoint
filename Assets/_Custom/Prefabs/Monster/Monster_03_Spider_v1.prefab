@@ -924,7 +924,7 @@ GameObject:
   - component: {fileID: 4959351788328038994}
   - component: {fileID: 8580449892667941570}
   - component: {fileID: 345989468168449663}
-  - component: {fileID: 560307529723686740}
+  - component: {fileID: 299279019949729095}
   m_Layer: 0
   m_Name: Monster_03_Spider_v1
   m_TagString: Untagged
@@ -1176,7 +1176,7 @@ MonoBehaviour:
   secondLungeChance: 0.35
   secondLungeDelay: 0.12
   applyDirectMeleeDamage: 0
-  meleeDamage: 8
+  meleeDamage: 6
   directMeleeDamageRadius: 1.2
   sprayMinDistance: 2
   sprayMaxDistance: 9
@@ -1713,7 +1713,7 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &560307529723686740
+--- !u!114 &299279019949729095
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

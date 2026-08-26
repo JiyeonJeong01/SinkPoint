@@ -3057,7 +3057,7 @@ MonoBehaviour:
   navTarget: {fileID: 0}
   gravityState: {fileID: 0}
   stateMachine: {fileID: 0}
-  moveSpeed: 1.8
+  moveSpeed: 2.6
   rotationSpeed: 360
   stoppingDistance: 0.1
   obstacleMask:
@@ -3109,7 +3109,7 @@ MonoBehaviour:
   - {fileID: 4118537239315772508}
   - {fileID: 749625416466181398}
   overrideSpeed: 1
-  speed: 10
+  speed: 8
   overrideOffsetByVelocity: 0
   offsetByVelocity: 0.1
   overrideMaxRayDistance: 0
