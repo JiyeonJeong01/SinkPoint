@@ -171,14 +171,6 @@ public class GameFlowManager : MonoBehaviour
         }
     }
 
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Alpha0))
-        {
-            DebugOpenCurrentNextBarrier();
-        }
-    }
-
     [Button("Open Current Next Barrier")]
     private void DebugOpenCurrentNextBarrier()
     {

@@ -11964,7 +11964,7 @@ MonoBehaviour:
   profile: 2
   bgmClip: {fileID: 8300000, guid: 3986f616d4af52c44b1a4f3989a2ea57, type: 3}
   audioSource: {fileID: 600397479}
-  volume: 0.55
+  volume: 0.711
   playOnStart: 1
 --- !u!82 &600397481
 AudioSource:
