@@ -2,7 +2,7 @@
 
 > 중력이 뒤틀린 거대 싱크홀의 최하부를 향해 내려가세요.
 
-[![SinkPoint 플레이 영상](https://img.youtube.com/vi/ACLhexzNJnM/hqdefault.jpg)](https://www.youtube.com/watch?v=ACLhexzNJnM)
+![SinkPoint 플레이 화면](Assets/_Custom/Textures/MainTitle.png)
 
 OpenAI Game 2026 출품을 위해 제작한 Unity 기반 3D 액션 어드벤처 게임입니다.
 그래플링 훅을 활용한 이동과 전투, 방향이 변화하는 중력 환경을 결합해 싱크홀 심층부를 탐사하는 경험을 구현했습니다.
@@ -10,6 +10,7 @@ OpenAI Game 2026 출품을 위해 제작한 Unity 기반 3D 액션 어드벤처 
 ##  [**itch io 플레이하기**](YOUR_WEBGL_URL)
 
 ## 게임 소개
+[![SinkPoint 플레이 영상](https://img.youtube.com/vi/ACLhexzNJnM/hqdefault.jpg)](https://www.youtube.com/watch?v=ACLhexzNJnM)
 
 플레이어는 정체불명의 거대 싱크홀 내부로 투입된 조사 요원이 되어, 기이한 동굴 지형을 헤쳐 나가며 중력 이상 현상의 원인을 추적합니다.
 깊이 내려갈수록 중력의 방향은 뒤틀리고, 벽과 천장이 새로운 발판이 됩니다. 그래플링 장비를 활용해 위험한 지형을 돌파하고, 각 구역에 배치된 적대 생명체를 제압하며 싱크홀 최하부의 진실에 도달해야 합니다.
