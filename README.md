@@ -91,20 +91,6 @@ OpenAI Game 2026 출품을 위해 제작한 Unity 기반 3D 액션 어드벤처 
 
 [배포된 WebGL 페이지](https://ziofs1031.itch.io/sink)에 접속하면 별도의 설치 없이 브라우저에서 플레이할 수 있습니다.
 
-### Unity Editor
-
-1. 저장소를 Clone합니다.
-
-   ```bash
-   git clone YOUR_REPOSITORY_URL
-   ```
-
-2. Unity Hub에서 프로젝트 폴더를 추가합니다.
-
-3. Unity 6으로 프로젝트를 엽니다.
-
-4. 시작 씬을 연 뒤 Play 버튼을 눌러 실행합니다.
-
 ## AI 활용
 
 본 프로젝트는 제한된 개발 기간 안에 플레이 가능한 MVP를 완성하기 위해 생성형 AI를 협업 도구로 활용했습니다.
