@@ -7,7 +7,7 @@
 OpenAI Game 2026 출품을 위해 제작한 Unity 기반 3D 액션 어드벤처 게임입니다.
 그래플링 훅을 활용한 이동과 전투, 방향이 변화하는 중력 환경을 결합해 싱크홀 심층부를 탐사하는 경험을 구현했습니다.
 
-##  [**itch io 플레이하기**](YOUR_WEBGL_URL)
+##  [**itch io 플레이하기**](https://ziofs1031.itch.io/sink)
 
 ## 게임 소개
 [![SinkPoint 플레이 영상](https://img.youtube.com/vi/ACLhexzNJnM/hqdefault.jpg)](https://www.youtube.com/watch?v=ACLhexzNJnM)
@@ -89,7 +89,7 @@ OpenAI Game 2026 출품을 위해 제작한 Unity 기반 3D 액션 어드벤처 
 
 ### WebGL 빌드
 
-[배포된 WebGL 페이지](YOUR_WEBGL_URL)에 접속하면 별도의 설치 없이 브라우저에서 플레이할 수 있습니다.
+[배포된 WebGL 페이지](https://ziofs1031.itch.io/sink)에 접속하면 별도의 설치 없이 브라우저에서 플레이할 수 있습니다.
 
 ### Unity Editor
 
